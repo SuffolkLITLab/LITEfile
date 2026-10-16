@@ -146,11 +146,11 @@ class S3UploadHandler:
 
         except ClientError as e:
             error_msg = f"Failed to upload file to S3: {e}"
-            logger.error("Document storage request failed")
+            logger.error(f"Document storage request failed: {e}")
             return {"success": False, "error": error_msg}
         except Exception as e:
             error_msg = f"Unexpected error during S3 upload: {e}"
-            logger.error("Document storage request failed unexpectedly")
+            logger.error(f"Document storage request failed unexpectedly: {e}")
             return {"success": False, "error": error_msg}
 
     def _generate_file_url(self, s3_key, expiration=3600):

@@ -26,8 +26,11 @@ def _run_claim(job_id, claim_token, memory_mb, timeout_seconds):
     os.environ["OMP_NUM_THREADS"] = "1"
     # The deployed worker is Linux. Enforce bounds before loading the PDF;
     # the alarm also bounds an orphaned child if its supervisor is killed.
-    memory_bytes = memory_mb * 1024 * 1024
-    resource.setrlimit(resource.RLIMIT_AS, (memory_bytes, memory_bytes))
+    try:
+        memory_bytes = memory_mb * 1024 * 1024
+        resource.setrlimit(resource.RLIMIT_AS, (memory_bytes, memory_bytes))
+    except ValueError as error:
+        logger.error(f"Setting resource limit failed, but will continue: {error}")
     signal.alarm(timeout_seconds)
     django.setup()
 

@@ -195,7 +195,7 @@ from dotenv import load_dotenv
 load_dotenv('.env')
 endpoint = os.getenv('AWS_S3_ENDPOINT_URL', '')
 bucket = os.getenv('AWS_S3_BUCKET_NAME', '')
-if endpoint and ('localhost' in endpoint or '127.0.0.1' in endpoint) and bucket:
+if endpoint and ('localhost' in endpoint or '127.0.0.1' in endpoint or 'host.docker.internal' in endpoint) and bucket:
     try:
         s3 = boto3.client(
             's3',
@@ -206,6 +206,7 @@ if endpoint and ('localhost' in endpoint or '127.0.0.1' in endpoint) and bucket:
         )
         try:
             s3.head_bucket(Bucket=bucket)
+            print(f'LocalStack S3 bucket {bucket} exists')
         except Exception:
             s3.create_bucket(Bucket=bucket)
             print(f'Created LocalStack S3 bucket: {bucket}')
@@ -311,5 +312,5 @@ log_info "Starting Django development server at http://${HOST}:${PORT}..."
 PYTHONUNBUFFERED=1 uv --directory "$APP_DIR" run python manage.py runserver "${HOST}:${PORT}" &
 
 # Wait for any child job to exit; if any crashes or exits, trigger cleanup
-wait -n || true
+wait || true
 cleanup
