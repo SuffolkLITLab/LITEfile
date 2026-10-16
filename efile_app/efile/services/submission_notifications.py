@@ -10,7 +10,7 @@ from efile.services.fee_quotes import WAIVER_ACCOUNT_TYPE
 from efile.services.filings import court_contact
 from efile.services.waiver_documents import has_waiver_document
 
-PROXY_EMAIL_FIELDS = (
+PROXY_EMAIL_FIELDS_REQUIRED = (
     "email_confirmation_subject",
     "email_confirmation_contents",
     "acceptance_subject",
@@ -20,6 +20,8 @@ PROXY_EMAIL_FIELDS = (
     "neutral_subject",
     "neutral_contents",
 )
+
+PROXY_EMAIL_FIELDS = PROXY_EMAIL_FIELDS_REQUIRED + ("from_email",)
 
 
 def strip_client_email_fields(efile_data):
@@ -37,7 +39,7 @@ def submission_email_fields(request, draft, jurisdiction, config=None):
 
     templates = notification_config.get("templates") or {}
     if not isinstance(templates, dict) or not all(
-        isinstance(templates.get(field), str) and templates[field].strip() for field in PROXY_EMAIL_FIELDS
+        isinstance(templates.get(field), str) and templates[field].strip() for field in PROXY_EMAIL_FIELDS_REQUIRED
     ):
         return {}
 
@@ -50,7 +52,11 @@ def submission_email_fields(request, draft, jurisdiction, config=None):
         "waiver_line": _waiver_line(draft, waiver_url),
     }
     values.update(_conditional_text(notification_config, draft))
-    fields = {field: Template(templates[field]).safe_substitute(values).strip() for field in PROXY_EMAIL_FIELDS}
+    fields = {
+        field: Template(templates[field]).safe_substitute(values).strip() for field in PROXY_EMAIL_FIELDS_REQUIRED
+    }
+    if "from_email" in templates:
+        fields["from_email"] = Template(templates["from_email"]).safe_substitute(values).strip()
     if notification_config.get("format") == "html":
         from efile.services.filing_timing import court_filing_timing
         from efile.services.notification_email_html import render_notification_email
