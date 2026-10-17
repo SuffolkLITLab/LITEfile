@@ -688,8 +688,14 @@
         availability.check();
     }
 
+    const PATH_ERROR = gettext("Choose whether this is a new or existing court case to continue.");
+
     form.querySelectorAll('input[name="existing_case"]').forEach((radio) => {
-        radio.addEventListener("change", updateCasePathSections);
+        radio.addEventListener("change", () => {
+            // Answering the question clears the error that asked for it.
+            if (errorBox.textContent === PATH_ERROR) errorBox.hidden = true;
+            updateCasePathSections();
+        });
     });
     updateCasePathSections();
 
@@ -724,7 +730,7 @@
         if (isExisting()) return;
         if (!chosenPath()) {
             event.preventDefault();
-            errorBox.textContent = gettext("Choose whether this is a new or existing court case to continue.");
+            errorBox.textContent = PATH_ERROR;
             errorBox.hidden = false;
             openPathQuestion("");
             return;
