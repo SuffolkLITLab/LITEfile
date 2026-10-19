@@ -77,6 +77,7 @@ submission_notifications:
   enabled: false  # stay disabled until delivery, copy and sender signoff
   format: html     # choose plain_text for the current SMTP transport
   templates:
+    from_email: "noreply@example.com
     email_confirmation_subject: "Your filing was submitted"
     email_confirmation_contents: |-
       The e-filing system received a filing in your submission.

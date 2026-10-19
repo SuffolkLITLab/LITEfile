@@ -48,12 +48,14 @@ def test_plain_text_fallback_links_to_tracker_and_waiver_source():
     config = deepcopy(config_loader.load_jurisdiction_config("illinois"))
     config["submission_notifications"]["enabled"] = True
     config["submission_notifications"]["format"] = "plain_text"
+    config["submission_notifications"]["templates"]["from_email"] = "noreply@example.com"
     config["fee_waiver"]["source_url"] = "https://example.test/waiver"
 
     fields = submission_email_fields(request, draft, "illinois", config)
     tracker_url = request.build_absolute_uri(reverse("submission_tracker", kwargs={"public_id": PUBLIC_ID}))
 
     assert set(fields) == set(PROXY_EMAIL_FIELDS)
+    assert "noreply@example.com" in fields["from_email"]
     assert tracker_url in fields["email_confirmation_contents"]
     assert "https://example.test/waiver" in fields["email_confirmation_contents"]
     assert "If you requested a fee waiver, check the court’s decision" in fields["email_confirmation_contents"]
@@ -155,6 +157,7 @@ def test_default_templates_are_available_for_another_enabled_jurisdiction():
     draft = fake_draft(selected_payment_account_type="CC", court_code="unknown")
     config = deepcopy(config_loader.load_jurisdiction_config("massachusetts"))
     config["submission_notifications"]["enabled"] = True
+    config["submission_notifications"]["templates"]["from_email"] = "noreply@example.com"
 
     fields = submission_email_fields(request, draft, "massachusetts", config)
 
@@ -205,6 +208,7 @@ def test_forwarded_payload_strips_client_templates_and_preserves_lead_contact(en
     }
     config = deepcopy(config_loader.load_jurisdiction_config("illinois"))
     config["submission_notifications"]["enabled"] = enabled
+    config["submission_notifications"]["templates"]["from_email"] = "noreply@example.com"
     api_response = SimpleNamespace(status_code=201, json=lambda: {"envelopeId": "env-1"})
 
     with (
@@ -259,6 +263,7 @@ def test_notification_config_error_does_not_block_or_retry_filing():
 def test_missing_optional_contacts_and_waiver_url_leave_no_empty_labels():
     config = deepcopy(config_loader.load_jurisdiction_config("massachusetts"))
     config["submission_notifications"]["enabled"] = True
+    config["submission_notifications"]["templates"]["from_email"] = "noreply@example.com"
     config.pop("fee_waiver", None)
     request = RequestFactory().get("/", HTTP_HOST="testserver")
     draft = fake_draft(selected_payment_account_type="WV", court_code="unknown")
