@@ -6,8 +6,13 @@
     const context = JSON.parse(contextEl.textContent);
     const guesses = context.guesses || {};
 
+    // "new", "existing", or "" before the filer has answered.
+    function chosenPath() {
+        return form.querySelector('input[name="existing_case"]:checked')?.value || "";
+    }
+
     function isExisting() {
-        return form.querySelector('input[name="existing_case"]:checked')?.value === "existing";
+        return chosenPath() === "existing";
     }
     const errorBox = document.getElementById("extraction-review-error");
     const acknowledgement = document.getElementById("reviewed_extraction");
@@ -128,6 +133,16 @@
         field.editButton?.addEventListener("click", () => beginEdit(key));
     });
 
+    // Once the page has filled in a choice, the helper's prompt asks the filer
+    // to check it rather than offering to start from nothing.
+    function showPrefilledPrompt() {
+        const prompt = document.getElementById("code-search-prompt");
+        const prefilled = document.getElementById("code-search-prompt-prefilled");
+        if (!prompt || !prefilled) return;
+        prompt.hidden = true;
+        prefilled.hidden = false;
+    }
+
     function setMode(key, mode) {
         const field = fields[key];
         field.mode = mode;
@@ -245,8 +260,7 @@
     }
 
     function existingCaseWire() {
-        const checked = form.querySelector('input[name="existing_case"]:checked');
-        return checked && checked.value === "existing" ? "yes" : "no";
+        return isExisting() ? "yes" : "no";
     }
 
     const LISTS = {
@@ -352,7 +366,10 @@
             field.hint.textContent = field.defaultHint;
             // Only the page's first look folds a match into its summary. After
             // that a field stays the way the filer left it.
-            if (firstLoad) setMode(key, "found");
+            if (firstLoad) {
+                setMode(key, "found");
+                showPrefilledPrompt();
+            }
         } else if (wanted && !firstLoad) {
             // The filer's choice is not on the new list. Said beside the field,
             // naming what went, rather than left to look like it never existed.
@@ -391,7 +408,10 @@
 
     const roleField = document.getElementById("filer-role-field");
     const roleOptions = document.getElementById("filer-role-options");
-    let savedRole = context.filer_role || "";
+    // The side saved on the draft. The server asks for it again whenever the
+    // chosen case type still offers it, so the screen must show it then too.
+    const draftRole = context.filer_role || "";
+    let savedRole = draftRole;
     let roleGeneration = 0;
 
     function chosenRole() {
@@ -441,6 +461,7 @@
             return false;
         }
         courtSelector = selector;
+        if (field.select.value) showPrefilledPrompt();
         // The selector shows the court it settled on, and folds and reopens
         // its own questions with their own Update and Cancel, so the field's
         // found/edit panels have nothing left to say.
@@ -478,14 +499,14 @@
     // -- an eviction is two different filings depending on who is making it --
     // and which ones depends on the case type chosen above, so the question
     // appears and disappears with it.
-    function roleOptionHtml(role) {
-        const hint = role.suggested && !savedRole ?
+    function roleOptionHtml(role, chosen) {
+        const hint = role.suggested && !chosen ?
             ` <em class="filer-role__hint">${gettext("probably you, from the document you uploaded")}</em>` :
             "";
         const description = role.description ? `<small>${escapeHtml(role.description)}</small>` : "";
         return `
       <label>
-        <input type="radio" name="filer_role" value="${escapeHtml(role.id)}"${role.id === savedRole ? " checked" : ""} />
+        <input type="radio" name="filer_role" value="${escapeHtml(role.id)}"${role.id === chosen ? " checked" : ""} />
         <span><strong>${escapeHtml(role.label)}${hint}</strong>${description}</span>
       </label>`;
     }
@@ -517,8 +538,12 @@
             console.warn("Could not load the sides of this case:", error);
         }
         if (token !== roleGeneration) return;
-        roleOptions.innerHTML = roles.map(roleOptionHtml).join("");
-        roleField.hidden = roles.length === 0;
+        // Same rule as the server: ask when a side is suggested or the saved
+        // side is on offer. An answer given here is kept while it is offered.
+        const chosen = roles.some((role) => role.id === savedRole) ? savedRole : "";
+        const needsConfirmation = Boolean(chosen) || roles.some((role) => role.suggested || role.id === draftRole);
+        roleOptions.innerHTML = needsConfirmation ? roles.map((role) => roleOptionHtml(role, chosen)).join("") : "";
+        roleField.hidden = !needsConfirmation;
     }
 
     const ADVANCE = {
@@ -665,8 +690,9 @@
             proposal.disabled = !existing;
         }
         const details = document.getElementById("new-case-details");
-        details.hidden = existing;
-        details.disabled = existing;
+        const isNew = chosenPath() === "new";
+        details.hidden = !isNew;
+        details.disabled = !isNew;
         const parties = document.getElementById("review-parties");
         if (parties) {
             parties.hidden = existing;
@@ -676,8 +702,14 @@
         availability.check();
     }
 
+    const PATH_ERROR = gettext("Choose whether this is a new or existing court case to continue.");
+
     form.querySelectorAll('input[name="existing_case"]').forEach((radio) => {
-        radio.addEventListener("change", updateCasePathSections);
+        radio.addEventListener("change", () => {
+            // Answering the question clears the error that asked for it.
+            if (errorBox.textContent === PATH_ERROR) errorBox.hidden = true;
+            updateCasePathSections();
+        });
     });
     updateCasePathSections();
 
@@ -710,9 +742,15 @@
 
     form.addEventListener("submit", (event) => {
         if (isExisting()) return;
+        if (!chosenPath()) {
+            event.preventDefault();
+            errorBox.textContent = PATH_ERROR;
+            errorBox.hidden = false;
+            openPathQuestion("");
+            return;
+        }
         if (blockUnfinished(event)) return;
-        const isNew = form.querySelector('input[name="existing_case"]:checked')?.value === "new";
-        const missingCase = isNew && (!fields.court.select.value || !fields.case_category.select.value || !fields.case_type.select.value);
+        const missingCase = !fields.court.select.value || !fields.case_category.select.value || !fields.case_type.select.value;
         const missingRole = !roleField.hidden && !chosenRole();
         if (!missingCase && !missingRole) return;
 

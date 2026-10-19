@@ -16,7 +16,7 @@
 {% endblock extra_css %}
 {% block auth_content %}
     <section class="auth-card" aria-labelledby="register-title">
-        <h1 class="page-title" id="register-title">{% translate "Create an eFile account" %}</h1>
+        <h1 class="page-title" id="register-title">{% translate "Create an account" %}</h1>
         <div class="auth-jurisdiction"
              aria-label="{% translate "Registration state" %}">
             <span class="auth-jurisdiction__label">
@@ -43,7 +43,7 @@
         <form id="registrationForm" method="post">
             {% csrf_token %}
             <!-- Your legal name -->
-            <div class="section-title">{% translate "Your legal name" %}</div>
+            <div class="section-title">{% translate "Name" %}</div>
             <div class="row">
                 <div class="col-md-6">
                     {{ form.first_name.label_tag }} {{ form.first_name }}
@@ -59,7 +59,7 @@
                 {% if form.last_name.errors %}<div class="text-danger small">{{ form.last_name.errors }}</div>{% endif %}
             </div>
             <!-- Physical address -->
-            <div class="section-title">{% translate "Physical address" %}</div>
+            <div class="section-title">{% translate "Address" %}</div>
             <div class="mb-3">
                 {{ form.street_address.label_tag }} {{ form.street_address }}
                 {% if form.street_address.errors %}<div class="text-danger small">{{ form.street_address.errors }}</div>{% endif %}

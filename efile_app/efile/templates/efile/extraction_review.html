@@ -59,33 +59,6 @@
                         {% translate "We read only part of this Word file. Add any missing details below." %}
                     </p>
                 {% endif %}
-                {% if needs_acknowledgement %}
-                    <div class="extraction-acknowledgment{% if acknowledgement_error %} extraction-acknowledgment--invalid{% endif %}"
-                         id="extraction-acknowledgment">
-                        <label>
-                            <input type="checkbox"
-                                   class="form-check-input"
-                                   name="reviewed_extraction"
-                                   id="reviewed_extraction"
-                                   value="yes"
-                                   form="extraction-review-form"
-                                   {% if acknowledgement_error %}aria-invalid="true" aria-describedby="reviewed-extraction-error"{% endif %}
-                                   {% if reviewed_extraction %}checked{% endif %}
-                                   required />
-                            <span>{% translate "I checked these details against my document." %}</span>
-                        </label>
-                        {% comment %}
-                    The checkbox only points at this while it is showing: a hidden
-                    element named by aria-describedby is still read out. Focusing
-                    the checkbox is what announces it.
-                        {% endcomment %}
-                        <p class="field-error"
-                           id="reviewed-extraction-error"
-                           {% if not acknowledgement_error %}hidden{% endif %}>
-                            {% translate "Check these details against your document, then check the box." %}
-                        </p>
-                    </div>
-                {% endif %}
             </section>
         {% else %}
             <h1>{% translate "Confirm information" %}</h1>
@@ -111,6 +84,33 @@
         {% for document in documents %}
             {% include "efile/components/document_preview.html" %}
         {% endfor %}
+        {% if needs_acknowledgement %}
+            <div class="extraction-acknowledgment{% if acknowledgement_error %} extraction-acknowledgment--invalid{% endif %}"
+                 id="extraction-acknowledgment">
+                <label>
+                    <input type="checkbox"
+                           class="form-check-input"
+                           name="reviewed_extraction"
+                           id="reviewed_extraction"
+                           value="yes"
+                           form="extraction-review-form"
+                           {% if acknowledgement_error %}aria-invalid="true" aria-describedby="reviewed-extraction-error"{% endif %}
+                           {% if reviewed_extraction %}checked{% endif %}
+                           required />
+                    <span>{% translate "I checked these details against my document." %}</span>
+                </label>
+                {% comment %}
+                    The checkbox only points at this while it is showing: a hidden
+                    element named by aria-describedby is still read out. Focusing
+                    the checkbox is what announces it.
+                {% endcomment %}
+                <p class="field-error"
+                   id="reviewed-extraction-error"
+                   {% if not acknowledgement_error %}hidden{% endif %}>
+                    {% translate "Check these details against your document, then check the box." %}
+                </p>
+            </div>
+        {% endif %}
         <form method="post" id="extraction-review-form">
             {% csrf_token %}
             <input type="hidden"
@@ -403,9 +403,16 @@
             <p id="existing-case-next"
                {% if chosen_existing_case != "existing" %}hidden{% endif %}>{% translate "Next, find your case in the court's records." %}</p>
             <fieldset id="new-case-details"
-                      {% if chosen_existing_case == "existing" %}hidden disabled{% endif %}>
-                <legend class="visually-hidden">{% translate "New case details" %}</legend>
+                      class="new-case-details"
+                      {% if chosen_existing_case != "new" %}hidden disabled{% endif %}>
+                <legend class="new-case-details__heading">{% translate "Tell the court what you're filing" %}</legend>
+                <p class="new-case-details__lede">
+                    {% translate "The court sorts every filing by which court it goes to, what kind of case it is, and what kind of document you're filing." %}
+                </p>
                 {% include "efile/components/filing_code_search.html" %}
+                <p class="new-case-details__or">
+                    <span>{% translate "or choose them yourself" %}</span>
+                </p>
                 <div class="review-grid">
                     <div class="review-field" data-field="court" data-guess-key="court">
                         <span>{{ court_label }}</span>

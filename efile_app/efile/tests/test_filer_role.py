@@ -304,3 +304,61 @@ def test_without_a_side_the_party_type_is_still_guessed_from_posture(signed_in):
     ]
 
     assert guessed_party_type(signed_in, party_types)["code"] == "PL"
+
+
+@pytest.mark.django_db
+def test_no_detected_side_defers_to_the_document_checklist(client, signed_in):
+    response = confirm_filing(client, filing_type_name="Other filing")
+
+    signed_in.refresh_from_db()
+    assert response.status_code == 302
+    assert response.url.partition("?")[0] == CHECKLIST_URL
+    assert signed_in.filer_role == ""
+    page = client.get(response.url)
+    assert page.context["choosing_filer_role"] is True
+
+
+@pytest.mark.django_db
+def test_deferred_side_cannot_accept_an_unoffered_role(client, signed_in):
+    response = confirm_filing(client, filing_type_name="Other filing", filer_role="invalid")
+    assert response.status_code == 200
+    signed_in.refresh_from_db()
+    assert signed_in.filer_role == ""
+
+
+@pytest.mark.django_db
+def test_a_saved_side_still_on_offer_must_be_confirmed(client, signed_in):
+    signed_in.filer_role = "landlord"
+    signed_in.save()
+
+    response = confirm_filing(client, filing_type_name="Other filing")
+
+    assert response.status_code == 200
+    assert "Choose which side of this case you are on" in response.content.decode()
+    signed_in.refresh_from_db()
+    assert signed_in.filer_role == "landlord"
+
+
+@pytest.mark.django_db
+def test_a_side_the_new_case_type_does_not_offer_is_cleared(client, signed_in):
+    signed_in.filer_role = "petitioner"
+    signed_in.save()
+
+    response = confirm_filing(client, filing_type_name="Other filing")
+
+    assert response.status_code == 302
+    signed_in.refresh_from_db()
+    assert signed_in.filer_role == ""
+    assert client.get(response.url).context["choosing_filer_role"] is True
+
+
+@pytest.mark.django_db
+def test_a_review_detour_with_an_unanswered_side_goes_through_the_checklist(client, signed_in):
+    response = confirm_filing(client, filing_type_name="Other filing", return_to="review")
+
+    assert response.status_code == 302
+    path, _, query = response.url.partition("?")
+    assert path == CHECKLIST_URL
+    assert "return_to=review" in query
+    signed_in.refresh_from_db()
+    assert signed_in.current_step == WorkflowStepKey.DOCUMENT_CHECKLIST

@@ -144,55 +144,37 @@
                             </div>
                         </details>
                     {% endif %}
-                    <section class="option-card" aria-labelledby="new-case-heading">
+                    <section class="option-card" aria-labelledby="start-filing-heading">
                         <div class="option-card__header">
                             <div class="option-icon">
                                 <i class="fas fa-file-circle-plus" aria-hidden="true"></i>
                             </div>
                             <div class="option-content">
-                                <h2 id="new-case-heading">{% translate "Start a new case" %}</h2>
-                                <p>{% translate "The court has not given you a case number yet." %}</p>
+                                <h2 id="start-filing-heading">{% translate "Start a new filing" %}</h2>
+                                <p>{% translate "File documents into an existing case or begin a new case." %}</p>
                             </div>
                         </div>
                         <form method="post"
                               class="option-actions"
-                              action="{% url 'start_filing' jurisdiction %}">
+                              action="{% url 'start_filing' jurisdiction %}"
+                              onsubmit="clearFilingBrowserData()">
                             {% csrf_token %}
-                            <input type="hidden" name="existing_case" value="new" />
-                            <button class="btn btn-primary" type="submit">{% translate "Begin" %}</button>
+                            <button class="btn btn-primary" type="submit">{% translate "Start filing" %}</button>
                         </form>
                     </section>
-                    <section class="option-card" aria-labelledby="existing-case-heading">
-                        <div class="option-card__header">
-                            <div class="option-icon">
-                                <i class="fas fa-folder-open" aria-hidden="true"></i>
-                            </div>
-                            <div class="option-content">
-                                <h2 id="existing-case-heading">{% translate "File into an existing case" %}</h2>
-                                <p>{% translate "You have a case number, or the case is already open." %}</p>
-                            </div>
-                        </div>
-                        <form method="post"
-                              class="option-actions"
-                              action="{% url 'start_filing' jurisdiction %}">
-                            {% csrf_token %}
-                            <input type="hidden" name="existing_case" value="existing" />
-                            <button class="btn btn-primary" type="submit">{% translate "Begin" %}</button>
-                        </form>
-                    </section>
-                    <section class="option-card" aria-labelledby="my-cases-heading">
+                    <section class="option-card" aria-labelledby="my-filings-heading">
                         <div class="option-card__header">
                             <div class="option-icon">
                                 <i class="fas fa-file-circle-check" aria-hidden="true"></i>
                             </div>
                             <div class="option-content">
-                                <h2 id="my-cases-heading">{% translate "My cases" %}</h2>
-                                <p>{% translate "Check filing status and get copies of your documents." %}</p>
+                                <h2 id="my-filings-heading">{% translate "My filings" %}</h2>
+                                <p>{% translate "See the status of all documents you have e-filed with the court." %}</p>
                             </div>
                         </div>
                         <div class="option-actions">
                             <a href="{% url 'filing_statuses' jurisdiction %}"
-                               class="btn btn-primary">{% translate "View cases" %}</a>
+                               class="btn btn-primary">{% translate "View filings" %}</a>
                         </div>
                     </section>
                 {% endif %}

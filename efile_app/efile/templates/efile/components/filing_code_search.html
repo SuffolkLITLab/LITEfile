@@ -1,10 +1,18 @@
 {% load i18n %}
 <div class="code-search-invitation">
-    <strong>{% translate "Not sure which code to use?" %}</strong>
+    {% comment %}
+    The court calls these four choices a filing code, but filers never see
+    that word: the prompt names what they get, which is the fields filled in.
+    {% endcomment %}
+    <div class="code-search-invitation__text">
+        <strong id="code-search-prompt">{% translate "Not sure what to choose?" %}</strong>
+        <strong id="code-search-prompt-prefilled" hidden>{% translate "We filled in what we could. Something wrong?" %}</strong>
+        <span>{% translate "Answer a few questions and we'll fill these in for you." %}</span>
+    </div>
     <button type="button"
             class="btn btn-outline-primary"
             id="open-code-search"
-            disabled>{% translate "Find the right filing code" %}</button>
+            disabled>{% translate "Help me choose" %}</button>
 </div>
 {% comment %}
 Three steps, each answering one question: what is being filed (search, ZIP,
@@ -22,7 +30,7 @@ and a last check of the full path before it fills the form.
         <button type="button"
                 class="btn-close"
                 id="close-code-search"
-                aria-label="{% translate 'Close code search' %}"></button>
+                aria-label="{% translate 'Close' %}"></button>
     </div>
     <div class="code-search__body">
         <section id="code-search-step-filing"
@@ -180,6 +188,6 @@ and a last check of the full path before it fills the form.
         <button type="button" class="btn btn-primary" id="code-search-next" disabled>
             {% translate "Next: court and case type" %}
         </button>
-        <button type="button" class="btn btn-primary" id="apply-code-search" hidden>{% translate "Use this filing code" %}</button>
+        <button type="button" class="btn btn-primary" id="apply-code-search" hidden>{% translate "Fill in these answers" %}</button>
     </div>
 </dialog>

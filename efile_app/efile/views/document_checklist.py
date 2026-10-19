@@ -25,6 +25,7 @@ from efile.services.filing_plans import (
     filing_type_for_item,
     grouped_checklist,
     mark_item_have,
+    needs_filer_role,
     set_checklist_answers,
     set_filer_role,
     status_choices,
@@ -217,7 +218,7 @@ def document_checklist(request, jurisdiction):
         # Normally answered on the confirm-filing step. It can still be
         # unanswered here on the existing-case path, where the case type is not
         # known until after the case lookup, so the question has a home here too.
-        "choosing_filer_role": bool(filer_roles) and not draft.filer_role,
+        "choosing_filer_role": needs_filer_role(draft),
         "checklist_groups": grouped_checklist(plan, draft),
         "status_choices": status_choices(),
         "guidance": plan.guidance if plan else {},

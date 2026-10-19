@@ -23,6 +23,7 @@
                 </section>
             {% endif %}
         {% endif %}
+        <p class="workflow-lede">{% translate "Check each section carefully. If you need to make changes, use Edit to go back to the screen where you entered it." %}</p>
         {% include "efile/partials/filing_guidance.html" %}
         {% if extracted_markers.has_any %}
             <div class="extraction-page-help">
@@ -89,8 +90,11 @@
             <section class="review-summary-card review-summary-card--wide">
                 <header>
                     <h2>{% translate "Documents" %}</h2>
-                    <a href="{% url 'organize_documents' jurisdiction %}?return_to=review"
-                       aria-label="{% translate "Edit documents" %}">{% translate "Edit" %}</a>
+                    <details>
+                        <summary>{% translate "Document options" %}</summary>
+                        <a href="{% url 'organize_documents' jurisdiction %}?return_to=review"
+                           aria-label="{% translate "Edit documents" %}">{% translate "Edit" %}</a>
+                    </details>
                 </header>
                 {% include "efile/partials/correction_section_issues.html" with section="documents" %}
                 <div class="review-document-list">

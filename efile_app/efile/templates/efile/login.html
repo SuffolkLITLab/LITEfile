@@ -9,9 +9,9 @@
 {% endblock extra_css %}
 {% block auth_content %}
     <section class="auth-card auth-card--narrow" aria-labelledby="sign-in-title">
-        <h1 id="sign-in-title">{% translate "Sign in to eFile" %}</h1>
+        <h1 id="sign-in-title">{% translate "Sign in" %}</h1>
         <p class="auth-lede">
-            {% blocktranslate with name=config.jurisdiction.display_name %}Use your court e-filing account to file in {{ name }}.{% endblocktranslate %}
+            {% blocktranslate with name=config.jurisdiction.display_name %}If you already have a court e-filing account in {{ name }}, sign in with that account.{% endblocktranslate %}
         </p>
         {% include "efile/components/inline_messages.html" %}
         <form method="post">

@@ -39,10 +39,10 @@ def test_every_signed_in_screen_carries_the_filing_menu(client, user):
 
     content = client.get(OPTIONS_URL).content.decode()
 
-    assert "Start a new case" in content
-    assert "File into an existing case" in content
+    assert "Start filing" in content
+    assert "File into an existing case" not in content
     assert "My draft e-filings" in content
-    assert "My cases" in content
+    assert "My filings" in content
     assert "My filing plans" in content
     assert reverse("my_drafts", kwargs={"jurisdiction": "illinois"}) in content
     assert reverse("filing_statuses", kwargs={"jurisdiction": "illinois"}) in content
@@ -56,7 +56,7 @@ def test_the_menu_is_there_part_way_through_a_filing_too(client, user):
 
     content = client.get(FILING_PATH_URL).content.decode()
 
-    assert "Start a new case" in content
+    assert "Start filing" in content
     assert "My draft e-filings" in content
     assert START_URL in content
 
@@ -89,12 +89,12 @@ def test_starting_a_filing_from_the_menu_knows_which_kind_it_is(client, user, ch
 
 
 @pytest.mark.django_db
-def test_starting_a_filing_without_saying_which_kind_asks(client, user):
+def test_generic_start_defers_the_branch_until_confirm(client, user):
     sign_in(client, user)
 
     response = client.post(START_URL, {})
 
-    assert response.url == f"{FILING_PATH_URL}?draft={FilingDraft.objects.get(user=user).pk}"
+    assert response.url == f"{UPLOAD_URL}?draft={FilingDraft.objects.get(user=user).pk}"
     assert FilingDraft.objects.get(user=user).existing_case == ""
 
 
@@ -114,7 +114,7 @@ def test_starting_a_filing_never_reopens_the_last_one(client, user):
     session[CURRENT_DRAFT_SESSION_KEY] = old.pk
     session.save()
 
-    client.post(START_URL, {"existing_case": "new"})
+    client.post(START_URL, {})
 
     current_id = client.session[CURRENT_DRAFT_SESSION_KEY]
     assert current_id != old.pk

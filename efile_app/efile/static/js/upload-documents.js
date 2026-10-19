@@ -90,10 +90,9 @@
             waitTimerDone = true;
         }, Number(form.dataset.waitSeconds) * 1000);
     }
-    // The "remember this" row is offered only after the filer changes the
-    // setting, and only for the rest of this page load. Until then the account
-    // preference is not this request's business, so it is left out of the post.
-    let rememberOffered = false;
+    // Merely opening preferences never changes the account default. Include
+    // it only after the filer changes an AI setting during this page load.
+    let aiChoiceTouched = false;
 
     function aiIsOff() {
         return Boolean(aiOptOut && aiOptOut.checked);
@@ -119,21 +118,13 @@
         });
     }
 
-    function offerToRemember() {
-        if (!aiRemember || rememberOffered) return;
-        rememberOffered = true;
-        if (window.bootstrap) new window.bootstrap.Collapse(aiRemember, {
-            toggle: false
-        }).show();
-        else aiRemember.classList.add("show");
-    }
 
     async function saveAiPreference() {
         const optedOut = aiOptOut.checked;
         const body = new FormData();
         body.append("action", "ai_preference");
         body.append("ai_opt_out", optedOut ? "yes" : "");
-        if (rememberOffered && aiRememberChoice) {
+        if (aiChoiceTouched && aiRememberChoice) {
             body.append("remember_ai_choice", aiRememberChoice.checked ? "yes" : "no");
         }
         body.append("csrfmiddlewaretoken", apiUtils.getCSRFToken());
@@ -159,12 +150,24 @@
             const optedOut = aiOptOut.checked;
             if (aiNoteOn) aiNoteOn.hidden = optedOut;
             if (aiNoteOff) aiNoteOff.hidden = !optedOut;
-            offerToRemember();
+            aiChoiceTouched = true;
+            if (aiRemember) aiRemember.open = true;
             saveAiPreference();
         });
     }
 
-    if (aiRememberChoice) aiRememberChoice.addEventListener("change", saveAiPreference);
+    // Closing "Replace a document" goes back to adding: a Replace choice the
+    // filer can no longer see must not overwrite one of their documents.
+    const replaceDocument = document.getElementById("replace-document");
+    const replaceDisclosure = document.getElementById("replace-document-disclosure");
+    if (replaceDocument && replaceDisclosure) replaceDisclosure.addEventListener("toggle", () => {
+        if (!replaceDisclosure.open) replaceDocument.value = "";
+    });
+
+    if (aiRememberChoice) aiRememberChoice.addEventListener("change", () => {
+        aiChoiceTouched = true;
+        saveAiPreference();
+    });
 
     function syncFiles() {
         const transfer = new DataTransfer();

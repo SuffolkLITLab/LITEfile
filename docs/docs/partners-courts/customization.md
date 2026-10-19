@@ -66,7 +66,6 @@ putting `text` under a court does not create a court-specific override.
 | `terms.main_document` | main document | No |
 | `organize_documents.main_document_question` | Which PDF is the `{main_document}`? | No |
 | `organize_documents.main_document_help` | Choose the document that starts this filing, like a `{starting_document_example}`. | Yes |
-| `organize_documents.single_document_note` | This is your `{main_document}`. | No |
 | `organize_documents.filing_component_label` | Court filing component | No |
 | `organize_documents.filing_component_help` | The court may call more than one PDF a “Lead Document”. This is separate from your `{main_document}`. | Yes |
 | `organize_documents.filing_component_fixed_note` | Required by the court. | No |

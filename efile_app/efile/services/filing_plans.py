@@ -164,6 +164,12 @@ def filer_roles_for_draft(draft: FilingDraft) -> list[dict[str, Any]]:
     )
 
 
+def needs_filer_role(draft: FilingDraft) -> bool:
+    """Whether this case has sides and the filer has not said which is theirs."""
+
+    return not draft.filer_role and bool(filer_roles_for_draft(draft))
+
+
 def set_filer_role(draft: FilingDraft, filer_role: str) -> bool:
     """Record which side of the case the filer is on, if it is one on offer."""
 

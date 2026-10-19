@@ -1,8 +1,24 @@
 .code-search-invitation {
-    margin-block: 1.5rem;
-    padding: 1.25rem;
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    justify-content: space-between;
+    gap: 0.75rem 1.5rem;
+    margin-top: 1rem;
+    padding: 1rem 1.25rem;
     background: #edf5ff;
+    border: 1px solid #cbdcf1;
     border-radius: 0.75rem;
+}
+
+.code-search-invitation__text {
+    display: flex;
+    flex-direction: column;
+    gap: 0.15rem;
+}
+
+.code-search-invitation__text [hidden] {
+    display: none;
 }
 
 .code-search {

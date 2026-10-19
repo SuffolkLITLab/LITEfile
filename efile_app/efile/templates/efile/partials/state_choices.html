@@ -10,19 +10,24 @@
     <select class="form-select"
             name="state"
             id="id_state"
-            aria-describedby="state-help error_state"
+            aria-describedby="{% if state_source != "efsp" %}state-help {% endif %}error_state"
             {% if required %}required{% endif %}>
         <option value="">{% translate "Select a state or location" %}</option>
         {% if unsupported_state %}<option value="{{ selected_state }}" selected disabled>{{ selected_state }} — {% translate "not accepted by the filing service" %}</option>{% endif %}
         {% for code, label in state_choices %}<option value="{{ code }}" {% if selected_state == code %}selected{% endif %}>{{ label }} ({{ code }})</option>{% endfor %}
     </select>
 {% endif %}
-<span class="form-text" id="state-help">
-    {% if state_source == "efsp" %}
-        {% translate "Only locations accepted by the filing service are listed. If your address is not listed, contact the court for filing instructions. Do not choose a different state." %}
-    {% elif state_source == "usps" %}
-        {% translate "The filing service's location list is unavailable. USPS locations, including territories and military addresses, are shown. The filing service will check whether it accepts your address." %}
-    {% else %}
-        {% translate "The filing service's list of states or provinces is unavailable. Enter your address as written; the filing service will check whether it accepts it." %}
-    {% endif %}
-</span>
+{% comment %}
+The filing service's own list needs no note: only accepted locations can be
+chosen, and an address saved outside it gets an error that says what to do.
+The fallbacks explain why the list looks different.
+{% endcomment %}
+{% if state_source != "efsp" %}
+    <span class="form-text" id="state-help">
+        {% if state_source == "usps" %}
+            {% translate "The filing service's location list is unavailable. USPS locations, including territories and military addresses, are shown. The filing service will check whether it accepts your address." %}
+        {% else %}
+            {% translate "The filing service's list of states or provinces is unavailable. Enter your address as written; the filing service will check whether it accepts it." %}
+        {% endif %}
+    </span>
+{% endif %}

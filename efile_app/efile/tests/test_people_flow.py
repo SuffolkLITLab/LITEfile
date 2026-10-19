@@ -880,3 +880,39 @@ def test_a_party_already_saved_with_the_filers_role_starts_confirmed(client, peo
     confirm = re.search(r'<div class="same-role-confirm[^"]*"\s+id="same-role-confirm"[^>]*>', content)
     assert confirm is not None and "hidden" not in confirm.group()
     assert re.search(r'id="same_role_confirmed"[^>]*checked', content, re.S)
+
+
+@pytest.mark.django_db
+def test_party_details_removes_the_party_and_keeps_the_review_detour(client, people_draft):
+    FilingParty.objects.create(
+        draft=people_draft,
+        role="filer",
+        sort_order=0,
+        party_type="plaintiff",
+        first_name="Jamie",
+        last_name="Rivera",
+        address_line_1="100 State Street",
+        city="Chicago",
+        state="IL",
+        zip_code="60601",
+    )
+    party = FilingParty.objects.create(draft=people_draft, role="other", sort_order=0, first_name="Duplicate")
+    url = reverse("party_details", kwargs={"jurisdiction": "illinois"})
+    parties_url = reverse("parties", kwargs={"jurisdiction": "illinois"})
+
+    with patch("efile.views.party_details.get_party_types", return_value=PARTY_TYPES):
+        page = client.get(f"{url}?party={party.pk}&return_to=review").content.decode()
+    remove_form = re.search(rf'<form method="post" action="{parties_url}">(.*?)</form>', page, re.S)
+    assert remove_form is not None
+    assert 'name="action" value="remove"' in remove_form.group(1)
+    assert f'name="party_id" value="{party.pk}"' in remove_form.group(1)
+    assert 'name="return_to" value="review"' in remove_form.group(1)
+
+    with patch("efile.views.parties.get_party_types", return_value=PARTY_TYPES):
+        response = client.post(parties_url, {"action": "remove", "party_id": party.pk, "return_to": "review"})
+
+    assert response.status_code == 302
+    path, _, query = response.url.partition("?")
+    assert path == parties_url
+    assert "return_to=review" in query
+    assert not FilingParty.objects.filter(pk=party.pk).exists()

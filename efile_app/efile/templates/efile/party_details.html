@@ -258,6 +258,16 @@
                 </button>
             </div>
         </form>
+        <details class="mt-3">
+            <summary>{% translate "More options for this person or organization" %}</summary>
+            <form method="post" action="{% url 'parties' jurisdiction %}">
+                {% csrf_token %}
+                <input type="hidden" name="action" value="remove" />
+                <input type="hidden" name="party_id" value="{{ party.pk }}" />
+                <input type="hidden" name="return_to" value="{{ return_to }}" />
+                <button class="btn btn-link text-danger" type="submit">{% translate "Remove party" %}</button>
+            </form>
+        </details>
         {% if not filer_is_party and claimable %}
             {% comment %}
             Offered for a party the document named as much as for a blank row:

@@ -194,3 +194,49 @@ def test_special_field_appearances_do_not_require_literal_value_text(kind):
         "efile.services.document_preparation.requests.post", return_value=service_response(pdf_bytes("12/34/56"))
     ):
         assert prepare_document(upload(output.getvalue()), "vermont").operation == "flattened"
+
+
+def flattened_with_leftover_widget(field_type, value=None):
+    """Service output that still carries one widget with no appearance."""
+    from pypdf import PdfWriter
+    from pypdf.generic import ArrayObject, DictionaryObject, FloatObject, NameObject, NumberObject, TextStringObject
+
+    writer = PdfWriter(clone_from=PdfReader(io.BytesIO(pdf_bytes("Filled answer"))))
+    widget = DictionaryObject(
+        {
+            NameObject("/Type"): NameObject("/Annot"),
+            NameObject("/Subtype"): NameObject("/Widget"),
+            NameObject("/FT"): NameObject(field_type),
+            NameObject("/T"): TextStringObject("leftover"),
+            NameObject("/F"): NumberObject(4),
+            NameObject("/Rect"): ArrayObject([FloatObject(n) for n in [50, 100, 300, 130]]),
+        }
+    )
+    if value is not None:
+        widget[NameObject("/V")] = NameObject(value)
+    writer.pages[0][NameObject("/Annots")] = ArrayObject([writer._add_object(widget)])
+    output = io.BytesIO()
+    writer.write(output)
+    return output.getvalue()
+
+
+def test_blank_signature_lines_left_by_the_flattener_are_removed():
+    # The flatten engine skips widgets with no appearance, so an unsigned
+    # signature line comes back as a leftover form field that draws nothing.
+    output = flattened_with_leftover_widget("/Sig")
+    with patch("efile.services.document_preparation.requests.post", return_value=service_response(output)):
+        prepared = prepare_document(upload(pdf_bytes(form_value="Filled answer")), "vermont")
+    assert prepared.operation == "flattened"
+    reader = PdfReader(io.BytesIO(prepared.content))
+    assert "/Annots" not in reader.pages[0]
+    assert not reader.get_fields()
+    assert "Filled answer" in reader.pages[0].extract_text()
+
+
+def test_a_leftover_widget_that_still_holds_an_answer_is_rejected():
+    # A checked box that lost its appearance still has an answer; dropping it
+    # would file the form without that answer.
+    output = flattened_with_leftover_widget("/Btn", "/Yes")
+    with patch("efile.services.document_preparation.requests.post", return_value=service_response(output)):
+        with pytest.raises(PreparationError, match="could not prepare this form"):
+            prepare_document(upload(pdf_bytes(form_value="Filled answer")), "vermont")

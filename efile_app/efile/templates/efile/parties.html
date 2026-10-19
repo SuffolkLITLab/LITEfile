@@ -275,17 +275,6 @@
                         {% if item.party.source != "court" %}
                             <a class="btn btn-sm btn-light"
                                href="{% url 'party_details' jurisdiction %}?party={{ item.party.pk }}{% if return_to %}&return_to={{ return_to }}{% endif %}">{% translate "Edit" %}</a>
-                            <form method="post">
-                                {% csrf_token %}
-                                <input type="hidden" name="action" value="remove" />
-                                <input type="hidden" name="party_id" value="{{ item.party.pk }}" />
-                                <input type="hidden" name="return_to" value="{{ return_to }}" />
-                                <button class="btn btn-sm btn-link text-danger"
-                                        type="submit"
-                                        aria-label="{% translate "Remove party" %}">
-                                    <i class="fa-solid fa-trash" aria-hidden="true"></i>
-                                </button>
-                            </form>
                         {% endif %}
                     {% endif %}
                 </article>

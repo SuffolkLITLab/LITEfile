@@ -31,6 +31,7 @@ from efile.services.filing_path import (
     describe_path_change,
     filing_path_conflict,
 )
+from efile.services.filing_plans import needs_filer_role
 from efile.services.filing_type_proposals import current_proposal, save_proposal
 from efile.utils.s3_upload_handler import S3UploadHandler
 from efile.workflow import (
@@ -237,11 +238,11 @@ def extraction_review(request, jurisdiction):
             )
         )
 
-        offered_roles = (
-            {role["id"] for role in _offered_filer_roles(request, jurisdiction)}
-            if existing_case == ExistingCase.NEW
-            else set()
-        )
+        roles = _offered_filer_roles(request, jurisdiction) if existing_case == ExistingCase.NEW else []
+        offered_roles = {role["id"] for role in roles}
+        # Confirm detected roles beside the suggestion. Without a suggestion,
+        # Check documents can ask later if its side-specific plan needs one.
+        role_confirmation_required = any(role["suggested"] for role in roles) or draft.filer_role in offered_roles
         filer_role = request.POST.get("filer_role", "")
 
         if availability_message:
@@ -257,17 +258,19 @@ def extraction_review(request, jurisdiction):
             # a new case can't proceed on free-text guesses -- unlike an existing
             # case, which resolves these from the case lookup step instead.
             messages.error(request, "Choose a court, case category, and case type from the lists to continue.")
-        elif offered_roles and filer_role not in offered_roles:
-            # This case type means two different jobs, and the documents follow
-            # the side rather than the case, so there is nothing to show until
-            # the filer says which side is theirs.
+        elif (role_confirmation_required or filer_role) and filer_role not in offered_roles:
+            # A detected or previously confirmed role must be checked here.
+            # With no suggestion, the checklist can ask for the side later.
             messages.error(request, "Choose which side of this case you are on to continue.")
         elif approval_error := _document_approval_error(draft, request):
             # Last, so the files are only marked checked when the rest of the
             # form is accepted along with them.
             preview_error, status = approval_error
         else:
-            if offered_roles and draft.filer_role != filer_role:
+            # Validated above, so this is an offered side or, when nothing
+            # needed confirming, a blank that drops a side the new case type
+            # no longer has.
+            if existing_case == ExistingCase.NEW and draft.filer_role != filer_role:
                 draft.filer_role = filer_role
                 draft.save(update_fields=["filer_role", "updated_at"])
             # Before the rest is saved: switching kinds of filing clears the
@@ -325,6 +328,13 @@ def extraction_review(request, jurisdiction):
                 if existing_case == ExistingCase.EXISTING and not draft.previous_case_id:
                     write_case_data(draft, {}, current_step=WorkflowStepKey.CASE_LOOKUP)
                     return redirect(with_return_to(get_step_url(WorkflowStepKey.CASE_LOOKUP, jurisdiction), return_to))
+                if needs_filer_role(draft):
+                    # The side was left for the checklist to ask, so the
+                    # detour goes there before returning.
+                    write_case_data(draft, {}, current_step=WorkflowStepKey.DOCUMENT_CHECKLIST)
+                    return redirect(
+                        with_return_to(get_step_url(WorkflowStepKey.DOCUMENT_CHECKLIST, jurisdiction), return_to)
+                    )
                 linear = get_next_step(WorkflowStepKey.EXTRACTION_REVIEW, draft)
                 default_step = linear.key if linear else WorkflowStepKey.REVIEW
                 write_case_data(draft, {}, current_step=continue_step(draft, return_to, default_step))
@@ -360,8 +370,8 @@ def extraction_review(request, jurisdiction):
         "case_type_name": draft.case_type_name or classified("case type", "name"),
         "filing_type_code": (lead.filing_type_code if lead else "") or classified("filing type", "route_key"),
         "filing_type_name": (lead.filing_type_name if lead else "") or classified("filing type", "name"),
-        # Only some case types have sides. The screen asks for one as soon as
-        # the chosen case type turns out to be one of them.
+        # Keep a confirmed side visible; otherwise ask here only when the
+        # filing type suggests one. The checklist handles undecided sides.
         "filer_role": draft.filer_role,
         "zip_shortcuts": _zip_shortcuts(request, draft, jurisdiction),
     }

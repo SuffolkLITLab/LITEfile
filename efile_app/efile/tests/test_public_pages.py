@@ -152,7 +152,7 @@ def test_about_page_carries_filing_menu_when_signed_in(client, django_user_model
 
     assert response.status_code == 200
     content = response.content.decode()
-    assert "Start a new case" in content
+    assert "Start filing" in content
     assert "My draft e-filings" in content
     assert "Illinois e-Filing" in content
 

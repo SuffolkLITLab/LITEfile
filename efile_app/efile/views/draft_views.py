@@ -19,16 +19,10 @@ logger = logging.getLogger(__name__)
 
 @require_http_methods(["POST"])
 def start_filing(request, jurisdiction):
-    """Start a filing from anywhere, already knowing which kind it is.
+    """Start a fresh draft; ordinary starts choose new/existing after upload.
 
-    The navigation menu offers "Start a new case" and "File into an existing
-    case" as two destinations, because that is how filers describe what they
-    are about to do. Both land on the same workflow; naming the path here just
-    saves answering the first question again.
-
-    Starting a filing always makes a new one. Nothing is carried over from the
-    filing the browser was last pointed at, which is the whole point of the
-    menu item: it is how a filer gets out of a draft they no longer want.
+    Explicit paths from older links remain supported. Neither kind of start
+    carries answers over from the draft the user was previously working on.
     """
 
     if not request.user.is_authenticated or not get_tyler_token(request, jurisdiction):
@@ -39,17 +33,17 @@ def start_filing(request, jurisdiction):
     draft = create_current_draft(
         request,
         jurisdiction,
-        current_step=WorkflowStepKey.FILING_PATH,
+        current_step=WorkflowStepKey.UPLOAD_DOCUMENTS,
         workflow_version=2,
     )
     logger.info("Started draft id=%s from the navigation menu (path=%s)", draft.pk, path or "unset")
 
+    # Without an answer, leave it unset until the filer confirms it beside
+    # their document.
     if path in {ExistingCase.NEW, ExistingCase.EXISTING}:
-        write_case_data(draft, {"existing_case": path}, current_step=WorkflowStepKey.UPLOAD_DOCUMENTS)
-        record_filing_path_source(draft, FilingPathSource.START_MENU)
-        return redirect(get_step_url(WorkflowStepKey.UPLOAD_DOCUMENTS, jurisdiction))
-    # No path named (or one we do not recognize): ask, rather than guess.
-    return redirect(get_step_url(WorkflowStepKey.FILING_PATH, jurisdiction))
+        write_case_data(draft, {"existing_case": path})
+    record_filing_path_source(draft, FilingPathSource.START_MENU)
+    return redirect(get_step_url(WorkflowStepKey.UPLOAD_DOCUMENTS, jurisdiction))
 
 
 @require_http_methods(["POST"])

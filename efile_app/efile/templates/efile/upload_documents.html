@@ -7,7 +7,7 @@
 {% endblock title %}
 {% block workflow_content %}
     <section class="workflow-card">
-        <h1>{% translate "Upload your court documents" %}</h1>
+        <h1>{% translate "Upload your documents" %}</h1>
         {% include "efile/partials/filing_guidance.html" %}
         {% if saved_path %}
             <p class="path-summary path-summary--inline">
@@ -48,15 +48,18 @@
               data-wait-seconds="{{ extraction_wait_seconds }}">
             {% csrf_token %}
             {% if documents %}
-                <label for="replace-document">Add or replace a document</label>
-                <select id="replace-document"
-                        name="replace_document_id"
-                        autocomplete="off"
-                        class="form-select mb-3">
-                    <option value="">Add documents</option>
-                    {% for document in documents %}<option value="{{ document.pk }}">Replace {{ document.name }}</option>{% endfor %}
-                </select>
-                <p>To replace a document, select it above and choose one new file. Its filing choices stay saved. Review the new PDF before submitting.</p>
+                <details class="mb-3" id="replace-document-disclosure">
+                    <summary>{% translate "Replace a document" %}</summary>
+                    <label for="replace-document">Add or replace a document</label>
+                    <select id="replace-document"
+                            name="replace_document_id"
+                            autocomplete="off"
+                            class="form-select mb-3">
+                        <option value="">Add documents</option>
+                        {% for document in documents %}<option value="{{ document.pk }}">Replace {{ document.name }}</option>{% endfor %}
+                    </select>
+                    <p>To replace a document, select it above and choose one new file. Its filing choices stay saved. Review the new PDF before submitting.</p>
+                </details>
             {% endif %}
             <div class="drop-zone" id="document-drop-zone">
                 <input id="documents-input"
@@ -66,7 +69,7 @@
                        aria-describedby="upload-requirements upload-preparation"
                        multiple />
                 <span class="drop-zone__icon"><i class="fa-solid fa-cloud-arrow-up" aria-hidden="true"></i></span>
-                <label for="documents-input"><strong>{% translate "Choose files or drag them here" %}</strong></label>
+                <label for="documents-input"><strong>{% translate "Choose PDF or Word files or drag them here" %}</strong></label>
                 <span class="requirements-strip" id="upload-requirements">
                     <span><i class="fa-solid fa-file-pdf" aria-hidden="true"></i> {% translate "PDF or Word (DOC or DOCX)" %}</span>
                     <span><i class="fa-solid fa-weight-hanging" aria-hidden="true"></i> {% translate "10 MB per file" %}</span>
@@ -130,16 +133,16 @@
                             type="button"
                             id="ai-explainer"
                             aria-label="{% translate "How do we use AI? Read our explanation." %}">
-                        {% translate "How do we use AI?" %}
+                        {% translate "Learn more about how we use AI." %}
                     </button>
                 </div>
             </div>
             {% comment %}
-            Offered only once the filer has actually changed the choice above,
-            and only for the rest of that page load: someone who never touches
-            the setting is not asked to make a decision about it.
+            Account preferences are optional secondary controls. Merely opening
+            this disclosure does not change the saved preference.
             {% endcomment %}
-            <div class="collapse ai-remember" id="ai-remember">
+            <details class="ai-remember" id="ai-remember">
+                <summary>{% translate "AI preferences for future filings" %}</summary>
                 <div class="form-check">
                     <input class="form-check-input"
                            type="checkbox"
@@ -150,7 +153,7 @@
                         {% translate "Remember this choice and use it for all my future filings" %}
                     </label>
                 </div>
-            </div>
+            </details>
             {% comment %}
             Both states of the choice are written here so each one is a
             translated string rather than something JavaScript assembles. The

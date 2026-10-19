@@ -176,18 +176,18 @@
                 }
             }).catch(error => {
                 if (error.name === "AbortError") throw error;
-                const unavailable = new Error(gettext("Code search could not be loaded. Try again shortly."));
+                const unavailable = new Error(gettext("This helper could not be loaded. Try again shortly."));
                 unavailable.retryable = true;
                 throw unavailable;
             });
             if (!response.headers.get("content-type")?.includes("application/json")) {
-                const error = new Error(gettext("Code search could not be loaded. Refresh the page and try again."));
+                const error = new Error(gettext("This helper could not be loaded. Refresh the page and try again."));
                 error.retryable = response.status >= 500;
                 throw error;
             }
             const data = await response.json();
             if (!response.ok) {
-                const error = new Error(data.error || gettext("Code search could not be loaded. Try again."));
+                const error = new Error(data.error || gettext("This helper could not be loaded. Try again."));
                 error.retryable = response.status === 503;
                 throw error;
             }

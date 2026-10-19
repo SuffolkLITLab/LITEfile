@@ -241,13 +241,13 @@ def test_review_screen_credits_the_keyword_search_rather_than_a_reading(client, 
 
 
 @pytest.mark.django_db
-def test_the_remember_row_is_not_offered_until_the_filer_changes_the_setting(client, opted_out_draft):
+def test_saved_ai_preference_is_available_in_a_closed_disclosure(client, opted_out_draft):
     page = client.get(upload_url()).content.decode()
 
-    # It is in the markup, closed: the script opens it on the first change, and
-    # a filer who never touches the setting is never asked about their account.
+    # The optional preference is discoverable without changing the filing choice.
     assert 'id="ai-remember"' in page
-    assert 'class="collapse ai-remember"' in page
+    assert '<details class="ai-remember" id="ai-remember">' in page
+    assert "AI preferences for future filings" in page
     assert "Remember this choice" in page
     assert 'id="ai-remember-choice" />' in page
 

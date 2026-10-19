@@ -20,12 +20,12 @@
         <form id="organize-documents-form">
             {% csrf_token %}
             {% include "efile/components/filing_availability_notice.html" %}
-            <fieldset class="main-document-choice">
-                <legend>{% ui_text "organize_documents.main_document_question" %}</legend>
-                {% if documents|length == 1 %}
-                    <p>{% ui_text "organize_documents.single_document_note" %}</p>
-                    {% for document in documents %}<input type="hidden" name="main_document" value="{{ document.id }}" />{% endfor %}
-                {% else %}
+            {% if documents|length == 1 %}
+                {# Nothing to choose: the document's card already says it is the main document. #}
+                {% for document in documents %}<input type="hidden" name="main_document" value="{{ document.id }}" />{% endfor %}
+            {% else %}
+                <fieldset class="main-document-choice">
+                    <legend>{% ui_text "organize_documents.main_document_question" %}</legend>
                     <p>{% ui_text "organize_documents.main_document_help" %}</p>
                     <div class="compact-choice-list">
                         {% for document in documents %}
@@ -46,8 +46,8 @@
                             </label>
                         {% endfor %}
                     </div>
-                {% endif %}
-            </fieldset>
+                </fieldset>
+            {% endif %}
             <div class="organize-list" id="organize-list">
                 {% for document in documents %}
                     <article class="organize-card"
@@ -60,33 +60,31 @@
                              data-optional-services="{{ document.requested_optional_services|join:',' }}">
                         <header class="organize-card__header">
                             <span class="organize-card__icon"><i class="fa-solid fa-file-pdf" aria-hidden="true"></i></span>
-                            <div>
-                                <span class="organize-card__position">
-                                    {% if document.role == "lead" %}
-                                        {% translate "Main document" %}
-                                    {% else %}
+                            <strong>{{ document.name|default:document.original_filename }}</strong>
+                            <div class="organize-card__meta">
+                                {% if document.role == "lead" %}
+                                    <span class="status-pill status-pill--lead organize-card__position">{% translate "Main document" %}</span>
+                                {% else %}
+                                    <span class="status-pill status-pill--additional organize-card__position">
                                         {% blocktranslate with number=forloop.counter0 %}Additional document {{ number }}{% endblocktranslate %}
-                                    {% endif %}
-                                </span>
-                                <strong>{{ document.name|default:document.original_filename }}</strong>
+                                    </span>
+                                {% endif %}
+                                {% if document.role == "supporting" %}
+                                    <div class="reorder-buttons"
+                                         aria-label="{% translate "Reorder document" %}">
+                                        <button class="btn btn-sm btn-light move-up"
+                                                type="button"
+                                                aria-label="{% translate "Move up" %}">
+                                            <i class="fa-solid fa-arrow-up" aria-hidden="true"></i>
+                                        </button>
+                                        <button class="btn btn-sm btn-light move-down"
+                                                type="button"
+                                                aria-label="{% translate "Move down" %}">
+                                            <i class="fa-solid fa-arrow-down" aria-hidden="true"></i>
+                                        </button>
+                                    </div>
+                                {% endif %}
                             </div>
-                            {% if document.role == "supporting" %}
-                                <div class="reorder-buttons"
-                                     aria-label="{% translate "Reorder document" %}">
-                                    <button class="btn btn-sm btn-light move-up"
-                                            type="button"
-                                            aria-label="{% translate "Move up" %}">
-                                        <i class="fa-solid fa-arrow-up" aria-hidden="true"></i>
-                                    </button>
-                                    <button class="btn btn-sm btn-light move-down"
-                                            type="button"
-                                            aria-label="{% translate "Move down" %}">
-                                        <i class="fa-solid fa-arrow-down" aria-hidden="true"></i>
-                                    </button>
-                                </div>
-                            {% else %}
-                                <span class="status-pill status-pill--lead">{% translate "Main document" %}</span>
-                            {% endif %}
                         </header>
                         <div class="organize-card__fields">
                             <label class="form-field">
@@ -125,10 +123,10 @@
                             </fieldset>
                             <fieldset class="form-field compact-choice-field">
                                 <legend>{% ui_text "organize_documents.filing_component_label" %}</legend>
+                                <small class="form-help">{% ui_text "organize_documents.filing_component_help" %}</small>
                                 <div class="compact-choice-list filing-component-options">
                                     <small>{% ui_text "organize_documents.choose_filing_type_first" %}</small>
                                 </div>
-                                <small>{% ui_text "organize_documents.filing_component_help" %}</small>
                             </fieldset>
                         </div>
                         <details class="certified-copy-details"

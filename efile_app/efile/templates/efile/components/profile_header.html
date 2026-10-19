@@ -38,30 +38,13 @@
                         <div class="dropdown-menu dropdown-menu-end profile-menu"
                              aria-labelledby="filingMenuButton">
                             <p class="profile-menu-label px-3 pt-2">{% translate "Start a filing" %}</p>
-                            {% comment %}
-                            Starting a filing always starts a new one, from any screen. The
-                            browser's saved filing data is cleared first, so a filer who is part
-                            way through something does not carry it into the filing they just
-                            asked for.
-                            {% endcomment %}
                             <form method="post"
                                   action="{% url 'start_filing' jurisdiction %}"
                                   onsubmit="clearFilingBrowserData()">
                                 {% csrf_token %}
-                                <input type="hidden" name="existing_case" value="new" />
                                 <button type="submit" class="dropdown-item">
                                     <i class="fas fa-file-circle-plus" aria-hidden="true"></i>
-                                    <span>{% translate "Start a new case" %}</span>
-                                </button>
-                            </form>
-                            <form method="post"
-                                  action="{% url 'start_filing' jurisdiction %}"
-                                  onsubmit="clearFilingBrowserData()">
-                                {% csrf_token %}
-                                <input type="hidden" name="existing_case" value="existing" />
-                                <button type="submit" class="dropdown-item">
-                                    <i class="fas fa-folder-open" aria-hidden="true"></i>
-                                    <span>{% translate "File into an existing case" %}</span>
+                                    <span>{% translate "Start filing" %}</span>
                                 </button>
                             </form>
                             <div class="dropdown-divider"></div>
@@ -72,7 +55,7 @@
                             </a>
                             <a class="dropdown-item" href="{% url 'filing_statuses' jurisdiction %}">
                                 <i class="fas fa-file-circle-check" aria-hidden="true"></i>
-                                <span>{% translate "My cases" %}</span>
+                                <span>{% translate "My filings" %}</span>
                             </a>
                             <a class="dropdown-item" href="{% url 'filing_plans' jurisdiction %}">
                                 <i class="fas fa-list-check" aria-hidden="true"></i>

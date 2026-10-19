@@ -209,6 +209,7 @@
     justify-content: center;
     min-height: 190px;
     padding: 2rem;
+    position: relative;
     text-align: center;
 }
 
@@ -430,6 +431,11 @@
 .status-pill--lead {
     background: var(--surface-accent);
     color: var(--better-blue);
+}
+
+.status-pill--additional {
+    background: var(--border-subtle);
+    color: var(--text-muted);
 }
 
 .document-list__empty {
@@ -1097,14 +1103,21 @@
     padding: 1rem;
 }
 
+/* Floated so the legend sits inside the box instead of on its border. */
 .main-document-choice legend,
 .primary-question legend {
     color: var(--text-heading);
-    float: none;
+    float: left;
     font-size: 1.05rem;
     font-weight: 750;
     margin: 0;
-    width: auto;
+    padding: 0;
+    width: 100%;
+}
+
+.main-document-choice legend+*,
+.primary-question legend+* {
+    clear: both;
 }
 
 .main-document-choice>p,
@@ -1139,17 +1152,21 @@
     font-size: 1.4rem;
 }
 
-.organize-card__header strong,
-.organize-card__position {
+.organize-card__header strong {
     display: block;
 }
 
+/* The document's place in the filing, with any reorder buttons beside it. */
+.organize-card__meta {
+    align-items: center;
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.5rem;
+    justify-content: flex-end;
+}
+
 .organize-card__position {
-    color: var(--text-muted);
-    font-size: 0.78rem;
-    font-weight: 700;
-    letter-spacing: 0.03em;
-    text-transform: uppercase;
+    white-space: nowrap;
 }
 
 .organize-card__fields {
@@ -1205,6 +1222,12 @@
     font-weight: 700;
     margin-bottom: 0.35rem;
     width: auto;
+}
+
+/* Each choice explains itself between its question and its options, so the
+   explanations line up across the two columns. */
+.compact-choice-field .form-help {
+    margin: 0 0 0.6rem;
 }
 
 .form-help {
@@ -1574,6 +1597,15 @@
 
     .organize-card__fields {
         grid-template-columns: 1fr;
+    }
+
+    .organize-card__header {
+        grid-template-columns: auto 1fr;
+    }
+
+    .organize-card__meta {
+        grid-column: 1 / -1;
+        justify-content: space-between;
     }
 
     .people-grid,
@@ -1996,6 +2028,49 @@
     margin: 0;
 }
 
+/* The court, case and filing type, set apart as one task with two routes:
+   the guided helper, or choosing each field directly. */
+.new-case-details {
+    background: var(--surface-subtle);
+    border: 1px solid var(--border-default);
+    border-radius: 12px;
+    margin-top: 1.5rem;
+    padding: 1.25rem;
+}
+
+.new-case-details__or {
+    align-items: center;
+    color: var(--text-muted);
+    display: flex;
+    font-size: 0.92rem;
+    gap: 0.75rem;
+    margin: 1rem 0;
+}
+
+.new-case-details__or::before,
+.new-case-details__or::after {
+    border-top: 1px solid var(--border-default);
+    content: "";
+    flex: 1;
+}
+
+/* Floated so the legend sits inside the card instead of on its border. */
+.new-case-details__heading {
+    color: var(--text-heading);
+    float: left;
+    font-size: 1.05rem;
+    font-weight: 750;
+    margin-bottom: 0.4rem;
+    padding: 0;
+    width: 100%;
+}
+
+.new-case-details__lede {
+    clear: both;
+    color: var(--text-muted);
+    margin-bottom: 0;
+}
+
 /* New or existing case, first among the filing details. */
 .path-section {
     margin-bottom: 1.5rem;
@@ -2030,4 +2105,12 @@
 .drop-zone label {
     cursor: pointer;
     width: 100%;
+}
+
+/* Stretch the label over the whole drop zone so a click anywhere in it opens
+   the file picker, while the label text stays the input's accessible name. */
+.drop-zone label::after {
+    content: "";
+    inset: 0;
+    position: absolute;
 }

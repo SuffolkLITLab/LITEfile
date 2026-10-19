@@ -1,13 +1,11 @@
 """The new-or-existing-case answer: where it came from, and changing it.
 
-A filer can say which kind of filing this is in three places -- the start
-menu's "Start a new case" / "File into an existing case", a filing plan, or the
-"What are you trying to do?" question -- and can correct it on Confirm case
-once their documents have been read. Two things follow from that:
+Ordinary starts upload first and choose new/existing on Confirm information.
+Older explicit-path starts, filing plans and the standalone correction question
+remain supported.
 
-* Back and the progress steps should follow the way the filer actually came
-  in. Someone who chose from the start menu never saw the question, and Back
-  from Upload should not introduce it as if they had.
+* Back follows the way the filer came in. Generic starts and explicit menu
+  starts return from Upload to Home, without introducing an unseen question.
 * Changing the answer is more than one field. The same draft and the same
   PDFs carry on, but what was chosen for the other kind of filing -- the
   court's filing types differ between opening a case and filing into one, an

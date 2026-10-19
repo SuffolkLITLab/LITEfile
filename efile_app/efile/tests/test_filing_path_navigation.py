@@ -220,7 +220,7 @@ def test_upload_shows_the_saved_answer_with_a_change_link(signed_in):
 
     content = signed_in.get(UPLOAD_URL).content.decode()
 
-    assert "Start a new case" in content
+    assert "Starting a new case" in content
     assert f'href="{FILING_PATH_URL}' in content
     assert "Change whether this is a new or existing case" in content
 
@@ -435,3 +435,17 @@ def test_new_or_existing_comes_before_the_case_fields_with_the_case_number_besid
     fields = content.index('class="review-grid"')
     category = content.index('id="case_category_code"')
     assert section < question < case_number < fields < category
+
+
+@pytest.mark.django_db
+def test_generic_start_keeps_back_at_home_and_branch_unset(signed_in):
+    response = signed_in.post(START_URL, {})
+    draft = FilingDraft.objects.latest("pk")
+    assert response.url.partition("?")[0] == UPLOAD_URL
+    assert draft.existing_case == ""
+    assert back_link(signed_in.get(response.url).content.decode()) == OPTIONS_URL
+    assert WorkflowStepKey.FILING_PATH not in [step.key for step in get_visible_workflow(draft)]
+    reviewed_document(draft=draft, role=FilingDocument.Role.LEAD, name="document.pdf")
+    confirm_page = signed_in.get(CONFIRM_URL)
+    assert confirm_page.context["path_question_open"]
+    assert confirm_page.context["chosen_existing_case"] == ""
