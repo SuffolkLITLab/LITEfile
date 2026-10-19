@@ -128,9 +128,6 @@ UI_STRINGS: dict[str, UIString] = {
         description="Names the kind of document that opens a case, which differs by state.",
         links=True,
     ),
-    "organize_documents.single_document_note": UIString(
-        default="This is your {main_document}.",
-    ),
     "organize_documents.filing_component_label": UIString(
         default="Court filing component",
         description=(

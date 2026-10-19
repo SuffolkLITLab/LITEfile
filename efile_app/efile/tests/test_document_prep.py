@@ -223,7 +223,7 @@ def test_organize_shows_no_radio_choice_for_a_single_document(client, document_d
 
     assert response.status_code == 200
     content = response.content.decode()
-    assert "This is your main document." in content
+    assert "main-document-choice" not in content
     assert 'type="radio"' not in content
     assert f'name="main_document" value="{lead.pk}"' in content
 

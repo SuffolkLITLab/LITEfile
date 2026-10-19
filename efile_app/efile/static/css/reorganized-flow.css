@@ -433,6 +433,11 @@
     color: var(--better-blue);
 }
 
+.status-pill--additional {
+    background: var(--border-subtle);
+    color: var(--text-muted);
+}
+
 .document-list__empty {
     border: 1px solid var(--border-default);
     border-radius: 10px;
@@ -1098,14 +1103,21 @@
     padding: 1rem;
 }
 
+/* Floated so the legend sits inside the box instead of on its border. */
 .main-document-choice legend,
 .primary-question legend {
     color: var(--text-heading);
-    float: none;
+    float: left;
     font-size: 1.05rem;
     font-weight: 750;
     margin: 0;
-    width: auto;
+    padding: 0;
+    width: 100%;
+}
+
+.main-document-choice legend+*,
+.primary-question legend+* {
+    clear: both;
 }
 
 .main-document-choice>p,
@@ -1140,17 +1152,21 @@
     font-size: 1.4rem;
 }
 
-.organize-card__header strong,
-.organize-card__position {
+.organize-card__header strong {
     display: block;
 }
 
+/* The document's place in the filing, with any reorder buttons beside it. */
+.organize-card__meta {
+    align-items: center;
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.5rem;
+    justify-content: flex-end;
+}
+
 .organize-card__position {
-    color: var(--text-muted);
-    font-size: 0.78rem;
-    font-weight: 700;
-    letter-spacing: 0.03em;
-    text-transform: uppercase;
+    white-space: nowrap;
 }
 
 .organize-card__fields {
@@ -1206,6 +1222,12 @@
     font-weight: 700;
     margin-bottom: 0.35rem;
     width: auto;
+}
+
+/* Each choice explains itself between its question and its options, so the
+   explanations line up across the two columns. */
+.compact-choice-field .form-help {
+    margin: 0 0 0.6rem;
 }
 
 .form-help {
@@ -1575,6 +1597,15 @@
 
     .organize-card__fields {
         grid-template-columns: 1fr;
+    }
+
+    .organize-card__header {
+        grid-template-columns: auto 1fr;
+    }
+
+    .organize-card__meta {
+        grid-column: 1 / -1;
+        justify-content: space-between;
     }
 
     .people-grid,
