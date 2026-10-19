@@ -163,18 +163,28 @@ def _repair_text_appearances(content, source, widgets):
         ) from error
 
 
-def _draws_nothing(widget):
+def _blank_and_undrawn(widget):
+    """True for a widget with no appearance and no answer, such as an unsigned signature line.
+
+    A missing appearance alone is not enough: a checked box or chosen option
+    can lose its appearance and still hold an answer, and that must not be
+    dropped quietly.
+    """
     appearance = widget.get("/AP")
-    return not appearance or not appearance.get_object().get("/N")
+    if appearance and appearance.get_object().get("/N"):
+        return False
+    field = widget.get("/Parent", widget).get_object()
+    value = widget.get("/V", field.get("/V"))
+    return value is None or str(value) in {"", "/Off"}
 
 
 def _drop_undrawn_widgets(content, reader, widgets):
-    """Remove leftover widgets that have no appearance, such as blank signature lines.
+    """Remove leftover widgets that are blank and have no appearance.
 
     The flatten engine skips widgets with nothing to draw, so they survive as
     form fields. They print as nothing, so removing them changes no page.
     """
-    if not widgets or not all(_draws_nothing(widget) for widget in widgets):
+    if not widgets or not all(_blank_and_undrawn(widget) for widget in widgets):
         return content
     writer = PdfWriter(clone_from=reader)
     for page in writer.pages:
@@ -186,7 +196,7 @@ def _drop_undrawn_widgets(content, reader, widgets):
         kept = [
             ref
             for ref in annotations
-            if not (ref.get_object().get("/Subtype") == "/Widget" and _draws_nothing(ref.get_object()))
+            if not (ref.get_object().get("/Subtype") == "/Widget" and _blank_and_undrawn(ref.get_object()))
         ]
         if kept:
             page[NameObject("/Annots")] = ArrayObject(kept)
