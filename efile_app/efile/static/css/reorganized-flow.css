@@ -209,6 +209,7 @@
     justify-content: center;
     min-height: 190px;
     padding: 2rem;
+    position: relative;
     text-align: center;
 }
 
@@ -2030,4 +2031,12 @@
 .drop-zone label {
     cursor: pointer;
     width: 100%;
+}
+
+/* Stretch the label over the whole drop zone so a click anywhere in it opens
+   the file picker, while the label text stays the input's accessible name. */
+.drop-zone label::after {
+    content: "";
+    inset: 0;
+    position: absolute;
 }
