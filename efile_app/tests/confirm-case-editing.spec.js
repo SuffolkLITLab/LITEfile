@@ -356,11 +356,11 @@ test.describe('filing code search', () => {
     });
     const toCourts = page => button(page, 'Next: court and case type').click();
     const toCheck = page => button(page, 'Next: check and use').click();
-    const useCode = page => button(page, 'Use this filing code').click();
+    const useCode = page => button(page, 'Fill in these answers').click();
 
     async function openSearch(page) {
         await page.getByRole('button', {
-            name: 'Find the right filing code'
+            name: 'Help me choose'
         }).click();
         return page.getByRole('dialog');
     }
@@ -474,7 +474,7 @@ test.describe('filing code search', () => {
         await openSavedDraft(page);
         await openSearch(page);
         await button(page, 'Complaint').click();
-        await expect(page.locator('#code-search-status')).toContainText('Code search could not be loaded');
+        await expect(page.locator('#code-search-status')).toContainText('This helper could not be loaded');
         await searchbox(page).press('Enter');
         await expect(page.getByRole('dialog').getByRole('radio')).toBeVisible();
     });
@@ -513,7 +513,7 @@ test.describe('filing code search', () => {
             const queries = await mockSearch(page);
             await openSavedDraft(page);
             const open = page.getByRole('button', {
-                name: 'Find the right filing code'
+                name: 'Help me choose'
             });
             const dialog = await openSearch(page);
             await expect(searchbox(page)).toBeFocused();
@@ -1360,7 +1360,7 @@ test.describe('filing code search', () => {
         await page.keyboard.press('Escape');
         await expect(page.getByRole('dialog')).not.toBeVisible();
         await expect(page.getByRole('button', {
-            name: 'Find the right filing code'
+            name: 'Help me choose'
         })).toBeFocused();
     });
 

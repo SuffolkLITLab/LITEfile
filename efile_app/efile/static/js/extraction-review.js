@@ -133,6 +133,16 @@
         field.editButton?.addEventListener("click", () => beginEdit(key));
     });
 
+    // Once the page has filled in a choice, the helper's prompt asks the filer
+    // to check it rather than offering to start from nothing.
+    function showPrefilledPrompt() {
+        const prompt = document.getElementById("code-search-prompt");
+        const prefilled = document.getElementById("code-search-prompt-prefilled");
+        if (!prompt || !prefilled) return;
+        prompt.hidden = true;
+        prefilled.hidden = false;
+    }
+
     function setMode(key, mode) {
         const field = fields[key];
         field.mode = mode;
@@ -356,7 +366,10 @@
             field.hint.textContent = field.defaultHint;
             // Only the page's first look folds a match into its summary. After
             // that a field stays the way the filer left it.
-            if (firstLoad) setMode(key, "found");
+            if (firstLoad) {
+                setMode(key, "found");
+                showPrefilledPrompt();
+            }
         } else if (wanted && !firstLoad) {
             // The filer's choice is not on the new list. Said beside the field,
             // naming what went, rather than left to look like it never existed.
@@ -448,6 +461,7 @@
             return false;
         }
         courtSelector = selector;
+        if (field.select.value) showPrefilledPrompt();
         // The selector shows the court it settled on, and folds and reopens
         // its own questions with their own Update and Cancel, so the field's
         // found/edit panels have nothing left to say.

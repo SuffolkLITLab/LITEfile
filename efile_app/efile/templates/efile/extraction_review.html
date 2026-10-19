@@ -403,9 +403,16 @@
             <p id="existing-case-next"
                {% if chosen_existing_case != "existing" %}hidden{% endif %}>{% translate "Next, find your case in the court's records." %}</p>
             <fieldset id="new-case-details"
+                      class="new-case-details"
                       {% if chosen_existing_case != "new" %}hidden disabled{% endif %}>
-                <legend class="visually-hidden">{% translate "New case details" %}</legend>
+                <legend class="new-case-details__heading">{% translate "Tell the court what you're filing" %}</legend>
+                <p class="new-case-details__lede">
+                    {% translate "The court sorts every filing by which court it goes to, what kind of case it is, and what kind of document you're filing." %}
+                </p>
                 {% include "efile/components/filing_code_search.html" %}
+                <p class="new-case-details__or">
+                    <span>{% translate "or choose them yourself" %}</span>
+                </p>
                 <div class="review-grid">
                     <div class="review-field" data-field="court" data-guess-key="court">
                         <span>{{ court_label }}</span>
