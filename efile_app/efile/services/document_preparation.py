@@ -13,7 +13,7 @@ import requests
 from django.conf import settings
 from django.core.files.uploadedfile import SimpleUploadedFile
 from pypdf import PdfReader, PdfWriter
-from pypdf.generic import ArrayObject, DictionaryObject
+from pypdf.generic import ArrayObject, DictionaryObject, NameObject
 
 from efile.utils.config_loader import config_loader
 
@@ -163,6 +163,41 @@ def _repair_text_appearances(content, source, widgets):
         ) from error
 
 
+def _draws_nothing(widget):
+    appearance = widget.get("/AP")
+    return not appearance or not appearance.get_object().get("/N")
+
+
+def _drop_undrawn_widgets(content, reader, widgets):
+    """Remove leftover widgets that have no appearance, such as blank signature lines.
+
+    The flatten engine skips widgets with nothing to draw, so they survive as
+    form fields. They print as nothing, so removing them changes no page.
+    """
+    if not widgets or not all(_draws_nothing(widget) for widget in widgets):
+        return content
+    writer = PdfWriter(clone_from=reader)
+    for page in writer.pages:
+        if "/Annots" not in page:
+            continue
+        annotations = page["/Annots"].get_object()
+        if not isinstance(annotations, ArrayObject):
+            continue
+        kept = [
+            ref
+            for ref in annotations
+            if not (ref.get_object().get("/Subtype") == "/Widget" and _draws_nothing(ref.get_object()))
+        ]
+        if kept:
+            page[NameObject("/Annots")] = ArrayObject(kept)
+        else:
+            del page["/Annots"]
+    writer._root_object.pop("/AcroForm", None)
+    output = io.BytesIO()
+    writer.write(output)
+    return output.getvalue()
+
+
 def _flatten(content):
     source, widgets = inspect_pdf(content)
     if not widgets:
@@ -172,6 +207,7 @@ def _flatten(content):
         raise PreparationError("We cannot prepare this signed PDF. Print it to PDF and upload that copy.")
     content = _repair_text_appearances(content, source, widgets)
     result = _gotenberg(content, ".pdf", "/forms/pdfengines/flatten")
+    result = _drop_undrawn_widgets(result, *inspect_pdf(result))
     output, remaining = inspect_pdf(result)
     if remaining or output.get_fields() or len(output.pages) != len(source.pages):
         raise PreparationError("We could not prepare this form. Print it to PDF and upload that copy.")

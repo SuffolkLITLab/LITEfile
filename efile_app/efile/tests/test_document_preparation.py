@@ -194,3 +194,34 @@ def test_special_field_appearances_do_not_require_literal_value_text(kind):
         "efile.services.document_preparation.requests.post", return_value=service_response(pdf_bytes("12/34/56"))
     ):
         assert prepare_document(upload(output.getvalue()), "vermont").operation == "flattened"
+
+
+def test_blank_signature_lines_left_by_the_flattener_are_removed():
+    from pypdf import PdfWriter
+    from pypdf.generic import ArrayObject, DictionaryObject, FloatObject, NameObject, NumberObject, TextStringObject
+
+    # The flatten engine skips widgets with no appearance, so an unsigned
+    # signature line comes back as a leftover form field that draws nothing.
+    writer = PdfWriter(clone_from=PdfReader(io.BytesIO(pdf_bytes("Filled answer"))))
+    signature = writer._add_object(
+        DictionaryObject(
+            {
+                NameObject("/Type"): NameObject("/Annot"),
+                NameObject("/Subtype"): NameObject("/Widget"),
+                NameObject("/FT"): NameObject("/Sig"),
+                NameObject("/T"): TextStringObject("signature"),
+                NameObject("/F"): NumberObject(4),
+                NameObject("/Rect"): ArrayObject([FloatObject(n) for n in [50, 100, 300, 130]]),
+            }
+        )
+    )
+    writer.pages[0][NameObject("/Annots")] = ArrayObject([signature])
+    output = io.BytesIO()
+    writer.write(output)
+    with patch("efile.services.document_preparation.requests.post", return_value=service_response(output.getvalue())):
+        prepared = prepare_document(upload(pdf_bytes(form_value="Filled answer")), "vermont")
+    assert prepared.operation == "flattened"
+    reader = PdfReader(io.BytesIO(prepared.content))
+    assert "/Annots" not in reader.pages[0]
+    assert not reader.get_fields()
+    assert "Filled answer" in reader.pages[0].extract_text()
