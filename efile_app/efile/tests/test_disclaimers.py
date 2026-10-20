@@ -215,7 +215,12 @@ def test_disclaimer_spacing_is_not_controlled_by_empty_court_paragraphs():
 
 
 @pytest.mark.django_db
-def test_submission_without_draft_does_not_reach_tyler(client, monkeypatch):
+def test_submission_without_draft_does_not_reach_tyler(client, monkeypatch, django_user_model):
+    user = django_user_model.objects.create_user(username="no-draft", tyler_jurisdiction="illinois")
+    client.force_login(user)
+    session = client.session
+    session.update({"jurisdiction": "illinois", "auth_tokens": {"TYLER-TOKEN-ILLINOIS": "test-token"}})
+    session.save()
     upstream = Mock()
     monkeypatch.setattr("efile.views.submission.forward_final_filing", upstream)
     response = client.post("/api/submit-final-filing/", {"confirm_submission": True}, content_type="application/json")

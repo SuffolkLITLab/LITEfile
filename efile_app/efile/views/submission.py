@@ -5,7 +5,6 @@ import uuid
 from django.db import transaction
 from django.http import JsonResponse
 from django.utils import timezone
-from django.views.decorators.csrf import csrf_exempt
 from django.views.decorators.http import require_http_methods
 
 from efile.api.suffolk_api_views import get_tyler_token
@@ -18,6 +17,7 @@ from efile.services.fee_quotes import fee_fingerprint, fee_quote_is_usable
 from efile.services.filing_availability import draft_unavailable_message
 from efile.services.filing_plans import mark_attached_items_filed
 from efile.services.submission_errors import PRE_SUBMIT_ERROR_CODES, SubmissionErrorCode
+from efile.utils.efsp_security import require_efsp_login
 
 from .confirmation import LAST_SUBMITTED_DRAFT_SESSION_KEY
 from .session_api import forward_final_filing
@@ -100,8 +100,8 @@ def _confirmed_api_rejection(payload: dict) -> bool:
     return isinstance(code, int) and 400 <= code < 500 and code not in (408, 409)
 
 
-@csrf_exempt
 @require_http_methods(["POST"])
+@require_efsp_login(session_jurisdiction=True)
 def submit_final_filing(request):
     """Submit through the session path, guarding against duplicate external filings."""
 

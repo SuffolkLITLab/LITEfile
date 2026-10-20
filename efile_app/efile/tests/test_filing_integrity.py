@@ -216,11 +216,11 @@ def test_primary_type_tracks_edits_clearing_and_lead_deletion(draft):
     assert (draft.filing_type_code, draft.filing_type_name) == ("", "")
 
 
-def test_organization_and_submission_preserve_primary_type_and_confirmation_identity(draft):
+def test_organization_and_submission_preserve_primary_type_and_confirmation_identity(draft, monkeypatch):
     from efile.tests.test_durable_drafts import FakeApiResponse, _prepare_submission
 
     client = signed_in(draft.user)
-    _prepare_submission(client, draft)
+    _prepare_submission(client, draft, monkeypatch)
     draft.refresh_from_db()
     draft.document_checklist_acknowledged = True
     draft.save()
@@ -245,7 +245,7 @@ def test_organization_and_submission_preserve_primary_type_and_confirmation_iden
     with patch("requests.post", return_value=FakeApiResponse(201, {"filing_id": "adoption-123"})):
         response = client.post(
             reverse("submit_final_filing") + f"?draft={draft.pk}",
-            accepted_submission(draft, efile_data={"al_court_bundle": {}}),
+            accepted_submission(draft, efile_data={"al_court_bundle": [{}]}),
             content_type="application/json",
         )
     assert response.status_code == 200

@@ -593,7 +593,7 @@ def write_upload_data(
 
 
 def _document_file(doc: FilingDocument, urls: dict[int, str] | None = None) -> dict[str, Any]:
-    file_obj: dict[str, Any] = {}
+    file_obj: dict[str, Any] = {"document_id": doc.pk}
     _put(file_obj, "name", doc.name)
     _put(file_obj, "url", (urls or {}).get(doc.pk, doc.public_url))
     _put(file_obj, "s3_key", doc.s3_key)

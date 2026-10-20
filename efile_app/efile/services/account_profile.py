@@ -78,8 +78,10 @@ def fetch_account_profile(request, jurisdiction, timeout=10):
     headers = _headers(request, jurisdiction)
     base = f"{settings.EFSP_URL}/jurisdictions/{jurisdiction}"
     try:
-        firm_response = requests.get(f"{base}/firmattorneyservice/firm", headers=headers, timeout=timeout)
-        self_response = requests.get(f"{base}/adminusers/user", headers=headers, timeout=timeout)
+        firm_response = requests.get(
+            f"{base}/firmattorneyservice/firm", headers=headers, timeout=timeout, allow_redirects=False
+        )
+        self_response = requests.get(f"{base}/adminusers/user", headers=headers, timeout=timeout, allow_redirects=False)
     except RequestException:
         logger.exception("Could not reach the e-filing service for the account profile")
         return None

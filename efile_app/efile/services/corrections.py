@@ -376,8 +376,7 @@ def correction_readiness(draft):
 
 def refresh_correction_documents(payload, draft):
     """Use the reviewed durable bytes and metadata, never a stale browser URL."""
-    from efile.services.efsp_payload import PayloadValidationError
-    from efile.utils.s3_upload_handler import S3UploadHandler
+    from efile.services.efsp_payload import bind_filing_documents
 
     payload.update(
         efile_case_category=draft.case_category_code,
@@ -394,24 +393,4 @@ def refresh_correction_documents(payload, draft):
         payload["docket_number"] = draft.docket_number
     else:
         payload.pop("docket_number", None)
-    documents = list(draft.documents.order_by("role", "sort_order", "pk"))
-    bundles = payload.get("al_court_bundle")
-    if not isinstance(bundles, list) or len(bundles) != len(documents):
-        raise PayloadValidationError("The documents changed. Reload Review before submitting.")
-    handler = S3UploadHandler()
-    for bundle, document in zip(bundles, documents, strict=True):
-        if not isinstance(bundle, dict) or not document.s3_key:
-            raise PayloadValidationError("Replace the unavailable PDF before submitting.")
-        try:
-            url = handler.get_public_url(document.s3_key)
-        except (BotoCoreError, ClientError, RuntimeError) as error:
-            raise PayloadValidationError("Document storage is unavailable. Retry before submitting.") from error
-        bundle.update(
-            data_url=url,
-            filename=document.name,
-            filing_type=document.filing_type_code,
-            document_type=document.document_type_code,
-            filing_component=document.filing_component_code,
-            optional_services=document.requested_optional_services,
-            courtesy_copies=[document.courtesy_copy_email] if document.courtesy_copy_email else [],
-        )
+    bind_filing_documents(payload, draft)

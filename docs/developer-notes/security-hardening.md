@@ -26,9 +26,20 @@ Rebuild the image so `uv sync --frozen` installs the new lockfile and `collectst
 ## Follow-up work
 
 - Aggregate upload limits and storage quotas, actual file-content validation, durable upload staging, and orphan cleanup.
-- Restore CSRF checks on browser session mutation and submission endpoints, with matching JavaScript changes and CSRF-enforcing tests.
 - Stop unnecessary session writes on polling; test expiry behavior before changing the global session setting.
 - Measure web workflows and extraction recovery under realistic load, including PostgreSQL contention, upstream rate limits, and difficult PDFs. Unit interleaving tests do not establish production throughput.
 - Validate and version compiled YAML configurations; add derived-response caching only where profiling shows a benefit.
 
 The submission claim and ambiguous-outcome safeguards are unchanged. Extraction retries must not be reused as an automatic court-submission retry mechanism.
+
+## Confidentiality fixes from issue #345
+
+The browser token API returns only the active account's jurisdiction-specific Tyler token, never the EFSP service key. Profile, payment, fee, and filing-history APIs require both a matching Django identity and a court token. Responses must not be cached. Jurisdictions must match installed configurations; case-lookup court codes cannot contain path traversal, URL delimiters, or encoded aliases. These proxy requests do not follow redirects carrying credentials.
+
+Browser login, logout, session updates, fee quotes, case lookup POSTs, and submissions use Django's CSRF middleware. JSON login also requires the JSON content type and does not echo malformed credentials. Existing browser requests send the CSRF token; bearer-authenticated interview handoff APIs retain their separate authentication boundary.
+
+Fee quotes and submissions rebuild each document from the current draft's private S3 key and saved filing selections, including its confidentiality code. The proxy receives a fresh one-hour presigned URL. Browser URLs, nested attachments, page counts, and arbitrary document properties are discarded. Missing drafts, unavailable documents, and stale document IDs fail closed. Corrections use the same document binding. Court-code normalization is separate from this mandatory preparation step; forwarding views must call `prepare_efile_payload`.
+
+Deploy the patch to every exposed environment, then rotate and revoke previously exposed EFSP service keys and review proxy access logs. A source patch cannot revoke a key already obtained. This PR does not rotate keys or change deployed services. Confirm the deployed EFSP and Gotenberg versions and outbound network policies separately; the audit did not establish production metadata theft or read live infrastructure settings.
+
+Regression coverage uses CSRF-enforcing clients, synthetic accounts, owned and foreign draft documents, and mocked external storage/HTTP. It checks both forwarding boundaries, rejected traversal, nested attachment removal, and successful same-origin login. Bandit alone does not detect these trust-boundary failures.

@@ -11,7 +11,7 @@ from django.core.cache import cache
 from django.forms import ChoiceField
 from django.urls import reverse
 
-from efile.models import FilingDraft, FilingParty
+from efile.models import FilingDocument, FilingDraft, FilingParty
 from efile.services.current_drafts import CURRENT_DRAFT_SESSION_KEY
 from efile.services.efsp_errors import describe_efsp_error, efsp_error_problems, error_actions
 from efile.services.efsp_payload import PayloadValidationError, validate_party_formats
@@ -268,7 +268,17 @@ def test_nested_proxy_error_and_name_length_regex_are_parsed():
 
 @pytest.mark.django_db
 @pytest.mark.parametrize("prevalidate", [True, False])
-def test_fee_errors_return_precise_actions_for_both_local_and_upstream_rejections(client, draft, prevalidate):
+def test_fee_errors_return_precise_actions_for_both_local_and_upstream_rejections(
+    client, draft, prevalidate, monkeypatch
+):
+    FilingDocument.objects.create(
+        draft=draft, role="lead", s3_key="owned/petition.pdf", filing_type_code="petition", filing_component_code="lead"
+    )
+    monkeypatch.setattr(
+        "efile.services.efsp_payload.S3UploadHandler.get_public_url",
+        lambda *args, **kwargs: "https://storage.invalid/petition.pdf",
+    )
+    monkeypatch.setattr("efile.services.efsp_payload._EfspLookups.get", lambda *args: [])
     party = FilingParty.objects.create(draft=draft, role="other", first_name="Lee", last_name="Smith", party_type="DEF")
     payload = {
         "other_parties": [
@@ -278,7 +288,7 @@ def test_fee_errors_return_precise_actions_for_both_local_and_upstream_rejection
                 "address": {"state": "AE" if prevalidate else "MA"},
             }
         ],
-        "al_court_bundle": [],
+        "al_court_bundle": [{}],
     }
     response = Mock(status_code=400, text="Rejected")
     response.json.return_value = {"wrong_vars": [{"name": "other_parties[0].name.last", "currentVal": "Smith"}]}

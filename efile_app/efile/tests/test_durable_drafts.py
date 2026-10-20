@@ -37,10 +37,22 @@ def _authorize_jurisdiction_session(client, jurisdiction="illinois"):
     session.save()
 
 
-def _prepare_submission(client, draft, jurisdiction="illinois"):
+def _prepare_submission(client, draft, monkeypatch, jurisdiction="illinois"):
     """Populate the draft (the source of truth) and session so submit can run."""
     write_case_data(draft, {"court": "cook:cd"})
-    write_upload_data(draft, {"files": {"lead": {"url": "https://example.com/petition.pdf"}}})
+    write_upload_data(
+        draft,
+        {
+            "files": {"lead": {"url": "https://example.com/petition.pdf", "s3_key": "owned/petition.pdf"}},
+            "lead_filing_type": "petition",
+            "lead_filing_component": "lead",
+        },
+    )
+    monkeypatch.setattr(
+        "efile.services.efsp_payload.S3UploadHandler.get_public_url",
+        lambda *args, **kwargs: "https://storage.invalid/petition.pdf",
+    )
+    monkeypatch.setattr("efile.services.efsp_payload._EfspLookups.get", lambda *args: [])
     draft.documents.update(preparation="unchanged", preparation_reviewed_at=timezone.now())
     # Submission is only offered against a quote that still prices the filing.
     record_fee_quote(draft, "0.00", [])
@@ -492,11 +504,11 @@ def test_final_submission_marks_current_draft_submitted(client, django_user_mode
     user = django_user_model.objects.create_user(username="submit-user", tyler_jurisdiction="illinois")
     draft = FilingDraft.objects.create(user=user, jurisdiction="illinois", current_step=WorkflowStepKey.REVIEW)
     client.force_login(user)
-    _prepare_submission(client, draft)
+    _prepare_submission(client, draft, monkeypatch)
 
     response = client.post(
         reverse("submit_final_filing"),
-        data=accepted_submission(draft, efile_data={"al_court_bundle": {}}),
+        data=accepted_submission(draft, efile_data={"al_court_bundle": [{}]}),
         content_type="application/json",
     )
 
@@ -535,11 +547,11 @@ def test_final_submission_marks_attached_plan_documents_as_filed(client, django_
         checklist_item_id="petition",
     )
     client.force_login(user)
-    _prepare_submission(client, draft)
+    _prepare_submission(client, draft, monkeypatch)
 
     response = client.post(
         reverse("submit_final_filing"),
-        data=accepted_submission(draft, efile_data={"al_court_bundle": {}}),
+        data=accepted_submission(draft, efile_data={"al_court_bundle": [{}]}),
         content_type="application/json",
     )
 
@@ -557,11 +569,11 @@ def test_confirmed_api_rejection_releases_draft_for_retry(client, django_user_mo
     user = django_user_model.objects.create_user(username="error-user", tyler_jurisdiction="illinois")
     draft = FilingDraft.objects.create(user=user, jurisdiction="illinois", current_step=WorkflowStepKey.REVIEW)
     client.force_login(user)
-    _prepare_submission(client, draft)
+    _prepare_submission(client, draft, monkeypatch)
 
     response = client.post(
         reverse("submit_final_filing"),
-        data=accepted_submission(draft, efile_data={"al_court_bundle": {}}),
+        data=accepted_submission(draft, efile_data={"al_court_bundle": [{}]}),
         content_type="application/json",
     )
 
@@ -611,12 +623,12 @@ def test_ambiguous_submission_states_are_not_automatically_reclaimed(django_user
 
 
 @pytest.mark.django_db
-def test_precondition_failure_releases_claim_to_draft(client, django_user_model):
+def test_precondition_failure_releases_claim_to_draft(client, django_user_model, monkeypatch):
     """A failure before the external call frees the draft for a safe retry."""
     user = django_user_model.objects.create_user(username="precondition-user", tyler_jurisdiction="illinois")
     draft = FilingDraft.objects.create(user=user, jurisdiction="illinois", current_step=WorkflowStepKey.REVIEW)
     client.force_login(user)
-    _prepare_submission(client, draft)
+    _prepare_submission(client, draft, monkeypatch)
 
     response = client.post(
         reverse("submit_final_filing"),
@@ -644,11 +656,11 @@ def test_ambiguous_failure_does_not_release_to_draft(client, django_user_model, 
     user = django_user_model.objects.create_user(username="ambiguous-user", tyler_jurisdiction="illinois")
     draft = FilingDraft.objects.create(user=user, jurisdiction="illinois", current_step=WorkflowStepKey.REVIEW)
     client.force_login(user)
-    _prepare_submission(client, draft)
+    _prepare_submission(client, draft, monkeypatch)
 
     response = client.post(
         reverse("submit_final_filing"),
-        data=accepted_submission(draft, efile_data={"al_court_bundle": {}}),
+        data=accepted_submission(draft, efile_data={"al_court_bundle": [{}]}),
         content_type="application/json",
     )
 
@@ -658,7 +670,7 @@ def test_ambiguous_failure_does_not_release_to_draft(client, django_user_model, 
 
     retry = client.post(
         reverse("submit_final_filing"),
-        data=accepted_submission(draft, efile_data={"al_court_bundle": {}}),
+        data=accepted_submission(draft, efile_data={"al_court_bundle": [{}]}),
         content_type="application/json",
     )
 
@@ -733,11 +745,11 @@ def test_payload_validation_failure_releases_draft_for_a_corrected_retry(client,
     user = django_user_model.objects.create_user(username="invalid-payload-user", tyler_jurisdiction="illinois")
     draft = FilingDraft.objects.create(user=user, jurisdiction="illinois", current_step=WorkflowStepKey.REVIEW)
     client.force_login(user)
-    _prepare_submission(client, draft)
+    _prepare_submission(client, draft, monkeypatch)
 
     response = client.post(
         reverse("submit_final_filing"),
-        data=accepted_submission(draft, efile_data={"al_court_bundle": {}}),
+        data=accepted_submission(draft, efile_data={"al_court_bundle": [{}]}),
         content_type="application/json",
     )
 

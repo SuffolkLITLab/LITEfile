@@ -3,7 +3,6 @@ import logging
 
 from django.conf import settings
 from django.http import JsonResponse
-from django.views.decorators.csrf import csrf_exempt
 from django.views.decorators.http import require_http_methods
 
 from ..services.current_drafts import get_current_draft
@@ -245,6 +244,7 @@ def forward_final_filing(request, data):
                 api_url,
                 json=efile_data,
                 headers=headers,
+                allow_redirects=False,
                 timeout=(
                     settings.EFILE_SUBMISSION_CONNECT_TIMEOUT_SECONDS,
                     settings.EFILE_SUBMISSION_READ_TIMEOUT_SECONDS,
@@ -294,7 +294,6 @@ def forward_final_filing(request, data):
         return JsonResponse({"success": False, "error": f"An error occurred during submission: {str(e)}"}, status=500)
 
 
-@csrf_exempt
 @require_http_methods(["POST"])
 def clear_session_data(request):
     """Clear all session data for testing purposes."""
@@ -302,7 +301,6 @@ def clear_session_data(request):
     return JsonResponse({"success": True, "message": "Session data cleared"})
 
 
-@csrf_exempt
 @require_http_methods(["POST"])
 def api_save_case_data(request):
     """
@@ -359,7 +357,6 @@ def api_save_case_data(request):
         return JsonResponse({"success": False, "error": str(e)}, status=500)
 
 
-@csrf_exempt
 @require_http_methods(["POST"])
 def fetch_and_save_party_type(request):
     """
@@ -452,7 +449,6 @@ def fetch_and_save_party_type(request):
         return JsonResponse({"success": False, "error": str(e)}, status=500)
 
 
-@csrf_exempt
 @require_http_methods(["POST"])
 def save_party_type_to_session(request):
     """

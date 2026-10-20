@@ -7,6 +7,8 @@ from django.conf import settings
 from django.contrib.auth import get_user_model
 from django.db import transaction
 
+from efile.utils.efsp_security import validated_code, validated_jurisdiction
+
 MANAGED_WAIVER_NAME = "LITEfile managed waiver account"
 
 
@@ -26,10 +28,12 @@ def is_active(account):
 
 
 def payment_accounts(jurisdiction, token):
+    jurisdiction = validated_jurisdiction(jurisdiction)
     response = requests.get(
         f"{settings.EFSP_URL}/jurisdictions/{jurisdiction}/payments/payment-accounts/",
         headers=account_headers(jurisdiction, token),
         timeout=10,
+        allow_redirects=False,
     )
     response.raise_for_status()
     accounts = response.json()
@@ -43,6 +47,7 @@ def payment_accounts(jurisdiction, token):
 
 
 def ensure_waiver_account(user, jurisdiction, token, preferred_id=""):
+    jurisdiction = validated_jurisdiction(jurisdiction)
     # Serialize requests by this user, including requests from other drafts/tabs.
     # Always re-read Tyler before creating; failed reads must never mean no account.
     with transaction.atomic():
@@ -55,6 +60,7 @@ def ensure_waiver_account(user, jurisdiction, token, preferred_id=""):
             data=MANAGED_WAIVER_NAME,
             headers={**account_headers(jurisdiction, token), "Content-Type": "text/plain"},
             timeout=20,
+            allow_redirects=False,
         )
         response.raise_for_status()
         try:
@@ -72,6 +78,8 @@ def ensure_waiver_account(user, jurisdiction, token, preferred_id=""):
 
 def remove_payment_account(jurisdiction, token, account_id):
     """Remove an account only after finding it in this authenticated account list."""
+    jurisdiction = validated_jurisdiction(jurisdiction)
+    account_id = validated_code(account_id)
     account = next((a for a in payment_accounts(jurisdiction, token) if str(a["paymentAccountID"]) == account_id), None)
     if account is None or account.get("paymentAccountTypeCode") == "WV":
         raise ValueError("Choose a payment account from your account list.")
@@ -79,5 +87,6 @@ def remove_payment_account(jurisdiction, token, account_id):
         f"{settings.EFSP_URL}/jurisdictions/{jurisdiction}/payments/payment-accounts/{quote(account_id, safe='')}",
         headers=account_headers(jurisdiction, token),
         timeout=20,
+        allow_redirects=False,
     )
     response.raise_for_status()

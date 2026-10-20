@@ -19,6 +19,7 @@ from efile.models import FilingDraft, FilingParty
 from efile.party_sides import side_for_party_type_name
 from efile.services.drafts import ACTIVE_DRAFT_STATUSES
 from efile.services.fee_quotes import FEE_QUOTE_FIELDS, fee_inputs_token, invalidate_fee_quote
+from efile.utils.efsp_security import validated_code, validated_jurisdiction
 from efile.utils.proxy_connection import get_headers
 from efile.workflow import ExistingCase
 
@@ -275,6 +276,12 @@ def normalize_case(raw, *, court, tracking_id, party_types, docket_number=""):
 def fetch_case(draft, token):
     if not token:
         raise CaseImportError("Sign in again to load your court case.")
+    try:
+        validated_jurisdiction(draft.jurisdiction)
+        validated_code(draft.court_code)
+        validated_code(draft.previous_case_id)
+    except ValueError as error:
+        raise CaseImportError("Choose a valid court and case before loading parties.") from error
     url = (
         f"{settings.EFSP_URL}/jurisdictions/{quote(draft.jurisdiction, safe='')}/cases/"
         f"courts/{quote(draft.court_code, safe='')}/cases/{quote(draft.previous_case_id, safe='')}"
@@ -287,10 +294,10 @@ def fetch_case(draft, token):
     headers[f"tyler-token-{draft.jurisdiction}"] = token
     # The role list does not depend on the case, so fetch both at once.
     pool = ThreadPoolExecutor(max_workers=1)
-    pending_codes = pool.submit(requests.get, codes_url, headers=headers, timeout=15)
+    pending_codes = pool.submit(requests.get, codes_url, headers=headers, timeout=15, allow_redirects=False)
     pool.shutdown(wait=False)
     try:
-        response = requests.get(url, headers=headers, timeout=30)
+        response = requests.get(url, headers=headers, timeout=30, allow_redirects=False)
         response.raise_for_status()
         raw = response.json()
     except (requests.RequestException, ValueError) as error:

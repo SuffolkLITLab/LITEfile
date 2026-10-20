@@ -8,12 +8,12 @@ import logging
 import requests
 from django.conf import settings
 from django.http import JsonResponse
-from django.views.decorators.csrf import csrf_exempt
 from django.views.decorators.http import require_http_methods
 from requests.exceptions import RequestException
 
 from efile.utils.case_data_utils import get_case_data, update_case_data
-from efile.utils.jurisdiction_stuff import get_jurisdiction_from_request, get_jurisdiction_token
+from efile.utils.efsp_security import validated_code, validated_jurisdiction
+from efile.utils.jurisdiction_stuff import get_jurisdiction_from_request, get_jurisdiction_token, has_jurisdiction_login
 from efile.utils.proxy_connection import get_headers
 
 logger = logging.getLogger(__name__)
@@ -34,7 +34,6 @@ def set_access_control_headers(response):
     return response
 
 
-@csrf_exempt
 @require_http_methods(["GET", "POST", "OPTIONS"])
 def lookup_case(request):
     """
@@ -73,6 +72,10 @@ def lookup_case(request):
             state = jurisdiction.lower()
         else:
             state = get_jurisdiction_from_request(request)
+        state = validated_jurisdiction(state)
+        court = validated_code(court)
+        if not has_jurisdiction_login(request, state):
+            return JsonResponse({"success": False, "error": "Sign in to this jurisdiction first."}, status=401)
         api_url = f"{settings.EFSP_URL}/jurisdictions/{state}/cases/courts/{court}/cases"
 
         # Add query parameter for docket number
@@ -95,7 +98,7 @@ def lookup_case(request):
             )
 
         # Make the API request - using GET with query parameters
-        response = requests.get(api_url, params=params, headers=headers, timeout=30)
+        response = requests.get(api_url, params=params, headers=headers, timeout=30, allow_redirects=False)
 
         response.raise_for_status()
         api_data = response.json()
@@ -119,8 +122,8 @@ def lookup_case(request):
                 # Extract case category
                 if "caseCategoryText" in case_value and "value" in case_value["caseCategoryText"]:
                     case_info["caseCategoryCode"] = case_value["caseCategoryText"]["value"]
-                    api_url = f"{settings.EFSP_URL}/jurisdictions/{state}/codes/courts/{court}/categories/{case_info['caseCategoryCode']}"
-                    category_resp = requests.get(api_url, headers=headers, timeout=30)
+                    api_url = f"{settings.EFSP_URL}/jurisdictions/{state}/codes/courts/{court}/categories/{validated_code(case_info['caseCategoryCode'])}"
+                    category_resp = requests.get(api_url, headers=headers, timeout=30, allow_redirects=False)
                     if category_resp.ok:
                         data = category_resp.json()
                         case_info["caseCategoryName"] = data["name"]
@@ -142,8 +145,10 @@ def lookup_case(request):
                             if "value" in item and "caseTypeText" in item["value"]:
                                 if "value" in item["value"]["caseTypeText"]:
                                     case_info["caseTypeCode"] = item["value"]["caseTypeText"]["value"]
-                                    api_url = f"{settings.EFSP_URL}/jurisdictions/{state}/codes/courts/{court}/case_types/{case_info['caseTypeCode']}"
-                                    case_resp = requests.get(api_url, headers=headers, timeout=30)
+                                    api_url = f"{settings.EFSP_URL}/jurisdictions/{state}/codes/courts/{court}/case_types/{validated_code(case_info['caseTypeCode'])}"
+                                    case_resp = requests.get(
+                                        api_url, headers=headers, timeout=30, allow_redirects=False
+                                    )
                                     if case_resp.ok:
                                         data = case_resp.json()
                                         case_info["caseTypeName"] = data["name"]
@@ -174,9 +179,9 @@ def lookup_case(request):
 
         return set_access_control_headers(response)
 
-    except json.JSONDecodeError:
+    except (ValueError, UnicodeDecodeError):
         # This only applies to POST requests
-        response = JsonResponse({"success": False, "error": "Invalid JSON in request body"}, status=400)
+        response = JsonResponse({"success": False, "error": "Invalid jurisdiction, court, or request data"}, status=400)
         return set_access_control_headers(response)
 
     except RequestException as e:

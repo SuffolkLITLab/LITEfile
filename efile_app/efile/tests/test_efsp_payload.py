@@ -14,8 +14,8 @@ from django.test import override_settings
 from efile.services.efsp_payload import (
     PayloadValidationError,
     _EfspLookups,
+    normalize_efile_payload,
     normalize_optional_services,
-    prepare_efile_payload,
     resolve_placeholder_filing_components,
     substitute_test_document_urls,
     validate_document_selections,
@@ -109,7 +109,7 @@ def test_full_payload_preparation_refuses_too():
 
     with override_settings(EFSP_TEST_DOCUMENT_URL=STAND_IN_URL, DEBUG=False):
         with pytest.raises(ImproperlyConfigured):
-            prepare_efile_payload(efile_data, "illinois", "adams")
+            normalize_efile_payload(efile_data, "illinois", "adams")
 
 
 # --- EFSP_TEST_DOCUMENT_URL on in development --------------------------------
@@ -157,7 +157,7 @@ def test_empty_cross_references_is_dropped_rather_than_sent(empty_value):
     efile_data = {"al_court_bundle": [], "cross_references": empty_value}
 
     with override_settings(EFSP_TEST_DOCUMENT_URL=""):
-        prepare_efile_payload(efile_data, "illinois", "adams")
+        normalize_efile_payload(efile_data, "illinois", "adams")
 
     assert "cross_references" not in efile_data
 
@@ -166,7 +166,7 @@ def test_populated_cross_references_is_preserved():
     efile_data = {"al_court_bundle": [], "cross_references": [{"code": "1", "value": "abc"}]}
 
     with override_settings(EFSP_TEST_DOCUMENT_URL=""):
-        prepare_efile_payload(efile_data, "illinois", "adams")
+        normalize_efile_payload(efile_data, "illinois", "adams")
 
     assert efile_data["cross_references"] == [{"code": "1", "value": "abc"}]
 
@@ -219,7 +219,7 @@ def test_preparation_rejects_a_blank_filing_type_end_to_end():
 
     with override_settings(EFSP_TEST_DOCUMENT_URL=""):
         with pytest.raises(PayloadValidationError, match="filing type"):
-            prepare_efile_payload(efile_data, "illinois", "edgar")
+            normalize_efile_payload(efile_data, "illinois", "edgar")
 
 
 # --- placeholder filing components -------------------------------------------
@@ -439,12 +439,12 @@ def test_payload_without_a_case_type_is_not_checked(monkeypatch, settings):
 
 
 def test_preparation_rejects_the_payload_end_to_end(monkeypatch, settings):
-    """prepare_efile_payload is what both the fee quote and the submission call."""
+    """normalize_efile_payload is what both the fee quote and the submission call."""
     _party_type_api(monkeypatch, settings, [PLAINTIFF, DEFENDANT])
 
     with override_settings(EFSP_TEST_DOCUMENT_URL=""):
         with pytest.raises(PayloadValidationError):
-            prepare_efile_payload(_payload(["173174"], ["173174"]), "illinois", "cook:chd1")
+            normalize_efile_payload(_payload(["173174"], ["173174"]), "illinois", "cook:chd1")
 
 
 # --- optional services -------------------------------------------------------
@@ -562,7 +562,7 @@ def test_one_code_list_is_fetched_once_across_every_phase(monkeypatch, settings)
     }
 
     with override_settings(EFSP_TEST_DOCUMENT_URL=""):
-        prepare_efile_payload(efile_data, "illinois", "adams")
+        normalize_efile_payload(efile_data, "illinois", "adams")
 
     assert len(calls) == len(set(calls))
 
