@@ -391,6 +391,7 @@ const FilingPayload = {
     createDocumentBundle(doc, filingType, documentType, filingComponent, users, description, docDescription, cc_email, optionalServices = []) {
         const courtesy_copies = cc_email ? [cc_email] : [];
         return {
+            document_id: doc.document_id,
             proxy_enabled: true,
             filing_type: filingType,
             optional_services: optionalServices,

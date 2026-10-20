@@ -8,9 +8,9 @@ import logging
 import requests
 from django.conf import settings
 from django.http import JsonResponse
-from django.views.decorators.csrf import csrf_exempt
 from django.views.decorators.http import require_http_methods
 
+from efile.utils.efsp_security import require_efsp_login, validated_code, validated_jurisdiction
 from efile.utils.jurisdiction_stuff import get_jurisdiction_from_request
 
 from ..services.court_payments import payment_error, validate_filing_payment
@@ -51,6 +51,7 @@ def list_filing_data(request, jurisdiction, *, start_date=None):
     accidentally validate a browser-supplied case ID instead.
     """
 
+    jurisdiction = validated_jurisdiction(jurisdiction)
     api_url = f"{settings.EFSP_URL}/jurisdictions/{jurisdiction}/filingreview/courts/0/filings"
     headers = get_headers()
     tyler_token = get_tyler_token(request, jurisdiction)
@@ -64,6 +65,7 @@ def list_filing_data(request, jurisdiction, *, start_date=None):
         params={"start_date": start_date or None, "before_date": None},
         headers=headers,
         timeout=30,
+        allow_redirects=False,
     )
     logger.debug(
         "Get filings response: status=%s content_type=%s",
@@ -97,6 +99,7 @@ class FilingAPIViews(APIResponseMixin):
 
     @staticmethod
     @require_http_methods(["GET"])
+    @require_efsp_login
     def get_filings(request):
         try:
             # Get all filings in all courts between now and a specified time
@@ -148,7 +151,7 @@ class FilingAPIViews(APIResponseMixin):
 
     @staticmethod
     @require_http_methods(["POST"])
-    @csrf_exempt
+    @require_efsp_login(session_jurisdiction=True)
     def payment_fees(request):
         try:
             logger.info("Test in payment fees!")
@@ -157,7 +160,7 @@ class FilingAPIViews(APIResponseMixin):
             if not efile_data:
                 return JsonResponse({"success": False, "error": "No efile data provided in request"}, status=400)
 
-            jurisdiction_id = request.session.get("jurisdiction")
+            jurisdiction_id = validated_jurisdiction(request.session.get("jurisdiction"))
             auth_tokens = request.session.get("auth_tokens", {})
             case_data = get_case_data(request, jurisdiction_id)
             court_id = case_data.get("court", "")
@@ -165,6 +168,7 @@ class FilingAPIViews(APIResponseMixin):
             draft = get_current_draft(request, jurisdiction=jurisdiction_id, resume_latest=False)
             if draft is not None:
                 court_id = draft.court_code
+            court_id = validated_code(court_id)
             account_id = str(data.get("payment_account_id") or (draft.selected_payment_account_id if draft else ""))
             try:
                 validate_filing_payment(
@@ -213,13 +217,13 @@ class FilingAPIViews(APIResponseMixin):
             priced_current_draft = draft is not None and bool(inputs_token) and fee_inputs_token(draft) == inputs_token
 
             logger.info(f"Making request!: {url}")
-            response = requests.post(url, json=efile_data, headers=headers, timeout=60)
+            response = requests.post(url, json=efile_data, headers=headers, timeout=60, allow_redirects=False)
             logger.info(f"Made request: {response.status_code}")
 
             if response.status_code == 200 or response.status_code == 201:
                 response_data = response.json()
 
-                logger.info(f"Sending back: {response_data}")
+                logger.debug("Fee calculation succeeded")
                 # Kept on the draft with what it was priced on, so Review shows
                 # it only while it still describes the filing. A quote for a
                 # version of the filing that has since changed is not kept.

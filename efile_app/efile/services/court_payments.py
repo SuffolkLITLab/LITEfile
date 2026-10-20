@@ -12,6 +12,7 @@ from django.urls import reverse
 
 from efile.services.draft_urls import draft_url
 from efile.services.payment_accounts import account_headers, payment_accounts
+from efile.utils.efsp_security import validated_code, validated_jurisdiction
 
 BANK_ACCOUNT_TYPE = "BankAccount"
 RESTRICTED_MESSAGE = (
@@ -25,10 +26,13 @@ def bank_payment_policy(jurisdiction, court):
     if not court:
         return "unknown"
     try:
+        jurisdiction = validated_jurisdiction(jurisdiction)
+        court = validated_code(court)
         response = requests.get(
             f"{settings.EFSP_URL}/jurisdictions/{quote(jurisdiction, safe='')}/codes/courts/{quote(court, safe='')}/codes",
             headers=account_headers(jurisdiction, ""),
             timeout=10,
+            allow_redirects=False,
         )
         response.raise_for_status()
         data = response.json()

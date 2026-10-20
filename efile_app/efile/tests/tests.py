@@ -250,12 +250,12 @@ class TestAuthAPIs:
         assert "preferred_county" not in data["data"]
 
     def test_profile_api_unauthenticated_user(self, client):
-        """Test profile API handles unauthenticated users with demo data."""
+        """Private account data requires an authenticated court identity."""
         response = client.get(
             "/api/auth/profile/", {"jurisdiction": "illinois"}, HTTP_X_REQUESTED_WITH="XMLHttpRequest"
         )
 
-        assert response.status_code == 500
+        assert response.status_code == 401
 
 
 # ============================================================================

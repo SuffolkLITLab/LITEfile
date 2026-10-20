@@ -10,10 +10,13 @@ import logging
 import time
 
 import requests
+from botocore.exceptions import BotoCoreError, ClientError
 from django.conf import settings
 from django.core.exceptions import ImproperlyConfigured
 
 from efile.services.efsp_validation import party_validation, validate_party
+from efile.utils.efsp_security import validated_code, validated_jurisdiction
+from efile.utils.s3_upload_handler import S3UploadHandler
 
 logger = logging.getLogger(__name__)
 
@@ -132,11 +135,73 @@ def prepare_efile_payload(efile_data, jurisdiction_id, court_id, *, draft=None):
     """
     from efile.services.existing_cases import reconcile_case_parties
 
-    if draft is not None and draft.correction_of_id:
+    try:
+        validated_jurisdiction(jurisdiction_id)
+        validated_code(court_id)
+    except ValueError as error:
+        raise PayloadValidationError(str(error)) from error
+    if draft is None or draft.jurisdiction != jurisdiction_id or draft.court_code != court_id:
+        raise PayloadValidationError("Open your filing and review it before continuing.")
+    if draft.correction_of_id:
         from efile.services.corrections import refresh_correction_documents
 
         refresh_correction_documents(efile_data, draft)
+    else:
+        bind_filing_documents(efile_data, draft)
     reconcile_case_parties(efile_data, draft, jurisdiction_id, court_id)
+    return normalize_efile_payload(efile_data, jurisdiction_id, court_id)
+
+
+def bind_filing_documents(payload, draft):
+    """Rebuild every document from this draft's stored bytes and selections.
+
+    Discard nested ``elements`` too: the proxy prefers those attachments over a
+    parent's data_url. Replacing only the parent URL would leave a fetch bypass.
+    """
+    documents = list(draft.documents.order_by("role", "sort_order", "pk"))
+    bundles = payload.get("al_court_bundle")
+    if not documents or not isinstance(bundles, list) or len(bundles) != len(documents):
+        raise PayloadValidationError("The documents changed. Reload Review before continuing.")
+    handler = S3UploadHandler()
+    rebuilt = []
+    for bundle, document in zip(bundles, documents, strict=True):
+        if not isinstance(bundle, dict) or not document.s3_key:
+            raise PayloadValidationError("Replace the unavailable PDF before continuing.")
+        # Older open tabs have no document_id. Their bundle order is the same
+        # lead/supporting order; all fetch and filing metadata is still rebuilt.
+        if "document_id" in bundle and str(bundle["document_id"]) != str(document.pk):
+            raise PayloadValidationError("The documents changed. Reload Review before continuing.")
+        try:
+            url = handler.get_public_url(document.s3_key, expiration=3600)
+        except (BotoCoreError, ClientError, RuntimeError) as error:
+            raise PayloadValidationError("Document storage is unavailable. Retry before continuing.") from error
+        rebuilt.append(
+            {
+                "proxy_enabled": True,
+                "data_url": url,
+                "filename": document.name,
+                "filing_type": document.filing_type_code,
+                "document_type": document.document_type_code,
+                "filing_component": document.filing_component_code,
+                "filing_description": document.filing_type_name or document.name,
+                "document_description": document.document_type_name,
+                "optional_services": list(document.requested_optional_services or []),
+                "courtesy_copies": [document.courtesy_copy_email] if document.courtesy_copy_email else [],
+                "preliminary_copies": [],
+                "filing_parties": [f"users[{index}]" for index, _ in enumerate(payload.get("users", []))],
+                "filing_action": "efile",
+                "due_date": None,
+                "reference_number": "",
+                "filing_attorney": "",
+                "filing_comment": "",
+                "tyler_merge_attachments": False,
+            }
+        )
+    payload["al_court_bundle"] = rebuilt
+
+
+def normalize_efile_payload(efile_data, jurisdiction_id, court_id):
+    """Normalize already bound documents using the court's code lists."""
     lookups = _EfspLookups()
     _clean_case_identifiers(efile_data)
     validate_party_formats(efile_data, jurisdiction_id, court_id)

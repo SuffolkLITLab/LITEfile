@@ -165,6 +165,18 @@ def test_direct_submit_cannot_bypass_new_restriction(configure, client, submissi
 @pytest.mark.django_db
 def test_outgoing_ids_are_resolved_to_names_before_checking(configure, client, submission_draft, monkeypatch):
     configure({"rules": [{"case_types": ["Contract"], "filing_types": ["Blocked filing"]}]})
+    submission_draft.documents.update(s3_key="owned/lead.pdf", filing_type_code="allowed", filing_component_code="lead")
+    FilingDocument.objects.create(
+        draft=submission_draft,
+        role="supporting",
+        s3_key="owned/supporting.pdf",
+        filing_type_code="blocked",
+        filing_component_code="lead",
+    )
+    monkeypatch.setattr(
+        "efile.services.efsp_payload.S3UploadHandler.get_public_url",
+        lambda *args, **kwargs: "https://storage.invalid/document.pdf",
+    )
     request = RequestFactory().post("/")
     request.user = submission_draft.user
     request.session = client.session

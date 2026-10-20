@@ -9,7 +9,6 @@ import requests
 from django.conf import settings
 from django.contrib.auth import authenticate, login
 from django.http import JsonResponse
-from django.views.decorators.csrf import csrf_exempt
 from django.views.decorators.http import require_http_methods
 from requests.exceptions import RequestException, Timeout
 
@@ -18,6 +17,7 @@ from efile.services.account_profile import fetch_account_profile
 from efile.services.court_payments import BANK_ACCOUNT_TYPE, bank_payment_policy, policy_message
 from efile.services.current_drafts import get_current_draft
 from efile.services.payment_accounts import is_active
+from efile.utils.efsp_security import require_efsp_login, validated_jurisdiction
 from efile.utils.jurisdiction_stuff import get_jurisdiction_from_request
 
 from .base import APIResponseMixin
@@ -30,15 +30,18 @@ class AuthAPIViews(APIResponseMixin):
 
     @staticmethod
     @require_http_methods(["POST"])
-    @csrf_exempt
     def user_login(request):
         """Handle user login"""
+        if request.content_type != "application/json":
+            return AuthAPIViews.error_response("Expected application/json", 415)
         try:
             data = json.loads(request.body)
+            if not isinstance(data, dict):
+                return AuthAPIViews.error_response("Expected a JSON object", 400)
 
             username = data.get("username")
             password = data.get("password")
-            jurisdiction = data.get("jurisdiction")
+            jurisdiction = validated_jurisdiction(data.get("jurisdiction"))
 
             if not username or not password or not jurisdiction:
                 return AuthAPIViews.error_response("Username, password, and jurisdiction required")
@@ -64,14 +67,13 @@ class AuthAPIViews(APIResponseMixin):
             else:
                 return AuthAPIViews.error_response("Invalid credentials", 401)
 
-        except json.JSONDecodeError as e:
-            return AuthAPIViews.error_response(f"Invalid JSON data: {str(e)}, {request.body}")
+        except (ValueError, UnicodeDecodeError):
+            return AuthAPIViews.error_response("Invalid login data", 400)
         except Exception as e:
             return AuthAPIViews.error_response(f"Error: {str(e)}")
 
     @staticmethod
     @require_http_methods(["POST"])
-    @csrf_exempt
     def user_logout(request):
         """Handle user logout"""
         from efile.authentication import SuffolkEFileBackend
@@ -84,6 +86,7 @@ class AuthAPIViews(APIResponseMixin):
 
     @staticmethod
     @require_http_methods(["GET"])
+    @require_efsp_login
     def user_profile(request):
         """Get current user profile from external Suffolk eFile API"""
         try:
@@ -154,22 +157,20 @@ class AuthAPIViews(APIResponseMixin):
 
     @staticmethod
     @require_http_methods(["GET"])
+    @require_efsp_login
     def tyler_token(request):
-        """Get Tyler token and API key for external form submissions"""
+        """Return only the signed-in user's token for the payment form."""
         try:
             # Get jurisdiction and Tyler token dynamically
             jurisdiction = get_jurisdiction_from_request(request)
             tyler_token = get_tyler_token(request, jurisdiction)
-            api_key = getattr(settings, "SUFFOLK_EFILE_API_KEY", None)
-
-            return AuthAPIViews.success_response(
-                {"tyler_token": tyler_token, "api_key": api_key, "state": jurisdiction}
-            )
+            return AuthAPIViews.success_response({"tyler_token": tyler_token, "state": jurisdiction})
         except Exception as e:
             return AuthAPIViews.error_response(f"Error: {str(e)}")
 
     @staticmethod
     @require_http_methods(["GET"])
+    @require_efsp_login
     def payment_accounts(request):
         """Get payment accounts from Suffolk eFile API with proper authentication"""
         try:
@@ -196,7 +197,7 @@ class AuthAPIViews(APIResponseMixin):
 
             url = f"{settings.EFSP_URL}/jurisdictions/{jurisdiction}/payments/payment-accounts/"
             logger.debug("GET %s header keys=%s", url, list(headers.keys()))
-            api_response = requests.get(url, headers=headers, timeout=10)
+            api_response = requests.get(url, headers=headers, timeout=10, allow_redirects=False)
             logger.debug(
                 "Payment accounts response: status=%s content_type=%s",
                 api_response.status_code,
@@ -251,6 +252,7 @@ class AuthAPIViews(APIResponseMixin):
 
     @staticmethod
     @require_http_methods(["GET"])
+    @require_efsp_login
     def payment_account_types(request):
         """List the court's payment account types (e.g. "CC", "WV") with names.
 
@@ -273,7 +275,7 @@ class AuthAPIViews(APIResponseMixin):
 
             url = f"{settings.EFSP_URL}/jurisdictions/{jurisdiction}/payments/types"
             logger.debug("GET %s header keys=%s", url, list(headers.keys()))
-            api_response = requests.get(url, headers=headers, timeout=10)
+            api_response = requests.get(url, headers=headers, timeout=10, allow_redirects=False)
 
             if api_response.status_code == 200:
                 return AuthAPIViews.success_response(api_response.json())

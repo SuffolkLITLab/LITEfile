@@ -401,7 +401,7 @@ def test_native_copy_renews_urls_from_owned_keys(original, monkeypatch):
     monkeypatch.setattr("efile.utils.s3_upload_handler.S3UploadHandler._ensure_initialized", lambda self: True)
     calls = []
 
-    def renewed(self, key):
+    def renewed(self, key, expiration=604800):
         calls.append(key)
         return "https://example.invalid/renewed"
 
@@ -460,7 +460,8 @@ def test_availability_checks_the_refreshed_correction_payload(client, original, 
     monkeypatch.setattr("efile.views.session_api.get_case_data", lambda *args: {"court": revision.court_code})
     monkeypatch.setattr("efile.views.session_api.get_upload_data", lambda *args: {"files": {"lead": {"name": "x"}}})
     monkeypatch.setattr(
-        "efile.utils.s3_upload_handler.S3UploadHandler.get_public_url", lambda *args: "https://example.invalid/new"
+        "efile.utils.s3_upload_handler.S3UploadHandler.get_public_url",
+        lambda *args, **kwargs: "https://example.invalid/new",
     )
     monkeypatch.setattr(
         "efile.views.session_api.prepare_efile_payload",

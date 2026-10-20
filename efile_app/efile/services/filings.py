@@ -29,6 +29,7 @@ from efile.api.filing_views import get_tyler_token, list_filing_data
 from efile.models import ArchivedCase
 from efile.services.filing_timing import add_tracker_timing
 from efile.utils.config_loader import config_loader
+from efile.utils.efsp_security import validated_code, validated_jurisdiction
 from efile.utils.proxy_connection import get_headers
 
 logger = logging.getLogger(__name__)
@@ -381,6 +382,9 @@ def fetch_filing_detail(request, jurisdiction: str, court_code: str, filing_id: 
     detail endpoint rejects the envelope number with a 422.
     """
 
+    jurisdiction = validated_jurisdiction(jurisdiction)
+    court_code = validated_code(court_code)
+    filing_id = validated_code(filing_id)
     url = f"{settings.EFSP_URL}/jurisdictions/{jurisdiction}/filingreview/courts/{court_code}/filings/{filing_id}"
     headers = get_headers()
     tyler_token = get_tyler_token(request, jurisdiction)
@@ -390,7 +394,7 @@ def fetch_filing_detail(request, jurisdiction: str, court_code: str, filing_id: 
         logger.info("No Tyler token for jurisdiction %s in filing-detail request", jurisdiction)
         return None
 
-    response = requests.get(url, headers=headers, timeout=30)
+    response = requests.get(url, headers=headers, timeout=30, allow_redirects=False)
     if not response.ok:
         logger.info(
             "Filing detail request failed: status=%s court=%s jurisdiction=%s",
