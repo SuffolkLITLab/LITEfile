@@ -507,8 +507,8 @@ def issues_for(draft, *, current_metadata=False):
     for doc in draft.documents.all():
         for field, label in (
             ("filing_type_code", "filing type"),
-            ("document_type_code", "document type"),
-            ("filing_component_code", "filing component"),
+            ("document_type_code", "confidentiality setting"),
+            ("filing_component_code", "document settings"),
         ):
             if (
                 current_metadata
@@ -516,8 +516,18 @@ def issues_for(draft, *, current_metadata=False):
                 and f"documents.{doc.pk}.{field}" not in draft.correction_fields
             ):
                 continue
+            path = f"documents.{doc.pk}.{field}"
+            if path not in draft.correction_fields:
+                # Match the ordinary workflow's document readiness rules. The
+                # document editor confirms an empty confidentiality choice when
+                # the court offers none; components are validated by the final
+                # payload checks, not a mandatory question for every filer.
+                if field == "filing_component_code":
+                    continue
+                if field == "document_type_code" and doc.document_type_confirmed:
+                    continue
             need(
-                f"documents.{doc.pk}.{field}",
+                path,
                 getattr(doc, field),
                 f"Choose the {label} for {doc.name}.",
                 "organize_documents",

@@ -766,3 +766,98 @@ def test_handoff_distinguishes_conversion_rejection_from_service_outage(
     assert response.status_code == expected
     assert not FilingDraft.objects.exists()
     storage.upload_file.assert_not_called()
+
+
+def test_claimed_handoff_resumes_without_claiming_again(client, source, payload, storage, django_user_model):
+    response = send(client, source, payload)
+    draft = FilingDraft.objects.get()
+    draft.user = login(client, django_user_model)
+    draft.save()
+
+    response = client.get(response.json()["continue_url"])
+
+    assert response.status_code == 302
+    assert response.url == reverse("handoff_review", args=[draft.pk])
+
+
+@pytest.mark.parametrize("fingerprint_state", ["current", "stale", "missing"])
+def test_handoff_reviews_current_pdfs_without_reasking_case_details(
+    client, source, payload, storage, django_user_model, fingerprint_state
+):
+    from efile.services.document_previews import preview_fingerprint
+
+    send(client, source, payload)
+    draft = FilingDraft.objects.get()
+    draft.user = login(client, django_user_model)
+    draft.save()
+    document = draft.documents.get()
+    fingerprint = preview_fingerprint([document])
+    if fingerprint_state == "stale":
+        document.s3_key = "replacement.pdf"
+        document.save()
+    elif fingerprint_state == "missing":
+        fingerprint = ""
+
+    # Isolate PDF acknowledgement from the separate live taxonomy/readiness checks.
+    with patch("efile.views.handoff.resolve_metadata"), patch("efile.views.handoff.issues_for", return_value=[]):
+        page = client.get(reverse("handoff_review", args=[draft.pk]))
+        assert b"Confirm my corrections" not in page.content
+        assert page.content.index(b"Continue to final review") < page.content.index(b"<h2>Documents</h2>")
+        response = client.post(
+            reverse("handoff_review", args=[draft.pk]),
+            {"action": "continue", "preview_fingerprint": fingerprint},
+        )
+
+    document.refresh_from_db()
+    if fingerprint_state == "current":
+        assert response.status_code == 302
+        assert reverse("case_review", kwargs={"jurisdiction": "vermont"}) in response.url
+        assert document.preparation_reviewed_at is not None
+    else:
+        assert response.status_code == 422
+        assert document.preparation_reviewed_at is None
+        assert b"Your files changed" in response.content
+    draft.refresh_from_db()
+    assert draft.status == FilingDraft.Status.DRAFT
+
+
+def test_handoff_continue_keeps_missing_details_blocking(client, source, payload, storage, django_user_model):
+    from efile.services.document_previews import preview_fingerprint
+
+    send(client, source, payload)
+    draft = FilingDraft.objects.get()
+    draft.user = login(client, django_user_model)
+    draft.save()
+    with patch("efile.views.handoff.resolve_metadata"):
+        page = client.get(reverse("handoff_review", args=[draft.pk]))
+        assert b"Complete missing details" in page.content
+        assert b"Continue to final review" not in page.content
+        response = client.post(
+            reverse("handoff_review", args=[draft.pk]),
+            {"action": "continue", "preview_fingerprint": preview_fingerprint(draft.documents.all())},
+        )
+    assert response.url == reverse("handoff_review", args=[draft.pk])
+    assert draft.documents.get().preparation_reviewed_at is None
+
+
+def test_handoff_does_not_reask_confirmed_optional_document_settings(client, source, payload, storage):
+    from efile.services.handoff import issues_for
+
+    send(client, source, payload)
+    draft = FilingDraft.objects.get()
+    document = draft.documents.get()
+    document.filing_type_code = "complaint"
+    document.document_type_confirmed = True
+    document.save()
+    paths = {issue["path"] for issue in issues_for(draft)}
+    assert f"documents.{document.pk}.document_type_code" not in paths
+    assert f"documents.{document.pk}.filing_component_code" not in paths
+
+    # An unresolved confidentiality choice and clerk-requested corrections must
+    # still be completed, even when the normal document editor was visited.
+    document.document_type_confirmed = False
+    document.save()
+    assert f"documents.{document.pk}.document_type_code" in {issue["path"] for issue in issues_for(draft)}
+    draft.correction_fields = [f"documents.{document.pk}.filing_component_code"]
+    draft.save()
+    assert draft.correction_fields[0] in {issue["path"] for issue in issues_for(draft)}

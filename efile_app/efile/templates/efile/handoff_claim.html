@@ -9,7 +9,7 @@
         <p>Sign in with the account you used to claim the draft.</p>
     {% else %}
         <h1>Continue your filing</h1>
-        <p>{{ source }} sent your answers and documents. Add them to your account to continue filing.</p>
+        <p>Your interview sent your answers and documents. Add them to your account to continue filing.</p>
         <form method="post">{% csrf_token %}<button class="btn btn-primary" type="submit">Add this draft to my account</button></form>
     {% endif %}
 {% endblock public_content %}

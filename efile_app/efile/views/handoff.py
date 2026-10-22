@@ -24,6 +24,12 @@ from efile.services.document_preparation import (
     cleanup_unreferenced_uploads,
     store_prepared_document,
 )
+from efile.services.document_previews import (
+    DocumentReviewError,
+    approve_document_review,
+    preview_fingerprint,
+    unreviewed_documents,
+)
 from efile.services.draft_urls import draft_url
 from efile.services.fee_quotes import invalidate_fee_quote
 from efile.services.filings import fetch_filing_detail
@@ -180,6 +186,8 @@ def handoff_claim(request, token):
         return _private(redirect("efile_login", jurisdiction=draft.jurisdiction))
     if draft.user_id and draft.user_id != request.user.pk:
         return _private(render(request, "efile/handoff_claim.html", {"unavailable": True}, status=403))
+    if request.method == "GET" and draft.user_id == request.user.pk:
+        return _private(redirect("handoff_review", draft_id=draft.pk))
     if request.method == "POST":
         with transaction.atomic():
             draft = FilingDraft.objects.select_for_update().get(pk=draft.pk)
@@ -219,6 +227,8 @@ def handoff_review(request, draft_id):
     if draft.status != FilingDraft.Status.DRAFT:
         return _private(render(request, "efile/handoff_review.html", {"draft": draft, "closed": True}))
     attach_current_draft(request, draft)
+    review_error = ""
+    status = 200
     if request.method == "POST":
         resolve_metadata(draft)
         if request.POST.get("action") == "confirm":
@@ -239,20 +249,54 @@ def handoff_review(request, draft_id):
             draft.correction_fields = remaining
             draft.save(update_fields=["correction_fields", "updated_at"])
             record(draft, "review", "user_confirmation", {"user_id": request.user.pk})
-        return redirect("handoff_review", draft_id=draft.pk)
+        if request.POST.get("action") == "continue":
+            if issues_for(draft):
+                return redirect("handoff_review", draft_id=draft.pk)
+            try:
+                # Review the transferred PDFs here, without asking the filer to
+                # re-enter the interview's resolved court and case information.
+                if unreviewed_documents(draft).exists() or request.POST.get("preview_fingerprint"):
+                    approve_document_review(draft, request.POST.get("preview_fingerprint"))
+            except DocumentReviewError as exc:
+                review_error, status = str(exc), exc.status
+            else:
+                return redirect(
+                    draft_url(reverse("case_review", kwargs={"jurisdiction": draft.jurisdiction}), draft.pk)
+                )
+        else:
+            return redirect("handoff_review", draft_id=draft.pk)
     receipt = receipt_for(draft)
+    documents = list(draft.documents.all())
+    issues = _issue_links(draft)
+    labels = {
+        "extraction_review": "Complete case details",
+        "case_lookup": "Find your court case",
+        "case_confirmation": "Confirm the court case",
+        "upload_documents": "Add or replace documents",
+        "organize_documents": "Complete document settings",
+        "your_information": "Complete your contact information",
+        "parties": "Complete information about the people in this case",
+        "case_questions": "Answer the remaining court questions",
+        "payment": "Check fees and choose a payment method or fee waiver",
+    }
+    steps = {}
+    for issue in issues:
+        steps.setdefault(issue["url"], {"url": issue["url"], "label": labels.get(issue["view"], issue["message"])})
     return _private(
         render(
             request,
             "efile/handoff_review.html",
             {
                 "draft": draft,
-                "issues": _issue_links(draft),
+                "issues": issues,
+                "steps": list(steps.values()),
                 "receipt": receipt,
-                "documents": draft.documents.all(),
+                "documents": documents,
+                "preview_fingerprint": preview_fingerprint(documents),
+                "needs_document_review": any(doc.preparation_reviewed_at is None for doc in documents),
+                "review_error": review_error,
                 "parties": draft.parties.all(),
                 "can_return": bool(receipt and receipt.payload.get("return_url")),
-                "review_url": draft_url(reverse("case_review", kwargs={"jurisdiction": draft.jurisdiction}), draft.pk),
                 "case_url": draft_url(
                     with_return_to(
                         reverse("extraction_review", kwargs={"jurisdiction": draft.jurisdiction}), RETURN_TO_HANDOFF
@@ -270,6 +314,7 @@ def handoff_review(request, draft_id):
                     draft.pk,
                 ),
             },
+            status=status,
         )
     )
 
