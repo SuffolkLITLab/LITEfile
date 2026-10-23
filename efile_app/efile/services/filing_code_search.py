@@ -426,6 +426,8 @@ class CodeCatalog:
             if not code:
                 raise ValueError("Court code API returned an empty code")
             result[code] = {"code": code, "name": str(item["name"])}
+            if "amountincontroversy" in item:
+                result[code]["amountincontroversy"] = item["amountincontroversy"]
         return list(result.values())
 
     def courts(self):

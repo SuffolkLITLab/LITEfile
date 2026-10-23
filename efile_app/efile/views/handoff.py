@@ -47,7 +47,7 @@ from efile.services.handoff import (
     validate_payload,
 )
 from efile.utils.s3_upload_handler import S3UploadHandler
-from efile.workflow import RETURN_TO_HANDOFF, WorkflowStepKey, with_return_to
+from efile.workflow import RETURN_TO_HANDOFF, ExistingCase, WorkflowStepKey, with_return_to
 
 CLAIM_SALT = "litefile.handoff.claim.v1"
 REPLACE_SALT = "litefile.handoff.replace.v1"
@@ -231,7 +231,8 @@ def handoff_review(request, draft_id):
     review_error = ""
     status = 200
     if request.method == "POST":
-        resolve_metadata(draft)
+        if request.POST.get("action") in ("resolve", "confirm"):
+            resolve_metadata(draft)
         if request.POST.get("action") == "confirm":
             # Record the explicit review of existing selections. An unresolved
             # correction is kept open until its field actually has a value.
@@ -250,7 +251,15 @@ def handoff_review(request, draft_id):
             draft.correction_fields = remaining
             draft.save(update_fields=["correction_fields", "updated_at"])
             record(draft, "review", "user_confirmation", {"user_id": request.user.pk})
-        if request.POST.get("action") == "continue":
+        if request.POST.get("action") == "complete_details":
+            try:
+                approve_document_review(draft, request.POST.get("preview_fingerprint"))
+            except DocumentReviewError as exc:
+                review_error, status = str(exc), exc.status
+            else:
+                remaining = _issue_links(draft)
+                return redirect(remaining[0]["url"] if remaining else reverse("handoff_review", args=[draft.pk]))
+        elif request.POST.get("action") == "continue":
             if issues_for(draft):
                 return redirect("handoff_review", draft_id=draft.pk)
             try:
@@ -273,18 +282,18 @@ def handoff_review(request, draft_id):
     imported_choices = [
         {
             "label": "Court",
-            "hint": payload.get("case", {}).get("court_name", ""),
-            "value": draft.court_name if draft.court_code else "",
+            "hint": payload.get("case", {}).get("court_name") or payload.get("case", {}).get("county", ""),
+            "value": (draft.court_name or draft.court_code) if draft.court_code else "",
         },
         {
             "label": "Case category",
             "hint": ", ".join(hints.get("case_category_name_hints", [])),
-            "value": draft.case_category_name if draft.case_category_code else "",
+            "value": (draft.case_category_name or draft.case_category_code) if draft.case_category_code else "",
         },
         {
             "label": "Case type",
             "hint": ", ".join(hints.get("case_type_name_hints", [])),
-            "value": draft.case_type_name if draft.case_type_code else "",
+            "value": (draft.case_type_name or draft.case_type_code) if draft.case_type_code else "",
         },
     ]
     for document in documents:
@@ -304,6 +313,27 @@ def handoff_review(request, draft_id):
                         f"{choice['label']}: the interview suggested “{choice['hint']}”, "
                         "but no court choice is matched. Choose an available option."
                     )
+    unmatched_hints = {
+        f"documents.{document.pk}.filing_type_code": (
+            f"Filing type for {document.name}",
+            document.interview_filing_hint,
+        )
+        for document in documents
+        if not document.filing_type_code
+    }
+    unmatched_hints.update(
+        {
+            f"parties.{party.pk}.party_type": (f"Court role for {party}", party.party_role_hint)
+            for party in draft.parties.all()
+            if not party.party_type
+        }
+    )
+    for issue in issues:
+        label, hint = unmatched_hints.get(issue["path"], ("", ""))
+        if hint and issue["path"] not in draft.correction_fields:
+            issue["message"] = (
+                f"{label}: the interview suggested “{hint}”, but no court choice is matched. Choose an available option."
+            )
     return _private(
         render(
             request,
@@ -315,13 +345,15 @@ def handoff_review(request, draft_id):
                 "replacement_documents": [
                     document
                     for document in documents
-                    if not all(
+                    if draft.existing_case == ExistingCase.NEW
+                    and not all(
                         (draft.court_code, draft.case_category_code, draft.case_type_code, document.filing_type_code)
                     )
                 ],
                 "receipt": receipt,
                 "documents": documents,
                 "preview_fingerprint": preview_fingerprint(documents),
+                "can_review_documents": bool(documents) and all(doc.preparation for doc in documents),
                 "needs_document_review": any(doc.preparation_reviewed_at is None for doc in documents),
                 "review_error": review_error,
                 "parties": draft.parties.all(),

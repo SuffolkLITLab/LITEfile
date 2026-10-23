@@ -917,7 +917,8 @@ def replacement_draft(client, source, payload, storage, django_user_model):
     }
     path = FilingCodePath.objects.create(index=index, **values)
     document = draft.documents.get()
-    return draft, document, index, path, values, reverse("handoff_replacements", args=[draft.pk, document.pk])
+    with patch("efile.services.handoff._codes", return_value=[]):
+        yield draft, document, index, path, values, reverse("handoff_replacements", args=[draft.pk, document.pk])
 
 
 def test_replacement_fills_only_missing_choices(client, replacement_draft):
@@ -1028,3 +1029,148 @@ def test_replacement_cannot_change_case_stage(client, replacement_draft):
     validate.assert_not_called()
     draft.refresh_from_db()
     assert draft.case_type_code == ""
+
+
+@pytest.mark.parametrize("stage", ["yes", "", "unsure"])
+def test_replacement_is_only_available_for_new_cases(client, replacement_draft, stage):
+    draft, _, index, path, _, url = replacement_draft
+    draft.existing_case = stage
+    draft.save()
+    with patch("efile.views.handoff_replacements.current_index", return_value=index):
+        assert client.get(url).status_code == 302
+        assert client.post(url, {"path_id": path.pk}).status_code == 302
+    page = client.get(reverse("handoff_review", args=[draft.pk]))
+    assert b"Explore replacements for" not in page.content
+
+
+def test_replacement_resumes_dependent_matching_and_records_once(client, replacement_draft):
+    draft, document, index, path, values, url = replacement_draft
+    values["filing_type"]["amountincontroversy"] = "Required"
+    document.document_type_confirmed = True
+    document.save()
+    event_count = draft.metadata_events.count()
+    with (
+        patch("efile.views.handoff_replacements.current_index", return_value=index),
+        patch("efile.services.handoff_replacements.validate_path", return_value=values),
+        patch("efile.services.handoff._codes", return_value=[{"code": "plaintiff", "name": "plaintiff"}]),
+    ):
+        response = client.post(url, {"path_id": path.pk})
+    assert response.status_code == 302
+    assert draft.parties.get().party_type == "plaintiff"
+    document.refresh_from_db()
+    assert document.filing_requires_amount_in_controversy
+    assert not document.document_type_confirmed
+    events = list(draft.metadata_events.all())[event_count:]
+    assert [event.kind for event in events].count("user_edit") == 0
+    assert len([event for event in events if event.path == f"documents.{document.pk}.filing_type_code"]) == 1
+
+
+def test_document_removed_during_validation_is_recoverable(client, replacement_draft):
+    draft, document, index, path, values, url = replacement_draft
+
+    def validate(_):
+        document.delete()
+        return values
+
+    with (
+        patch("efile.views.handoff_replacements.current_index", return_value=index),
+        patch("efile.services.handoff_replacements.validate_path", side_effect=validate),
+    ):
+        response = client.post(url, {"path_id": path.pk})
+    assert response.status_code == 409
+    assert b"Your documents changed" in response.content
+    assert b"Back to your saved filing" in response.content
+    draft.refresh_from_db()
+    assert draft.case_type_code == ""
+
+
+def test_replacement_default_uses_first_top_level_hint(client, replacement_draft):
+    draft, _, index, _, _, url = replacement_draft
+    receipt = draft.handoff
+    receipt.payload["filing_type_name_hints"] = ["Complaint", "Protection petition"]
+    receipt.save()
+    with (
+        patch("efile.views.handoff_replacements.current_index", return_value=index),
+        patch("efile.views.handoff_replacements.search_paths", return_value={"results": [], "total": 0}) as search,
+    ):
+        client.get(url)
+    assert search.call_args.args[1] == "Complaint"
+
+
+def test_continue_does_not_resolve_metadata_after_displaying_pdf_fingerprint(client, replacement_draft):
+    from efile.services.document_previews import preview_fingerprint
+
+    draft, document, *_ = replacement_draft
+    document.preparation = "unchanged"
+    document.save()
+    with (
+        patch("efile.views.handoff.resolve_metadata") as resolve,
+        patch("efile.views.handoff.issues_for", return_value=[]),
+    ):
+        response = client.post(
+            reverse("handoff_review", args=[draft.pk]),
+            {"action": "continue", "preview_fingerprint": preview_fingerprint([document])},
+        )
+    assert response.status_code == 302
+    resolve.assert_not_called()
+    document.refresh_from_db()
+    assert document.preparation_reviewed_at is not None
+
+
+def test_complete_missing_details_approves_current_pdfs_once(client, replacement_draft):
+    from efile.services.document_previews import preview_fingerprint
+
+    draft, document, *_ = replacement_draft
+    document.preparation = "unchanged"
+    document.save()
+    response = client.post(
+        reverse("handoff_review", args=[draft.pk]),
+        {"action": "complete_details", "preview_fingerprint": preview_fingerprint([document])},
+    )
+    assert response.status_code == 302
+    assert "return_to=handoff" in response.url
+    document.refresh_from_db()
+    assert document.preparation_reviewed_at is not None
+
+
+def test_correction_resets_confidentiality_confirmation(client, replacement_draft):
+    draft, document, *_ = replacement_draft
+    document.document_type_confirmed = True
+    document.filing_requires_amount_in_controversy = True
+    document.save()
+    draft.status = FilingDraft.Status.SUBMITTED
+    draft.save()
+    revision = create_correction(draft, {"status": "returned"}, [f"documents.{document.pk}.filing_type_code"])
+    corrected = revision.documents.get()
+    assert not corrected.document_type_confirmed
+    assert not corrected.filing_requires_amount_in_controversy
+
+
+def test_complete_details_rejects_stale_pdf_review(client, replacement_draft):
+    draft, document, *_ = replacement_draft
+    document.preparation = "unchanged"
+    document.save()
+    response = client.post(
+        reverse("handoff_review", args=[draft.pk]), {"action": "complete_details", "preview_fingerprint": "stale"}
+    )
+    assert response.status_code == 422
+    document.refresh_from_db()
+    assert document.preparation_reviewed_at is None
+
+
+def test_conflict_page_uses_current_saved_choices(client, replacement_draft):
+    draft, _, index, path, values, url = replacement_draft
+
+    def validate(_):
+        FilingDraft.objects.filter(pk=draft.pk).update(case_type_code="newer-choice", case_type_name="Newer choice")
+        return values
+
+    with (
+        patch("efile.views.handoff_replacements.current_index", return_value=index),
+        patch("efile.services.handoff_replacements.validate_path", side_effect=validate),
+        patch("efile.views.handoff_replacements.search_paths", return_value={"results": [], "total": 0}) as search,
+    ):
+        response = client.post(url, {"path_id": path.pk})
+    assert response.status_code == 409
+    assert b"Newer choice" in response.content
+    assert search.call_args.kwargs["case_type"] == "newer-choice"

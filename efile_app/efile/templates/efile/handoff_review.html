@@ -21,7 +21,21 @@
         {% if issues %}
             <h2>Before you continue</h2>
             <p>We only need the details listed here. Your other answers are already saved.</p>
-            <p><a href="{{ issues.0.url }}" class="btn btn-primary">Complete missing details</a></p>
+            {% if can_review_documents %}
+                {% if needs_document_review %}<p>Open your PDFs below and check the copies the court will receive before continuing.</p>{% endif %}
+                <form method="post" class="mb-3">
+                    {% csrf_token %}
+                    <input type="hidden"
+                           name="preview_fingerprint"
+                           value="{{ preview_fingerprint }}" />
+                    <button type="submit"
+                            name="action"
+                            value="complete_details"
+                            class="btn btn-primary">Complete missing details</button>
+                </form>
+            {% else %}
+                <p><a href="{{ issues.0.url }}" class="btn btn-primary">Complete missing details</a></p>
+            {% endif %}
             <div class="alert alert-warning"><ul class="mb-0">{% for issue in issues %}<li><a href="{{ issue.url }}">{{ issue.message }}</a></li>{% endfor %}</ul></div>
             {% if replacement_documents %}
                 <p>Could not match a court choice? Explore replacements while keeping your saved choices.</p>

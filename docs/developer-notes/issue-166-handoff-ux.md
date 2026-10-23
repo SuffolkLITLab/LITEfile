@@ -33,3 +33,19 @@ Both identified the duplicate case-confirmation loop, buried actions, outdated s
 - Parsed the RFA YAML and rendered its introduction/download Mako templates with synthetic helpers in both enabled and disabled modes. Confirmed the enabled mode omits the contradictory manual-only instructions and puts the filing action before downloads.
 - Chromium at 390 × 844: ready/missing handoff primary actions are above the fold; the saved-details disclosure opens and closes with Enter. [Synthetic screenshots](https://gist.github.com/nonprofittechy/841e3dd9efb519a3cc91e481aa1f1a40).
 - These checks do not establish a successful Vermont test filing. Full Docassemble execution, test-EFM submission, court receipt/status, and Vermont partner acceptance remain outstanding under issue 166.
+
+## Independent code review and follow-up
+
+Claude and agy/Argon reviewed the full implementation through `0a10c55` independently. Their raw reports are retained in the unlisted evidence gist; some report line numbers and symbol names were inaccurate, so findings were checked against the source and regression tests.
+
+Confirmed issues addressed in the follow-up:
+
+- Restrict the focused replacement lookup to new cases. Existing-case drafts keep the court-record lookup and case-specific permitted filing types; drafts with an undecided case stage no longer show unusable replacement links.
+- Resume matching of dependent interview hints after a successful replacement. Keep metadata matching out of PDF approval actions so metadata-only timestamp changes cannot invalidate the displayed fingerprint.
+- Approve the displayed PDF copies when continuing to missing details, avoiding duplicate review at payment; stale fingerprints still block approval.
+- Reset blank confidentiality confirmation when its filing-type scope changes, including clerk corrections. Carry the live amount-in-controversy requirement into document metadata.
+- Preserve all saved codes, refresh conflict results from current records, and recover when a document disappears during live validation. Write one provenance event per selected replacement.
+- Seed lookup from one relevant hint rather than combining alternative names into an AND query; preserve the lead document's top-level hint fallback. Surface unmatched filing and party-role hints outside the accordion.
+- Display unavailable results with their explanation and no selection control, with a link to later result pages.
+
+Validation uses synthetic court responses. It does not establish a live Vermont EFM acceptance test. The focused replacement route does not replace the existing party-role or confidentiality editors.

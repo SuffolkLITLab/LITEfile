@@ -1499,3 +1499,15 @@ def test_replacement_search_filters_all_saved_codes_before_pagination(index):
     assert result["total"] == 1
     assert result["results"][0]["filing_type"]["code"] == "spcomplaint"
     assert search_paths(index, "complaint", court="housing", case_type="sp", filing_type="complaint")["total"] == 0
+
+
+def test_live_catalog_preserves_amount_requirement():
+    api = CodeCatalog("vermont")
+    response = Mock()
+    response.json.return_value = [{"code": "claim", "name": "Claim", "amountincontroversy": "Required"}]
+    try:
+        with patch.object(api.session, "get", return_value=response):
+            choices = api.get("court/filing_types/")
+        assert choices[0]["amountincontroversy"] == "Required"
+    finally:
+        api.close()

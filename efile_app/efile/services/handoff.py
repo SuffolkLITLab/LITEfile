@@ -380,7 +380,16 @@ def resolve_metadata(draft):
             name_field = field.replace("_code", "_name") if field != "party_type" else "party_type_name"
             setattr(obj, name_field, str(option.get("name", "")))
             obj._metadata_kind = "live_resolution"
-            obj.save(update_fields=[field, name_field, "updated_at"])
+            update_fields = [field, name_field, "updated_at"]
+            if field == "filing_type_code" and isinstance(obj, FilingDocument):
+                obj.filing_requires_amount_in_controversy = (
+                    str(option.get("amountincontroversy", "")).lower() == "required"
+                )
+                update_fields.append("filing_requires_amount_in_controversy")
+                if not obj.document_type_code:
+                    obj.document_type_confirmed = False
+                    update_fields.append("document_type_confirmed")
+            obj.save(update_fields=update_fields)
             del obj._metadata_kind
             record(
                 draft,
@@ -524,7 +533,7 @@ def issues_for(draft, *, current_metadata=False):
                 # payload checks, not a mandatory question for every filer.
                 if field == "filing_component_code":
                     continue
-                if field == "document_type_code" and doc.document_type_confirmed:
+                if field == "document_type_code" and doc.filing_type_code and doc.document_type_confirmed:
                     continue
             need(
                 path,
@@ -675,6 +684,10 @@ def create_correction(draft, detail, fields=()):
                 obj.filing_component_code = ""
                 obj.filing_component_name = ""
                 obj.requested_optional_services = []
+            if parts[0] == "documents" and parts[2] in ("filing_type_code", "document_type_code"):
+                obj.document_type_confirmed = False
+                if parts[2] == "filing_type_code":
+                    obj.filing_requires_amount_in_controversy = False
             obj.save()
         elif path != "documents":
             setattr(revision, path, "")
@@ -693,6 +706,8 @@ def create_correction(draft, detail, fields=()):
                 setattr(document, f"{field}_code", "")
                 setattr(document, f"{field}_name", "")
             document.requested_optional_services = []
+            document.document_type_confirmed = False
+            document.filing_requires_amount_in_controversy = False
             document.save()
         for party in revision.parties.all():
             party._metadata_kind = "clerk_correction"
