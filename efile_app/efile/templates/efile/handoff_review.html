@@ -44,50 +44,58 @@
             <summary>Answers carried over from your interview</summary>
             <p>Your interview supplied answers and suggested court choices. Suggestions must match the court’s available choices, which can change. You can edit the saved details below.</p>
             <h2>Case information</h2>
-            <dl>
-                {% for choice in imported_choices %}
-                    <dt>{{ choice.label }}</dt>
-                    <dd>
-                        {% if choice.hint %}From your interview: {{ choice.hint }}<br />{% endif %}
-                        {% if choice.value %}Saved court choice: {{ choice.value }}{% else %}<strong>Needs a court choice</strong>{% endif %}
-                    </dd>
-                {% endfor %}
-                {% if draft.is_filing_into_found_case %}<dt>Case number</dt><dd>{{ draft.docket_number }}</dd>{% endif %}
-            </dl>
+            <table class="table handoff-details" aria-label="Case information">
+                <tbody>
+                    {% for choice in imported_choices %}
+                        <tr>
+                            <th scope="row">{{ choice.label }}</th>
+                            <td>
+                                {% if choice.hint %}<p class="handoff-hint">From your interview: {{ choice.hint }}</p>{% endif %}
+                                {% if choice.value %}<p>Saved court choice: {{ choice.value }}</p>{% else %}<p><strong>Needs a court choice</strong></p>{% endif %}
+                            </td>
+                        </tr>
+                    {% endfor %}
+                    {% if draft.is_filing_into_found_case %}<tr><th scope="row">Case number</th><td>{{ draft.docket_number }}</td></tr>{% endif %}
+                </tbody>
+            </table>
             <a href="{{ case_url }}">Edit case details</a>
             <h2>People</h2>
-            <ul>
-                {% for party in parties %}
-                    <li>
-                        {{ party }}
-                        {% if party.party_role_hint %}<br />Role from your interview: {{ party.party_role_hint }}{% endif %}
-                        {% if party.party_type or party.party_role_hint %}
-                            <br />
-                            Saved court role: {{ party.party_type_name|default:"Needs a court choice" }}
-                        {% endif %}
+            {% for party in parties %}
+                <h3>{{ party }}</h3>
+                <table class="table handoff-details" aria-label="Details for {{ party }}">
+                    <tbody>
+                        {% if party.party_role_hint %}<tr><th scope="row">Interview role</th><td>{{ party.party_role_hint }}</td></tr>{% endif %}
+                        {% if party.party_type or party.party_role_hint %}<tr><th scope="row">Court role</th><td>{{ party.party_type_name|default:"Needs a court choice" }}</td></tr>{% endif %}
                         {% if party.address_line_1 %}
-                            <br />
-                            {{ party.address_line_1 }}
-                            {% if party.address_line_2 %}, {{ party.address_line_2 }}{% endif %}
-                            <br />
-                            {{ party.city }}, {{ party.state }} {{ party.zip_code }}
+                            <tr>
+                                <th scope="row">Address</th>
+                                <td>
+                                    {{ party.address_line_1 }}
+                                    {% if party.address_line_2 %}<br />{{ party.address_line_2 }}{% endif %}
+                                    <br />
+                                    {{ party.city }}, {{ party.state }} {{ party.zip_code }}
+                                </td>
+                            </tr>
                         {% endif %}
-                        {% if party.email %}<br />{{ party.email }}{% endif %}
-                    </li>
-                {% endfor %}
-            </ul>
+                        {% if party.email %}<tr><th scope="row">Email</th><td>{{ party.email }}</td></tr>{% endif %}
+                    </tbody>
+                </table>
+            {% endfor %}
             <a href="{{ parties_url }}">Edit people</a>
             <h2>Filing types</h2>
-            <ul>
-                {% for document in documents %}
-                    <li>
-                        {{ document.name }}
-                        {% if document.interview_filing_hint %}<br />From your interview: {{ document.interview_filing_hint }}{% endif %}
-                        <br />
-                        Saved court choice: {{ document.filing_type_name|default:"Needs a court choice" }}
-                    </li>
-                {% endfor %}
-            </ul>
+            <table class="table handoff-details" aria-label="Document filing types">
+                <tbody>
+                    {% for document in documents %}
+                        <tr>
+                            <th scope="row">{{ document.name }}</th>
+                            <td>
+                                {% if document.interview_filing_hint %}<p class="handoff-hint">From your interview: {{ document.interview_filing_hint }}</p>{% endif %}
+                                <p>Saved court choice: {{ document.filing_type_name|default:"Needs a court choice" }}</p>
+                            </td>
+                        </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
             <a href="{{ documents_url }}">Edit documents and filing types</a>
             <form method="post">
                 {% csrf_token %}
@@ -110,6 +118,7 @@
 {% block extra_css %}
     <link rel="stylesheet" href="{% static 'vendor/pdfjs/pdf_viewer.css' %}" />
     <link rel="stylesheet" href="{% static 'css/document-preview.css' %}" />
+    <link rel="stylesheet" href="{% static 'css/handoff-review.css' %}" />
 {% endblock extra_css %}
 {% block extra_js %}
     <script src="{% url 'javascript-catalog' %}"></script>
