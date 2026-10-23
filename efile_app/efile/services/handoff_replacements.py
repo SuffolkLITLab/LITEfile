@@ -3,18 +3,18 @@
 from django.db import transaction
 
 from efile.models import FilingDocument, FilingDraft
-from efile.services.filing_code_search import validate_path
-from efile.services.handoff import HandoffError, record
+from efile.services.filing_code_search import FACETS, validate_path
+from efile.services.handoff import HandoffError, apply_filing_type_flags, record
 from efile.workflow import ExistingCase
-
-CASE_FIELDS = ("court", "case_category", "case_type")
 
 
 def locked_choices(draft, document):
-    return {
-        **{facet: getattr(draft, f"{facet}_code") for facet in CASE_FIELDS},
-        "filing_type": document.filing_type_code,
-    }
+    return {facet: getattr(document if facet == "filing_type" else draft, f"{facet}_code") for facet in FACETS}
+
+
+def lookup_offered(draft, document):
+    """New cases only, and only while some court choice is still missing."""
+    return draft.existing_case == ExistingCase.NEW and not all(locked_choices(draft, document).values())
 
 
 def compatible(draft, document, path):
@@ -44,8 +44,8 @@ def apply_replacement(draft, document, path):
             or not compatible(current, target, validated)
         ):
             raise HandoffError("Your saved choices changed. Search again; nothing was replaced.", status=409)
-        changed = False
-        for facet in (*CASE_FIELDS, "filing_type"):
+        corrections = list(current.correction_fields)
+        for facet in FACETS:
             obj = target if facet == "filing_type" else current
             field = f"{facet}_code"
             if getattr(obj, field):
@@ -54,13 +54,7 @@ def apply_replacement(draft, document, path):
             setattr(obj, f"{facet}_name", validated[facet]["name"])
             update_fields = [field, f"{facet}_name", "updated_at"]
             if obj is target:
-                target.filing_requires_amount_in_controversy = (
-                    str(validated[facet].get("amountincontroversy", "")).lower() == "required"
-                )
-                update_fields.append("filing_requires_amount_in_controversy")
-                if not target.document_type_code:
-                    target.document_type_confirmed = False
-                    update_fields.append("document_type_confirmed")
+                update_fields += apply_filing_type_flags(target, validated[facet])
             obj._metadata_kind = "code_search_replacement"
             try:
                 obj.save(update_fields=update_fields)
@@ -68,8 +62,7 @@ def apply_replacement(draft, document, path):
                 del obj._metadata_kind
             event_path = f"documents.{target.pk}.{field}" if obj is target else field
             record(current, event_path, "user_confirmation", {**validated[facet], "source": "code search"})
-            if event_path in current.correction_fields:
-                current.correction_fields.remove(event_path)
-                FilingDraft.objects.filter(pk=current.pk).update(correction_fields=current.correction_fields)
-            changed = True
-        return changed
+            if event_path in corrections:
+                corrections.remove(event_path)
+        if corrections != current.correction_fields:
+            FilingDraft.objects.filter(pk=current.pk).update(correction_fields=corrections)

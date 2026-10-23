@@ -39,6 +39,7 @@ from efile.services.handoff import (
     documents_replaced,
     effective_hints,
     fingerprint,
+    interview_filing_hints,
     issues_for,
     populate,
     receipt_for,
@@ -46,8 +47,9 @@ from efile.services.handoff import (
     resolve_metadata,
     validate_payload,
 )
+from efile.services.handoff_replacements import lookup_offered
 from efile.utils.s3_upload_handler import S3UploadHandler
-from efile.workflow import RETURN_TO_HANDOFF, ExistingCase, WorkflowStepKey, with_return_to
+from efile.workflow import RETURN_TO_HANDOFF, WorkflowStepKey, with_return_to
 
 CLAIM_SALT = "litefile.handoff.claim.v1"
 REPLACE_SALT = "litefile.handoff.replace.v1"
@@ -231,9 +233,10 @@ def handoff_review(request, draft_id):
     review_error = ""
     status = 200
     if request.method == "POST":
-        if request.POST.get("action") in ("resolve", "confirm"):
+        action = request.POST.get("action")
+        if action in ("resolve", "confirm"):
             resolve_metadata(draft)
-        if request.POST.get("action") == "confirm":
+        if action == "confirm":
             # Record the explicit review of existing selections. An unresolved
             # correction is kept open until its field actually has a value.
             remaining = []
@@ -251,7 +254,7 @@ def handoff_review(request, draft_id):
             draft.correction_fields = remaining
             draft.save(update_fields=["correction_fields", "updated_at"])
             record(draft, "review", "user_confirmation", {"user_id": request.user.pk})
-        if request.POST.get("action") == "complete_details":
+        if action == "complete_details":
             try:
                 approve_document_review(draft, request.POST.get("preview_fingerprint"))
             except DocumentReviewError as exc:
@@ -259,7 +262,7 @@ def handoff_review(request, draft_id):
             else:
                 remaining = _issue_links(draft)
                 return redirect(remaining[0]["url"] if remaining else reverse("handoff_review", args=[draft.pk]))
-        elif request.POST.get("action") == "continue":
+        elif action == "continue":
             if issues_for(draft):
                 return redirect("handoff_review", draft_id=draft.pk)
             try:
@@ -277,57 +280,42 @@ def handoff_review(request, draft_id):
             return redirect("handoff_review", draft_id=draft.pk)
     receipt = receipt_for(draft)
     documents = list(draft.documents.all())
+    parties = list(draft.parties.all())
     payload = receipt.payload if receipt else {}
     hints = effective_hints(payload, court_name=draft.court_name)
+    case = payload.get("case", {})
     imported_choices = [
         {
-            "label": "Court",
-            "hint": payload.get("case", {}).get("court_name") or payload.get("case", {}).get("county", ""),
-            "value": (draft.court_name or draft.court_code) if draft.court_code else "",
-        },
-        {
-            "label": "Case category",
-            "hint": ", ".join(hints.get("case_category_name_hints", [])),
-            "value": (draft.case_category_name or draft.case_category_code) if draft.case_category_code else "",
-        },
-        {
-            "label": "Case type",
-            "hint": ", ".join(hints.get("case_type_name_hints", [])),
-            "value": (draft.case_type_name or draft.case_type_code) if draft.case_type_code else "",
-        },
-    ]
-    for document in documents:
-        suggestion = draft.metadata_events.filter(path=f"documents.{document.pk}", kind="source_suggestion").first()
-        source_document = suggestion.value if suggestion else {}
-        document_hints = effective_hints(payload, court_name=draft.court_name, document=source_document)
-        document.interview_filing_hint = ", ".join(
-            document_hints.get("filing_type_name_hints", [])
-            or (hints.get("filing_type_name_hints", []) if document.role == "lead" else [])
-        )
-    issues = _issue_links(draft)
-    for choice, field in zip(imported_choices, ("court_code", "case_category_code", "case_type_code"), strict=True):
-        if choice["hint"] and not choice["value"] and field not in draft.correction_fields:
-            for issue in issues:
-                if issue["path"] == field:
-                    issue["message"] = (
-                        f"{choice['label']}: the interview suggested “{choice['hint']}”, "
-                        "but no court choice is matched. Choose an available option."
-                    )
-    unmatched_hints = {
-        f"documents.{document.pk}.filing_type_code": (
-            f"Filing type for {document.name}",
-            document.interview_filing_hint,
-        )
-        for document in documents
-        if not document.filing_type_code
-    }
-    unmatched_hints.update(
-        {
-            f"parties.{party.pk}.party_type": (f"Court role for {party}", party.party_role_hint)
-            for party in draft.parties.all()
-            if not party.party_type
+            "label": label,
+            "hint": hint,
+            "value": (getattr(draft, f"{facet}_name") or code) if (code := getattr(draft, f"{facet}_code")) else "",
         }
-    )
+        for facet, label, hint in (
+            ("court", "Court", case.get("court_name") or case.get("county", "")),
+            ("case_category", "Case category", ", ".join(hints.get("case_category_name_hints", []))),
+            ("case_type", "Case type", ", ".join(hints.get("case_type_name_hints", []))),
+        )
+    ]
+    filing_hints = interview_filing_hints(draft, payload, documents)
+    for document in documents:
+        document.interview_filing_hint = ", ".join(filing_hints[document.pk])
+    # Interview suggestions keyed by issue path. Outside corrections, an issue
+    # only exists for an empty choice, so a hint there was not matched.
+    unmatched_hints = {
+        **{
+            f"{facet}_code": (choice["label"], choice["hint"])
+            for facet, choice in zip(("court", "case_category", "case_type"), imported_choices, strict=True)
+        },
+        **{
+            f"documents.{document.pk}.filing_type_code": (
+                f"Filing type for {document.name}",
+                document.interview_filing_hint,
+            )
+            for document in documents
+        },
+        **{f"parties.{party.pk}.party_type": (f"Court role for {party}", party.party_role_hint) for party in parties},
+    }
+    issues = _issue_links(draft)
     for issue in issues:
         label, hint = unmatched_hints.get(issue["path"], ("", ""))
         if hint and issue["path"] not in draft.correction_fields:
@@ -342,22 +330,15 @@ def handoff_review(request, draft_id):
                 "draft": draft,
                 "issues": issues,
                 "imported_choices": imported_choices,
-                "replacement_documents": [
-                    document
-                    for document in documents
-                    if draft.existing_case == ExistingCase.NEW
-                    and not all(
-                        (draft.court_code, draft.case_category_code, draft.case_type_code, document.filing_type_code)
-                    )
-                ],
+                "replacement_documents": [document for document in documents if lookup_offered(draft, document)],
                 "receipt": receipt,
                 "documents": documents,
                 "preview_fingerprint": preview_fingerprint(documents),
                 "can_review_documents": bool(documents) and all(doc.preparation for doc in documents),
                 "needs_document_review": any(doc.preparation_reviewed_at is None for doc in documents),
                 "review_error": review_error,
-                "parties": draft.parties.all(),
-                "can_return": bool(receipt and receipt.payload.get("return_url")),
+                "parties": parties,
+                "can_return": bool(payload.get("return_url")),
                 "case_url": draft_url(
                     with_return_to(
                         reverse("extraction_review", kwargs={"jurisdiction": draft.jurisdiction}), RETURN_TO_HANDOFF

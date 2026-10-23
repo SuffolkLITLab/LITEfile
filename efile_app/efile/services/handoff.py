@@ -144,6 +144,33 @@ def effective_hints(payload, *, court_name="", document=None):
     return result
 
 
+def interview_filing_hints(draft, payload, documents):
+    """Each document's interview filing-type hints by pk; the lead falls back to the case's."""
+    sources = {}
+    for event in draft.metadata_events.filter(
+        kind="source_suggestion", path__in=[f"documents.{document.pk}" for document in documents]
+    ):
+        sources.setdefault(event.path, event.value)
+    case_hints = effective_hints(payload, court_name=draft.court_name).get("filing_type_name_hints", [])
+    return {
+        document.pk: effective_hints(
+            payload, court_name=draft.court_name, document=sources.get(f"documents.{document.pk}", {})
+        ).get("filing_type_name_hints", [])
+        or (case_hints if document.role == "lead" else [])
+        for document in documents
+    }
+
+
+def apply_filing_type_flags(document, option):
+    """Copy the court's per-filing-type flags onto a newly chosen filing type; return fields to save."""
+    document.filing_requires_amount_in_controversy = str(option.get("amountincontroversy", "")).lower() == "required"
+    update_fields = ["filing_requires_amount_in_controversy"]
+    if not document.document_type_code:
+        document.document_type_confirmed = False
+        update_fields.append("document_type_confirmed")
+    return update_fields
+
+
 def validate_payload(payload, source_config, files, *, require_lead=True):
     _object(payload, "payload")
     if type(payload.get("schema_version")) is not int or payload["schema_version"] != 1:
@@ -382,13 +409,7 @@ def resolve_metadata(draft):
             obj._metadata_kind = "live_resolution"
             update_fields = [field, name_field, "updated_at"]
             if field == "filing_type_code" and isinstance(obj, FilingDocument):
-                obj.filing_requires_amount_in_controversy = (
-                    str(option.get("amountincontroversy", "")).lower() == "required"
-                )
-                update_fields.append("filing_requires_amount_in_controversy")
-                if not obj.document_type_code:
-                    obj.document_type_confirmed = False
-                    update_fields.append("document_type_confirmed")
+                update_fields += apply_filing_type_flags(obj, option)
             obj.save(update_fields=update_fields)
             del obj._metadata_kind
             record(
