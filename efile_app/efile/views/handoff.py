@@ -24,6 +24,12 @@ from efile.services.document_preparation import (
     cleanup_unreferenced_uploads,
     store_prepared_document,
 )
+from efile.services.document_previews import (
+    DocumentReviewError,
+    approve_document_review,
+    preview_fingerprint,
+    unreviewed_documents,
+)
 from efile.services.draft_urls import draft_url
 from efile.services.fee_quotes import invalidate_fee_quote
 from efile.services.filings import fetch_filing_detail
@@ -31,7 +37,9 @@ from efile.services.handoff import (
     HandoffError,
     create_correction,
     documents_replaced,
+    effective_hints,
     fingerprint,
+    interview_filing_hints,
     issues_for,
     populate,
     receipt_for,
@@ -39,6 +47,7 @@ from efile.services.handoff import (
     resolve_metadata,
     validate_payload,
 )
+from efile.services.handoff_replacements import lookup_offered
 from efile.utils.s3_upload_handler import S3UploadHandler
 from efile.workflow import RETURN_TO_HANDOFF, WorkflowStepKey, with_return_to
 
@@ -180,6 +189,8 @@ def handoff_claim(request, token):
         return _private(redirect("efile_login", jurisdiction=draft.jurisdiction))
     if draft.user_id and draft.user_id != request.user.pk:
         return _private(render(request, "efile/handoff_claim.html", {"unavailable": True}, status=403))
+    if request.method == "GET" and draft.user_id == request.user.pk:
+        return _private(redirect("handoff_review", draft_id=draft.pk))
     if request.method == "POST":
         with transaction.atomic():
             draft = FilingDraft.objects.select_for_update().get(pk=draft.pk)
@@ -219,9 +230,13 @@ def handoff_review(request, draft_id):
     if draft.status != FilingDraft.Status.DRAFT:
         return _private(render(request, "efile/handoff_review.html", {"draft": draft, "closed": True}))
     attach_current_draft(request, draft)
+    review_error = ""
+    status = 200
     if request.method == "POST":
-        resolve_metadata(draft)
-        if request.POST.get("action") == "confirm":
+        action = request.POST.get("action")
+        if action in ("resolve", "confirm"):
+            resolve_metadata(draft)
+        if action == "confirm":
             # Record the explicit review of existing selections. An unresolved
             # correction is kept open until its field actually has a value.
             remaining = []
@@ -239,20 +254,91 @@ def handoff_review(request, draft_id):
             draft.correction_fields = remaining
             draft.save(update_fields=["correction_fields", "updated_at"])
             record(draft, "review", "user_confirmation", {"user_id": request.user.pk})
-        return redirect("handoff_review", draft_id=draft.pk)
+        if action == "complete_details":
+            try:
+                approve_document_review(draft, request.POST.get("preview_fingerprint"))
+            except DocumentReviewError as exc:
+                review_error, status = str(exc), exc.status
+            else:
+                remaining = _issue_links(draft)
+                return redirect(remaining[0]["url"] if remaining else reverse("handoff_review", args=[draft.pk]))
+        elif action == "continue":
+            if issues_for(draft):
+                return redirect("handoff_review", draft_id=draft.pk)
+            try:
+                # Review the transferred PDFs here, without asking the filer to
+                # re-enter the interview's resolved court and case information.
+                if unreviewed_documents(draft).exists() or request.POST.get("preview_fingerprint"):
+                    approve_document_review(draft, request.POST.get("preview_fingerprint"))
+            except DocumentReviewError as exc:
+                review_error, status = str(exc), exc.status
+            else:
+                return redirect(
+                    draft_url(reverse("case_review", kwargs={"jurisdiction": draft.jurisdiction}), draft.pk)
+                )
+        else:
+            return redirect("handoff_review", draft_id=draft.pk)
     receipt = receipt_for(draft)
+    documents = list(draft.documents.all())
+    parties = list(draft.parties.all())
+    payload = receipt.payload if receipt else {}
+    hints = effective_hints(payload, court_name=draft.court_name)
+    case = payload.get("case", {})
+    imported_choices = [
+        {
+            "label": label,
+            "hint": hint,
+            "value": (getattr(draft, f"{facet}_name") or code) if (code := getattr(draft, f"{facet}_code")) else "",
+        }
+        for facet, label, hint in (
+            ("court", "Court", case.get("court_name") or case.get("county", "")),
+            ("case_category", "Case category", ", ".join(hints.get("case_category_name_hints", []))),
+            ("case_type", "Case type", ", ".join(hints.get("case_type_name_hints", []))),
+        )
+    ]
+    filing_hints = interview_filing_hints(draft, payload, documents)
+    for document in documents:
+        document.interview_filing_hint = ", ".join(filing_hints[document.pk])
+    # Interview suggestions keyed by issue path. Outside corrections, an issue
+    # only exists for an empty choice, so a hint there was not matched.
+    unmatched_hints = {
+        **{
+            f"{facet}_code": (choice["label"], choice["hint"])
+            for facet, choice in zip(("court", "case_category", "case_type"), imported_choices, strict=True)
+        },
+        **{
+            f"documents.{document.pk}.filing_type_code": (
+                f"Filing type for {document.name}",
+                document.interview_filing_hint,
+            )
+            for document in documents
+        },
+        **{f"parties.{party.pk}.party_type": (f"Court role for {party}", party.party_role_hint) for party in parties},
+    }
+    issues = _issue_links(draft)
+    for issue in issues:
+        label, hint = unmatched_hints.get(issue["path"], ("", ""))
+        if hint and issue["path"] not in draft.correction_fields:
+            issue["message"] = (
+                f"{label}: the interview suggested “{hint}”, but no court choice is matched. Choose an available option."
+            )
     return _private(
         render(
             request,
             "efile/handoff_review.html",
             {
                 "draft": draft,
-                "issues": _issue_links(draft),
+                "issues": issues,
+                "imported_choices": imported_choices,
+                "replacement_documents": [document for document in documents if lookup_offered(draft, document)],
                 "receipt": receipt,
-                "documents": draft.documents.all(),
-                "parties": draft.parties.all(),
-                "can_return": bool(receipt and receipt.payload.get("return_url")),
-                "review_url": draft_url(reverse("case_review", kwargs={"jurisdiction": draft.jurisdiction}), draft.pk),
+                "documents": documents,
+                "preview_fingerprint": preview_fingerprint(documents),
+                "can_review_documents": bool(documents) and all(doc.preparation for doc in documents),
+                "needs_document_review": any(doc.preparation_reviewed_at is None for doc in documents),
+                "review_error": review_error,
+                "parties": parties,
+                "can_return": bool(payload.get("return_url")),
                 "case_url": draft_url(
                     with_return_to(
                         reverse("extraction_review", kwargs={"jurisdiction": draft.jurisdiction}), RETURN_TO_HANDOFF
@@ -270,6 +356,7 @@ def handoff_review(request, draft_id):
                     draft.pk,
                 ),
             },
+            status=status,
         )
     )
 

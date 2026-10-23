@@ -1,0 +1,33 @@
+.handoff-details {
+    width: 100%;
+    table-layout: fixed;
+    margin-bottom: 1.5rem;
+}
+
+.handoff-details th,
+.handoff-details td {
+    padding: 0.75rem;
+    vertical-align: top;
+    overflow-wrap: anywhere;
+}
+
+.handoff-details th {
+    width: 34%;
+    padding-left: 0;
+}
+
+.handoff-details td {
+    padding-right: 0;
+}
+
+.handoff-details p {
+    margin: 0;
+}
+
+.handoff-details p+p {
+    margin-top: 0.5rem;
+}
+
+.handoff-details .handoff-hint {
+    color: #545454;
+}

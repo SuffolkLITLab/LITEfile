@@ -30,6 +30,7 @@ from .views.handoff import (
     replace_documents,
     return_to_interview,
 )
+from .views.handoff_replacements import handoff_replacements
 from .views.legacy_workflow import legacy_workflow_redirect
 from .views.login import efile_login, efile_logout, efile_password_reset
 from .views.my_cases import filing_detail, filing_statuses
@@ -75,6 +76,11 @@ urlpatterns = [
     path("api/handoffs/v1/documents/", replace_documents, name="handoff_replace_documents"),
     path("handoff/claim/<str:token>/", handoff_claim, name="handoff_claim"),
     path("handoff/drafts/<int:draft_id>/", handoff_review, name="handoff_review"),
+    path(
+        "handoff/drafts/<int:draft_id>/replacements/<int:document_id>/",
+        handoff_replacements,
+        name="handoff_replacements",
+    ),
     path("handoff/drafts/<int:draft_id>/correct/", correct_filing, name="correct_filing"),
     path("handoff/drafts/<int:draft_id>/interview/", return_to_interview, name="return_to_interview"),
     path("jsi18n/", JavaScriptCatalog.as_view(), name="javascript-catalog"),

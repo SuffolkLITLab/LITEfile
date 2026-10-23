@@ -23,7 +23,8 @@
                 </section>
             {% endif %}
         {% endif %}
-        <p class="workflow-lede">{% translate "Check each section carefully. If you need to make changes, use Edit to go back to the screen where you entered it." %}</p>
+        <p class="workflow-lede">{% translate "Review your documents and filing summary. Use Edit if anything needs to change." %}</p>
+        <p><a href="#court-requirements-heading">{% translate "Go to submission" %}</a></p>
         {% include "efile/partials/filing_guidance.html" %}
         {% if extracted_markers.has_any %}
             <div class="extraction-page-help">
@@ -342,7 +343,7 @@
             <i class="fas fa-check-circle me-2" aria-hidden="true"></i><span id="successText"></span>
         </div>
         <section class="mt-4" aria-labelledby="court-requirements-heading">
-            <h2 id="court-requirements-heading">{% translate "Before you submit your filing" %}</h2>
+            <h2 id="court-requirements-heading" tabindex="-1">{% translate "Before you submit your filing" %}</h2>
             {% if disclaimer_error %}
                 <p class="alert alert-danger" role="alert">{{ disclaimer_error }}</p>
             {% else %}

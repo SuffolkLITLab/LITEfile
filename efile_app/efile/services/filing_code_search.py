@@ -426,6 +426,8 @@ class CodeCatalog:
             if not code:
                 raise ValueError("Court code API returned an empty code")
             result[code] = {"code": code, "name": str(item["name"])}
+            if "amountincontroversy" in item:
+                result[code]["amountincontroversy"] = item["amountincontroversy"]
         return list(result.values())
 
     def courts(self):
@@ -920,6 +922,7 @@ def search_paths(
     courts=(),
     category=None,
     case_type=None,
+    filing_type=None,
     include_total=True,
     include_details=True,
 ):
@@ -935,6 +938,8 @@ def search_paths(
         paths = paths.filter(case_category__code=category)
     if case_type:
         paths = paths.filter(case_type__code=case_type)
+    if filing_type:
+        paths = paths.filter(filing_type__code=filing_type)
     if contexts is not None:
         paths = paths.filter(context_filter(contexts))
     total = paths.count() if include_total else None

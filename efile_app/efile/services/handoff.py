@@ -144,6 +144,33 @@ def effective_hints(payload, *, court_name="", document=None):
     return result
 
 
+def interview_filing_hints(draft, payload, documents):
+    """Each document's interview filing-type hints by pk; the lead falls back to the case's."""
+    sources = {}
+    for event in draft.metadata_events.filter(
+        kind="source_suggestion", path__in=[f"documents.{document.pk}" for document in documents]
+    ):
+        sources.setdefault(event.path, event.value)
+    case_hints = effective_hints(payload, court_name=draft.court_name).get("filing_type_name_hints", [])
+    return {
+        document.pk: effective_hints(
+            payload, court_name=draft.court_name, document=sources.get(f"documents.{document.pk}", {})
+        ).get("filing_type_name_hints", [])
+        or (case_hints if document.role == "lead" else [])
+        for document in documents
+    }
+
+
+def apply_filing_type_flags(document, option):
+    """Copy the court's per-filing-type flags onto a newly chosen filing type; return fields to save."""
+    document.filing_requires_amount_in_controversy = str(option.get("amountincontroversy", "")).lower() == "required"
+    update_fields = ["filing_requires_amount_in_controversy"]
+    if not document.document_type_code:
+        document.document_type_confirmed = False
+        update_fields.append("document_type_confirmed")
+    return update_fields
+
+
 def validate_payload(payload, source_config, files, *, require_lead=True):
     _object(payload, "payload")
     if type(payload.get("schema_version")) is not int or payload["schema_version"] != 1:
@@ -380,7 +407,10 @@ def resolve_metadata(draft):
             name_field = field.replace("_code", "_name") if field != "party_type" else "party_type_name"
             setattr(obj, name_field, str(option.get("name", "")))
             obj._metadata_kind = "live_resolution"
-            obj.save(update_fields=[field, name_field, "updated_at"])
+            update_fields = [field, name_field, "updated_at"]
+            if field == "filing_type_code" and isinstance(obj, FilingDocument):
+                update_fields += apply_filing_type_flags(obj, option)
+            obj.save(update_fields=update_fields)
             del obj._metadata_kind
             record(
                 draft,
@@ -507,8 +537,8 @@ def issues_for(draft, *, current_metadata=False):
     for doc in draft.documents.all():
         for field, label in (
             ("filing_type_code", "filing type"),
-            ("document_type_code", "document type"),
-            ("filing_component_code", "filing component"),
+            ("document_type_code", "confidentiality setting"),
+            ("filing_component_code", "document settings"),
         ):
             if (
                 current_metadata
@@ -516,8 +546,18 @@ def issues_for(draft, *, current_metadata=False):
                 and f"documents.{doc.pk}.{field}" not in draft.correction_fields
             ):
                 continue
+            path = f"documents.{doc.pk}.{field}"
+            if path not in draft.correction_fields:
+                # Match the ordinary workflow's document readiness rules. The
+                # document editor confirms an empty confidentiality choice when
+                # the court offers none; components are validated by the final
+                # payload checks, not a mandatory question for every filer.
+                if field == "filing_component_code":
+                    continue
+                if field == "document_type_code" and doc.filing_type_code and doc.document_type_confirmed:
+                    continue
             need(
-                f"documents.{doc.pk}.{field}",
+                path,
                 getattr(doc, field),
                 f"Choose the {label} for {doc.name}.",
                 "organize_documents",
@@ -665,6 +705,10 @@ def create_correction(draft, detail, fields=()):
                 obj.filing_component_code = ""
                 obj.filing_component_name = ""
                 obj.requested_optional_services = []
+            if parts[0] == "documents" and parts[2] in ("filing_type_code", "document_type_code"):
+                obj.document_type_confirmed = False
+                if parts[2] == "filing_type_code":
+                    obj.filing_requires_amount_in_controversy = False
             obj.save()
         elif path != "documents":
             setattr(revision, path, "")
@@ -683,6 +727,8 @@ def create_correction(draft, detail, fields=()):
                 setattr(document, f"{field}_code", "")
                 setattr(document, f"{field}_name", "")
             document.requested_optional_services = []
+            document.document_type_confirmed = False
+            document.filing_requires_amount_in_controversy = False
             document.save()
         for party in revision.parties.all():
             party._metadata_kind = "clerk_correction"

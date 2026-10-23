@@ -1490,3 +1490,24 @@ def test_captured_vermont_paths_are_discoverable_in_each_audited_court(catalog):
             assert found["total"] == expected_count
             assert {row["filing_type"]["code"] for row in found["results"]} == {expected_code}
             assert {row["court"]["code"] for row in found["results"]} == {court_code}
+
+
+def test_replacement_search_filters_all_saved_codes_before_pagination(index):
+    result = search_paths(
+        index, "complaint", court="housing", category="civil", case_type="sp", filing_type="spcomplaint", limit=1
+    )
+    assert result["total"] == 1
+    assert result["results"][0]["filing_type"]["code"] == "spcomplaint"
+    assert search_paths(index, "complaint", court="housing", case_type="sp", filing_type="complaint")["total"] == 0
+
+
+def test_live_catalog_preserves_amount_requirement():
+    api = CodeCatalog("vermont")
+    response = Mock()
+    response.json.return_value = [{"code": "claim", "name": "Claim", "amountincontroversy": "Required"}]
+    try:
+        with patch.object(api.session, "get", return_value=response):
+            choices = api.get("court/filing_types/")
+        assert choices[0]["amountincontroversy"] == "Required"
+    finally:
+        api.close()

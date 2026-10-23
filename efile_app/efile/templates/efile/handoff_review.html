@@ -16,33 +16,142 @@
     {% else %}
         {% if draft.correction_of_id %}<p>Your previous filing and documents stay saved.</p>{% endif %}
         {% for comment in draft.clerk_return.comments %}<p>{{ comment.text }}</p>{% endfor %}
-        <p>Complete the missing details and fix any mistakes.</p>
-        <form method="post">{% csrf_token %}<button type="submit" name="action" value="resolve" class="btn btn-secondary">Look up current court choices</button></form>
-        <h2>Details to complete</h2>
-        <ul>{% for issue in issues %}<li><a href="{{ issue.url }}">{{ issue.message }}</a></li>{% empty %}<li>Your draft is ready for the final filing checks.</li>{% endfor %}</ul>
-        <form method="post">{% csrf_token %}<button type="submit" name="action" value="confirm" class="btn btn-secondary">Confirm my corrections</button></form>
-        <h2>Saved case information</h2>
-        <p>
-            {{ draft.court_name }}
-            {% if draft.is_filing_into_found_case %}{{ draft.docket_number }}{% endif %}
-            {{ draft.case_type_name }}
-        </p>
-        <a href="{{ case_url }}">Edit case details</a>
-        <h2>People</h2>
-        <ul>{% for party in parties %}<li>{{ party }} — {{ party.party_role_hint }} {{ party.party_type_name }}</li>{% endfor %}</ul>
-        <a href="{{ parties_url }}">Edit people and party types</a>
-        <h2>Documents</h2>
-        <ul>{% for document in documents %}<li>{{ document.name }} — {{ document.filing_type_name }}{% include "efile/components/document_preview.html" with jurisdiction=draft.jurisdiction %}</li>{% endfor %}</ul>
-        <a href="{{ documents_url }}">Edit documents and filing types</a>
-        {% if can_return %}
-            <form method="post" action="{% url 'return_to_interview' draft.pk %}">{% csrf_token %}<button type="submit" class="btn btn-secondary">Return to my interview to correct a PDF</button></form>
+        <p>Your answers and forms are saved. Nothing has been sent to the court yet.</p>
+        {% if review_error %}<p class="alert alert-danger" role="alert">{{ review_error }}</p>{% endif %}
+        {% if issues %}
+            <h2>Before you continue</h2>
+            <p>We only need the details listed here. Your other answers are already saved.</p>
+            {% if can_review_documents %}
+                {% if needs_document_review %}<p>Open your PDFs below and check the copies the court will receive before continuing.</p>{% endif %}
+                <form method="post" class="mb-3">
+                    {% csrf_token %}
+                    <input type="hidden"
+                           name="preview_fingerprint"
+                           value="{{ preview_fingerprint }}" />
+                    <button type="submit"
+                            name="action"
+                            value="complete_details"
+                            class="btn btn-primary">Complete missing details</button>
+                </form>
+            {% else %}
+                <p><a href="{{ issues.0.url }}" class="btn btn-primary">Complete missing details</a></p>
+            {% endif %}
+            <div class="alert alert-warning"><ul class="mb-0">{% for issue in issues %}<li><a href="{{ issue.url }}">{{ issue.message }}</a></li>{% endfor %}</ul></div>
+            {% if replacement_documents %}
+                <p>Could not match a court choice? Explore replacements while keeping your saved choices.</p>
+                {% for document in replacement_documents %}
+                    <p><a href="{% url 'handoff_replacements' draft.pk document.pk %}">Explore replacements for {{ document.name }}</a></p>
+                {% endfor %}
+            {% endif %}
+        {% else %}
+            {% if needs_document_review %}
+                <p>Open your PDFs below and check the copies the court will receive. You can edit your answers if anything needs to change.</p>
+            {% else %}
+                <p>Your draft is ready for the final filing checks.</p>
+            {% endif %}
+            <form method="post">
+                {% csrf_token %}
+                <input type="hidden"
+                       name="preview_fingerprint"
+                       value="{{ preview_fingerprint }}" />
+                <button type="submit" name="action" value="continue" class="btn btn-primary">Continue to final review</button>
+            </form>
         {% endif %}
-        <p><a href="{{ review_url }}" class="btn btn-primary">Review and submit</a></p>
+        {% if draft.correction_fields %}
+            <form method="post">{% csrf_token %}<button type="submit" name="action" value="confirm" class="btn btn-secondary">Confirm my corrections</button></form>
+        {% endif %}
+        <details class="mt-3">
+            <summary>Answers carried over from your interview</summary>
+            <p>Your interview supplied answers and suggested court choices. Suggestions must match the court’s available choices, which can change. You can edit the saved details below.</p>
+            <h2>Case information</h2>
+            <table class="table handoff-details" aria-label="Case information">
+                <tbody>
+                    {% for choice in imported_choices %}
+                        <tr>
+                            <th scope="row">{{ choice.label }}</th>
+                            <td>
+                                {% if choice.hint %}<p class="handoff-hint">From your interview: {{ choice.hint }}</p>{% endif %}
+                                {% if choice.value %}<p>Saved court choice: {{ choice.value }}</p>{% else %}<p><strong>Needs a court choice</strong></p>{% endif %}
+                            </td>
+                        </tr>
+                    {% endfor %}
+                    {% if draft.is_filing_into_found_case %}<tr><th scope="row">Case number</th><td>{{ draft.docket_number }}</td></tr>{% endif %}
+                </tbody>
+            </table>
+            <a href="{{ case_url }}">Edit case details</a>
+            <h2>People</h2>
+            {% for party in parties %}
+                <h3>{{ party }}</h3>
+                <table class="table handoff-details" aria-label="Details for {{ party }}">
+                    <tbody>
+                        {% if party.party_role_hint %}<tr><th scope="row">Interview role</th><td>{{ party.party_role_hint }}</td></tr>{% endif %}
+                        {% if party.party_type or party.party_role_hint %}<tr><th scope="row">Court role</th><td>{{ party.party_type_name|default:"Needs a court choice" }}</td></tr>{% endif %}
+                        {% if party.address_line_1 %}
+                            <tr>
+                                <th scope="row">Address</th>
+                                <td>
+                                    {{ party.address_line_1 }}
+                                    {% if party.address_line_2 %}<br />{{ party.address_line_2 }}{% endif %}
+                                    <br />
+                                    {{ party.city }}, {{ party.state }} {{ party.zip_code }}
+                                </td>
+                            </tr>
+                        {% endif %}
+                        {% if party.email %}<tr><th scope="row">Email</th><td>{{ party.email }}</td></tr>{% endif %}
+                    </tbody>
+                </table>
+            {% endfor %}
+            <a href="{{ parties_url }}">Edit people</a>
+            <h2>Filing types</h2>
+            <table class="table handoff-details" aria-label="Document filing types">
+                <tbody>
+                    {% for document in documents %}
+                        <tr>
+                            <th scope="row">{{ document.name }}</th>
+                            <td>
+                                {% if document.interview_filing_hint %}<p class="handoff-hint">From your interview: {{ document.interview_filing_hint }}</p>{% endif %}
+                                <p>Saved court choice: {{ document.filing_type_name|default:"Needs a court choice" }}</p>
+                            </td>
+                        </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+            {% if replacement_documents %}
+                <table class="table handoff-details"
+                       aria-label="Explore possible replacements">
+                    <tbody>
+                        {% for document in replacement_documents %}
+                            <tr>
+                                <th scope="row">Possible replacement for {{ document.name }}</th>
+                                <td><a href="{% url 'handoff_replacements' draft.pk document.pk %}">Explore available choices</a></td>
+                            </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            {% endif %}
+            <a href="{{ documents_url }}">Edit documents and filing types</a>
+            <form method="post">
+                {% csrf_token %}
+                <button type="submit" name="action" value="resolve" class="btn btn-secondary">Retry matching court choices</button>
+            </form>
+        </details>
+        <h2>Documents</h2>
+        {% for document in documents %}
+            <div class="mb-3">
+                {% include "efile/components/document_preview.html" with jurisdiction=draft.jurisdiction %}
+                {% if document.document_type_name %}<p>Confidentiality: {{ document.document_type_name }}</p>{% endif %}
+            </div>
+        {% endfor %}
+        {% if can_return %}
+            <form method="post" action="{% url 'return_to_interview' draft.pk %}">{% csrf_token %}<button type="submit" class="btn btn-secondary">Fix a PDF in my interview</button></form>
+            <p>If you change a name, address, or court in the interview, update the saved filing details here too.</p>
+        {% endif %}
     {% endif %}
 {% endblock public_content %}
 {% block extra_css %}
     <link rel="stylesheet" href="{% static 'vendor/pdfjs/pdf_viewer.css' %}" />
     <link rel="stylesheet" href="{% static 'css/document-preview.css' %}" />
+    <link rel="stylesheet" href="{% static 'css/handoff-review.css' %}" />
 {% endblock extra_css %}
 {% block extra_js %}
     <script src="{% url 'javascript-catalog' %}"></script>
