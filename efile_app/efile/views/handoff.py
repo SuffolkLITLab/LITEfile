@@ -312,6 +312,13 @@ def handoff_review(request, draft_id):
                 "draft": draft,
                 "issues": issues,
                 "imported_choices": imported_choices,
+                "replacement_documents": [
+                    document
+                    for document in documents
+                    if not all(
+                        (draft.court_code, draft.case_category_code, draft.case_type_code, document.filing_type_code)
+                    )
+                ],
                 "receipt": receipt,
                 "documents": documents,
                 "preview_fingerprint": preview_fingerprint(documents),

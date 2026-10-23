@@ -891,3 +891,140 @@ def test_imported_hints_and_unmatched_warning_outside_accordion(client, source, 
     assert "the interview suggested “Relief from abuse”" not in before
     assert "Saved court choice: Relief from abuse (current court label)" in inside
     assert "From your interview: Relief from abuse" in inside
+
+
+@pytest.fixture
+def replacement_draft(client, source, payload, storage, django_user_model):
+    from django.utils import timezone
+
+    from efile.models import FilingCodeIndex, FilingCodePath
+
+    send(client, source, payload)
+    draft = FilingDraft.objects.get()
+    draft.user = login(client, django_user_model)
+    draft.court_code, draft.court_name = "kept-court", "Saved court name"
+    draft.case_category_code, draft.case_category_name = "kept-category", "Saved category name"
+    draft.save()
+    index = FilingCodeIndex.objects.create(
+        jurisdiction="vermont", source_url="https://example.org", refreshed_at=timezone.now()
+    )
+    values = {
+        "initial": True,
+        "court": {"code": "kept-court", "name": "Current court label"},
+        "case_category": {"code": "kept-category", "name": "Current category label"},
+        "case_type": {"code": "replacement-case", "name": "Protection from abuse"},
+        "filing_type": {"code": "replacement-filing", "name": "Complaint for protection"},
+    }
+    path = FilingCodePath.objects.create(index=index, **values)
+    document = draft.documents.get()
+    return draft, document, index, path, values, reverse("handoff_replacements", args=[draft.pk, document.pk])
+
+
+def test_replacement_fills_only_missing_choices(client, replacement_draft):
+    draft, document, index, path, values, url = replacement_draft
+    before_party = list(draft.parties.values())
+    document.document_type_code = "keep-private"
+    document.save()
+    with (
+        patch("efile.views.handoff_replacements.current_index", return_value=index),
+        patch("efile.services.handoff_replacements.validate_path", return_value=values),
+    ):
+        response = client.post(url, {"path_id": path.pk})
+    assert response.status_code == 302
+    draft.refresh_from_db()
+    document.refresh_from_db()
+    assert (draft.court_code, draft.court_name) == ("kept-court", "Saved court name")
+    assert (draft.case_category_code, draft.case_category_name) == ("kept-category", "Saved category name")
+    assert draft.case_type_code == "replacement-case"
+    assert document.filing_type_code == "replacement-filing"
+    assert document.document_type_code == "keep-private"
+    assert document.s3_key == "private/key.pdf"
+    assert list(draft.parties.values()) == before_party
+
+
+@pytest.mark.parametrize("failure", ["wrong_court", "stale", "network", "concurrent_choice"])
+def test_replacement_failure_preserves_draft(client, replacement_draft, failure):
+    import requests
+
+    draft, document, index, path, values, url = replacement_draft
+    if failure == "wrong_court":
+        path.court = {"code": "different", "name": "Different court"}
+        path.save()
+
+    def validate(_):
+        if failure == "stale":
+            raise ValueError("This choice is no longer available.")
+        if failure == "network":
+            raise requests.Timeout()
+        if failure == "concurrent_choice":
+            FilingDraft.objects.filter(pk=draft.pk).update(case_type_code="chosen-in-another-tab")
+        return values
+
+    with (
+        patch("efile.views.handoff_replacements.current_index", return_value=index),
+        patch("efile.services.handoff_replacements.validate_path", side_effect=validate),
+        patch("efile.views.handoff_replacements.search_paths", return_value={"results": [], "total": 0}),
+    ):
+        response = client.post(url, {"path_id": path.pk})
+    assert response.status_code == (503 if failure == "network" else 409)
+    draft.refresh_from_db()
+    document.refresh_from_db()
+    assert draft.court_code == "kept-court"
+    assert draft.case_type_code == ("chosen-in-another-tab" if failure == "concurrent_choice" else "")
+    assert document.filing_type_code == ""
+    assert document.s3_key == "private/key.pdf"
+    assert b"Back to your saved filing" in response.content
+
+
+def test_replacement_search_keeps_saved_filters(client, replacement_draft):
+    draft, document, index, _, _, url = replacement_draft
+    document.filing_type_code = "keep-filing"
+    document.save()
+    with (
+        patch("efile.views.handoff_replacements.current_index", return_value=index),
+        patch("efile.views.handoff_replacements.search_paths", return_value={"results": [], "total": 0}) as search,
+    ):
+        response = client.get(url, {"q": "protection"})
+    assert response.status_code == 200
+    assert b"You do not need to start over" in response.content
+    assert search.call_args.kwargs["court"] == "kept-court"
+    assert search.call_args.kwargs["category"] == "kept-category"
+    assert search.call_args.kwargs["filing_type"] == "keep-filing"
+    draft.refresh_from_db()
+    assert draft.case_type_code == ""
+
+
+def test_replacement_rejects_other_owners(client, replacement_draft, django_user_model):
+    *_, url = replacement_draft
+    login(client, django_user_model, username="another-filer")
+    assert client.get(url).status_code == 404
+    assert client.post(url, {"path_id": 1}).status_code == 404
+
+
+def test_missing_lookup_keeps_a_route_back_to_saved_draft(client, replacement_draft):
+    draft, document, _, _, _, url = replacement_draft
+    with patch("efile.views.handoff_replacements.current_index", return_value=None):
+        response = client.get(url)
+    assert response.status_code == 200
+    assert b"code lookup is not available right now" in response.content
+    assert b"Back to your saved filing" in response.content
+    draft.refresh_from_db()
+    document.refresh_from_db()
+    assert draft.case_type_code == ""
+    assert document.s3_key == "private/key.pdf"
+
+
+def test_replacement_cannot_change_case_stage(client, replacement_draft):
+    draft, _, index, path, _, url = replacement_draft
+    path.initial = False
+    path.save()
+    with (
+        patch("efile.views.handoff_replacements.current_index", return_value=index),
+        patch("efile.views.handoff_replacements.search_paths", return_value={"results": [], "total": 0}),
+        patch("efile.services.handoff_replacements.validate_path") as validate,
+    ):
+        response = client.post(url, {"path_id": path.pk})
+    assert response.status_code == 409
+    validate.assert_not_called()
+    draft.refresh_from_db()
+    assert draft.case_type_code == ""

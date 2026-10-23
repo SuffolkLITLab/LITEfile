@@ -23,6 +23,12 @@
             <p>We only need the details listed here. Your other answers are already saved.</p>
             <p><a href="{{ issues.0.url }}" class="btn btn-primary">Complete missing details</a></p>
             <div class="alert alert-warning"><ul class="mb-0">{% for issue in issues %}<li><a href="{{ issue.url }}">{{ issue.message }}</a></li>{% endfor %}</ul></div>
+            {% if replacement_documents %}
+                <p>Could not match a court choice? Explore replacements while keeping your saved choices.</p>
+                {% for document in replacement_documents %}
+                    <p><a href="{% url 'handoff_replacements' draft.pk document.pk %}">Explore replacements for {{ document.name }}</a></p>
+                {% endfor %}
+            {% endif %}
         {% else %}
             {% if needs_document_review %}
                 <p>Open your PDFs below and check the copies the court will receive. You can edit your answers if anything needs to change.</p>
@@ -96,6 +102,19 @@
                     {% endfor %}
                 </tbody>
             </table>
+            {% if replacement_documents %}
+                <table class="table handoff-details"
+                       aria-label="Explore possible replacements">
+                    <tbody>
+                        {% for document in replacement_documents %}
+                            <tr>
+                                <th scope="row">Possible replacement for {{ document.name }}</th>
+                                <td><a href="{% url 'handoff_replacements' draft.pk document.pk %}">Explore available choices</a></td>
+                            </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            {% endif %}
             <a href="{{ documents_url }}">Edit documents and filing types</a>
             <form method="post">
                 {% csrf_token %}
