@@ -22,7 +22,7 @@
             <h2>Before you continue</h2>
             <p>We only need the details listed here. Your other answers are already saved.</p>
             <p><a href="{{ issues.0.url }}" class="btn btn-primary">Complete missing details</a></p>
-            <ul>{% for step in steps %}<li><a href="{{ step.url }}">{{ step.label }}</a></li>{% endfor %}</ul>
+            <div class="alert alert-warning"><ul class="mb-0">{% for issue in issues %}<li><a href="{{ issue.url }}">{{ issue.message }}</a></li>{% endfor %}</ul></div>
         {% else %}
             {% if needs_document_review %}
                 <p>Open your PDFs below and check the copies the court will receive. You can edit your answers if anything needs to change.</p>
@@ -40,6 +40,60 @@
         {% if draft.correction_fields %}
             <form method="post">{% csrf_token %}<button type="submit" name="action" value="confirm" class="btn btn-secondary">Confirm my corrections</button></form>
         {% endif %}
+        <details class="mt-3">
+            <summary>Answers carried over from your interview</summary>
+            <p>Your interview supplied answers and suggested court choices. Suggestions must match the court’s available choices, which can change. You can edit the saved details below.</p>
+            <h2>Case information</h2>
+            <dl>
+                {% for choice in imported_choices %}
+                    <dt>{{ choice.label }}</dt>
+                    <dd>
+                        {% if choice.hint %}From your interview: {{ choice.hint }}<br />{% endif %}
+                        {% if choice.value %}Saved court choice: {{ choice.value }}{% else %}<strong>Needs a court choice</strong>{% endif %}
+                    </dd>
+                {% endfor %}
+                {% if draft.is_filing_into_found_case %}<dt>Case number</dt><dd>{{ draft.docket_number }}</dd>{% endif %}
+            </dl>
+            <a href="{{ case_url }}">Edit case details</a>
+            <h2>People</h2>
+            <ul>
+                {% for party in parties %}
+                    <li>
+                        {{ party }}
+                        {% if party.party_role_hint %}<br />Role from your interview: {{ party.party_role_hint }}{% endif %}
+                        {% if party.party_type or party.party_role_hint %}
+                            <br />
+                            Saved court role: {{ party.party_type_name|default:"Needs a court choice" }}
+                        {% endif %}
+                        {% if party.address_line_1 %}
+                            <br />
+                            {{ party.address_line_1 }}
+                            {% if party.address_line_2 %}, {{ party.address_line_2 }}{% endif %}
+                            <br />
+                            {{ party.city }}, {{ party.state }} {{ party.zip_code }}
+                        {% endif %}
+                        {% if party.email %}<br />{{ party.email }}{% endif %}
+                    </li>
+                {% endfor %}
+            </ul>
+            <a href="{{ parties_url }}">Edit people</a>
+            <h2>Filing types</h2>
+            <ul>
+                {% for document in documents %}
+                    <li>
+                        {{ document.name }}
+                        {% if document.interview_filing_hint %}<br />From your interview: {{ document.interview_filing_hint }}{% endif %}
+                        <br />
+                        Saved court choice: {{ document.filing_type_name|default:"Needs a court choice" }}
+                    </li>
+                {% endfor %}
+            </ul>
+            <a href="{{ documents_url }}">Edit documents and filing types</a>
+            <form method="post">
+                {% csrf_token %}
+                <button type="submit" name="action" value="resolve" class="btn btn-secondary">Retry matching court choices</button>
+            </form>
+        </details>
         <h2>Documents</h2>
         {% for document in documents %}
             <div class="mb-3">
@@ -51,24 +105,6 @@
             <form method="post" action="{% url 'return_to_interview' draft.pk %}">{% csrf_token %}<button type="submit" class="btn btn-secondary">Fix a PDF in my interview</button></form>
             <p>If you change a name, address, or court in the interview, update the saved filing details here too.</p>
         {% endif %}
-        <details class="mt-3">
-            <summary>View or change saved filing details</summary>
-            <p>Your interview supplied these details. LITEfile matched the court choices where possible.</p>
-            <h2>Case information</h2>
-            <p>
-                {{ draft.court_name }}
-                {% if draft.is_filing_into_found_case %}{{ draft.docket_number }}{% endif %}
-                {{ draft.case_type_name }}
-            </p>
-            <a href="{{ case_url }}">Edit case details</a>
-            <h2>People</h2>
-            <ul>{% for party in parties %}<li>{{ party }} — {{ party.party_type_name|default:party.party_role_hint }}</li>{% endfor %}</ul>
-            <a href="{{ parties_url }}">Edit people</a>
-            <h2>Filing types</h2>
-            <ul>{% for document in documents %}<li>{{ document.name }} — {{ document.filing_type_name }}</li>{% endfor %}</ul>
-            <a href="{{ documents_url }}">Edit documents and filing types</a>
-            <form method="post">{% csrf_token %}<button type="submit" name="action" value="resolve" class="btn btn-secondary">Retry matching court choices</button></form>
-        </details>
     {% endif %}
 {% endblock public_content %}
 {% block extra_css %}

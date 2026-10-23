@@ -37,6 +37,7 @@ from efile.services.handoff import (
     HandoffError,
     create_correction,
     documents_replaced,
+    effective_hints,
     fingerprint,
     issues_for,
     populate,
@@ -267,21 +268,42 @@ def handoff_review(request, draft_id):
             return redirect("handoff_review", draft_id=draft.pk)
     receipt = receipt_for(draft)
     documents = list(draft.documents.all())
+    payload = receipt.payload if receipt else {}
+    hints = effective_hints(payload, court_name=draft.court_name)
+    imported_choices = [
+        {
+            "label": "Court",
+            "hint": payload.get("case", {}).get("court_name", ""),
+            "value": draft.court_name if draft.court_code else "",
+        },
+        {
+            "label": "Case category",
+            "hint": ", ".join(hints.get("case_category_name_hints", [])),
+            "value": draft.case_category_name if draft.case_category_code else "",
+        },
+        {
+            "label": "Case type",
+            "hint": ", ".join(hints.get("case_type_name_hints", [])),
+            "value": draft.case_type_name if draft.case_type_code else "",
+        },
+    ]
+    for document in documents:
+        suggestion = draft.metadata_events.filter(path=f"documents.{document.pk}", kind="source_suggestion").first()
+        source_document = suggestion.value if suggestion else {}
+        document_hints = effective_hints(payload, court_name=draft.court_name, document=source_document)
+        document.interview_filing_hint = ", ".join(
+            document_hints.get("filing_type_name_hints", [])
+            or (hints.get("filing_type_name_hints", []) if document.role == "lead" else [])
+        )
     issues = _issue_links(draft)
-    labels = {
-        "extraction_review": "Complete case details",
-        "case_lookup": "Find your court case",
-        "case_confirmation": "Confirm the court case",
-        "upload_documents": "Add or replace documents",
-        "organize_documents": "Complete document settings",
-        "your_information": "Complete your contact information",
-        "parties": "Complete information about the people in this case",
-        "case_questions": "Answer the remaining court questions",
-        "payment": "Check fees and choose a payment method or fee waiver",
-    }
-    steps = {}
-    for issue in issues:
-        steps.setdefault(issue["url"], {"url": issue["url"], "label": labels.get(issue["view"], issue["message"])})
+    for choice, field in zip(imported_choices, ("court_code", "case_category_code", "case_type_code"), strict=True):
+        if choice["hint"] and not choice["value"] and field not in draft.correction_fields:
+            for issue in issues:
+                if issue["path"] == field:
+                    issue["message"] = (
+                        f"{choice['label']}: the interview suggested “{choice['hint']}”, "
+                        "but no court choice is matched. Choose an available option."
+                    )
     return _private(
         render(
             request,
@@ -289,7 +311,7 @@ def handoff_review(request, draft_id):
             {
                 "draft": draft,
                 "issues": issues,
-                "steps": list(steps.values()),
+                "imported_choices": imported_choices,
                 "receipt": receipt,
                 "documents": documents,
                 "preview_fingerprint": preview_fingerprint(documents),

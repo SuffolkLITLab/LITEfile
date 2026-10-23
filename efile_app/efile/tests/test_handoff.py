@@ -861,3 +861,33 @@ def test_handoff_does_not_reask_confirmed_optional_document_settings(client, sou
     draft.correction_fields = [f"documents.{document.pk}.filing_component_code"]
     draft.save()
     assert draft.correction_fields[0] in {issue["path"] for issue in issues_for(draft)}
+
+
+def test_imported_hints_and_unmatched_warning_outside_accordion(client, source, payload, storage, django_user_model):
+    send(client, source, payload)
+    draft = FilingDraft.objects.get()
+    draft.user = login(client, django_user_model)
+    draft.save()
+    with (
+        patch("efile.services.people.get_case_questions", return_value=[]),
+        patch("efile.services.people.needs_amount_in_controversy", return_value=False),
+    ):
+        response = client.get(reverse("handoff_review", args=[draft.pk]))
+    content = response.content.decode()
+    before, inside = content.split('<details class="mt-3">', 1)
+    assert "the interview suggested “Relief from abuse”" in before
+    assert "but no court choice is matched" in before
+    assert "From your interview: Relief from abuse" in inside
+    assert "Needs a court choice" in inside
+    draft.case_type_code = "current-code"
+    draft.case_type_name = "Relief from abuse (current court label)"
+    draft.save()
+    with (
+        patch("efile.services.people.get_case_questions", return_value=[]),
+        patch("efile.services.people.needs_amount_in_controversy", return_value=False),
+    ):
+        response = client.get(reverse("handoff_review", args=[draft.pk]))
+    before, inside = response.content.decode().split('<details class="mt-3">', 1)
+    assert "the interview suggested “Relief from abuse”" not in before
+    assert "Saved court choice: Relief from abuse (current court label)" in inside
+    assert "From your interview: Relief from abuse" in inside
