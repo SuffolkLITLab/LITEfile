@@ -11,6 +11,42 @@ This guide explains how to deploy LITEfile to cloud infrastructure using **Docke
 
 ---
 
+## Production and staging
+
+Production runs at **https://app.litefile.org** on the Fly app `litefile-prod`,
+using `fly.production.toml`, `efile.settings_prod`, and a separate Supabase
+project named `litefile-prod`. Fly runs in Chicago (`ord`), near the database
+in AWS Ohio (`us-east-2`). Cloudflare provides DNS-only A and AAAA records;
+Fly terminates HTTPS with an automatically renewed certificate.
+
+A push or merge to `main` runs CI. After CI succeeds, the **Deploy production**
+workflow deploys that exact commit, runs database migrations, and checks the
+public site. Deployments are serialized. The GitHub `production` environment
+records deployments. `FLY_PRODUCTION_API_TOKEN` is restricted to the production
+Fly app; renew it before October 29, 2027.
+
+The **Deploy staging** workflow can be run manually for a selected branch. It
+uses `fly.toml`, `efile.settings_staging`, and the existing `FLY_API_TOKEN`.
+For a manual production deployment, run **Deploy production** on `main`, or:
+
+```bash
+fly deploy --config fly.production.toml --remote-only
+```
+
+Production initially reuses the existing OpenAI, S3, Gotenberg, handoff, and
+**test EFSP** credentials. Its Django secret and application database are
+separate. Staging users, sessions, and filings are not copied. S3 storage is
+currently shared with staging. The database uses the Supabase session pooler
+(port 5432) so worker advisory locks remain valid. Client roles `anon` and
+`authenticated` have no access to the Django `public` schema; preserve this
+restriction if recreating the project.
+
+Before accepting real filings, update `SUFFOLK_EFILE_API_KEY`, `EFSP_URL`, and
+`EFSP_CODES_DATABASE_URL` on `litefile-prod` together to use the production
+EFSP. Change `FILING_CODE_SYNC_TIME` in `fly.production.toml` from `21:30` to
+`04:30`, then rebuild the filing-code index for the new EFSP source. Verify the
+production login and filing flow after that switch.
+
 ## 1. Docker build & image optimization
 
 LITEfile includes a production-ready `Dockerfile` using multi-stage caching and [Astral uv](https://astral.sh/uv).

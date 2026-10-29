@@ -1,0 +1,52 @@
+# Production at https://app.litefile.org
+
+app = 'litefile-prod'
+primary_region = 'ord'
+
+[build]
+
+[env]
+  DJANGO_SETTINGS_MODULE = "efile.settings_prod"
+  # Long-running workers' progress reaches fly logs as it happens.
+  PYTHONUNBUFFERED = "1"
+  # Copy filing codes straight from the EFSP proxy's codes database, read
+  # only. Set the connection with: fly secrets set EFSP_CODES_DATABASE_URL=...
+  FILING_CODE_SYNC_MODE = "database"
+  # Temporarily uses the test EFSP and its codes database. When switching
+  # both EFSP secrets to production, change this schedule to 04:30 Eastern.
+  FILING_CODE_SYNC_TIME = "21:30"
+  FILING_CODE_SYNC_TIMEZONE = "America/New_York"
+
+[deploy]
+  # Run database migrations before each release
+  release_command = "uv run python manage.py migrate --noinput"
+  release_command_timeout = "30m"
+
+[processes]
+  app = "uv run gunicorn efile.asgi:application -k uvicorn.workers.UvicornWorker --bind 0.0.0.0:8000 --workers 2 --timeout 60 --access-logfile - --error-logfile - --log-level info"
+  extraction_worker = "uv run python manage.py process_document_extractions"
+  # Daily copy + index at FILING_CODE_SYNC_TIME, plus staff-requested resyncs and rebuilds.
+  code_index_worker = "uv run python manage.py refresh_filing_code_index --daily --retry-interval 900"
+
+[http_service]
+  internal_port = 8000
+  force_https = true
+  auto_stop_machines = 'stop'
+  auto_start_machines = true
+  min_machines_running = 1
+  processes = ['app']
+
+[[vm]]
+  memory = '1gb'
+  cpu_kind = 'shared'
+  cpus = 1
+
+[[http_service.checks]]
+  interval = "30s"
+  timeout = "10s"
+  grace_period = "30s"
+  method = "GET"
+  path = "/about/"
+  [http_service.checks.headers]
+    Host = "app.litefile.org"
+    X-Forwarded-Proto = "https"
