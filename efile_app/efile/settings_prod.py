@@ -13,8 +13,8 @@ from efile.settings_base import MIDDLEWARE as BASE_MIDDLEWARE
 DATABASES = BASE_DATABASES
 
 DEBUG = False
-ALLOWED_HOSTS = ["litefile-prod.fly.dev"]
-CSRF_TRUSTED_ORIGINS = ["https://litefile-prod.fly.dev"]
+ALLOWED_HOSTS = ["app.litefile.org", "litefile-prod.fly.dev"]
+CSRF_TRUSTED_ORIGINS = ["https://app.litefile.org", "https://litefile-prod.fly.dev"]
 
 # Static files (WhiteNoise), mirroring settings_staging.
 #
