@@ -17,7 +17,7 @@ dependencies = [
     "openai>=2.14.0",
     "markitdown[pdf]>=0.1.4",
     "docx2python>=3.5,<4",
-    "pypdf>=6.0,<7",
+    "pypdf>=6.21.4,<7",
     "pyyaml>=6.0,<7",
     "djlint>=1.44.2",
     "bleach>=6.2,<7",
@@ -32,7 +32,7 @@ dependencies = [
     "django-otp>=1.7.0,<2",
     "snowballstemmer>=3,<4",
     "holidays>=0.83,<1",
-    "pillow>=11,<13",
+    "pillow>=13,<14",
 ]
 
 [build-system]
