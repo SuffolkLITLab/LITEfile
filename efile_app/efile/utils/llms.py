@@ -60,7 +60,7 @@ def get_config(key: str, default: Any = None) -> Any:
 
 
 if getattr(settings, "AI_PROVIDER", "openai") == "bedrock":
-    from efile.utils.bedrock_auth import bedrock_openai_client
+    from efile.utils.bedrock_clients import bedrock_openai_client
 
     client = bedrock_openai_client()
 elif os.getenv("OPENAI_API_KEY"):

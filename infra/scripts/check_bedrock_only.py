@@ -72,6 +72,7 @@ def main():
             for p in [
                 ROOT / "efile_app/efile/services/evidence_ensemble.py",
                 ROOT / "efile_app/efile/utils/bedrock_auth.py",
+                ROOT / "efile_app/efile/utils/bedrock_clients.py",
                 ROOT / "efile_app/efile/utils/llms.py",
                 Path(__file__),
             ]

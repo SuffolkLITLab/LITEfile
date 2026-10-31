@@ -194,14 +194,18 @@ Terra result is used with a review flag. Failed adjudication retains only agreed
 fields and flags review. Content filtering stops later calls. This new policy
 is not the historical docket-only blend or majority voting.
 
-The provider implementation mirrors `open-fetch` revision
-`8c387c4e475f6b527eae9b62b5193a8cc6e7a817`: five-minute bearer tokens from
-`aws-bedrock-token-generator`, OpenAI Chat Completions and Anthropic Messages
-(`/anthropic/v1/messages`). LITEfile's synchronous extraction worker uses a
-synchronous HTTP client. Its explicit app-scoped Fly OIDC credential provider
-is retained so existing S3 static credentials cannot override the AI role.
-Tokens are never persisted. Endpoint validation and redirects-disabled behavior
-prevent credential forwarding. SDK retries remain disabled for observable usage.
+The provider implementation is independently written against AWS's documented
+Bedrock token and inference interfaces, using the official OpenAI and Anthropic
+SDKs. FETCH was consulted only as an architectural reference; no FETCH source
+code or license restriction is incorporated. `bedrock_clients.py` creates
+five-minute tokens with AWS's token-generator library and authorizes only the
+specific inference operations used by LITEfile. LITEfile's existing app-scoped
+Fly OIDC credential provider keeps AI identity separate from S3 credentials.
+The clients disable redirects and SDK retries and use a synchronous worker.
+
+References:
+- https://docs.aws.amazon.com/bedrock/latest/userguide/inference-messages-api.html
+- https://docs.aws.amazon.com/bedrock/latest/userguide/api-keys-generate.html
 
 The generic LLM helper, classifier, and single-reader rollback also use the
 same Bedrock-only client factory. No public OpenAI or Azure fallback is allowed.

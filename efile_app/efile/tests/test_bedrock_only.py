@@ -1,90 +1,118 @@
+"""Contracts for LITEfile's SDK-based Bedrock clients; all requests are mocked."""
+
 import json
 from unittest.mock import MagicMock, patch
 
 import httpx
 import pytest
+from botocore.credentials import Credentials
 
 from efile.services import evidence_ensemble as ensemble
 from efile.utils import llms
-from efile.utils.bedrock_auth import BedrockTokenAuth, MessagesClient
+from efile.utils.bedrock_clients import BedrockMessages, WorkloadBearer, anthropic_content
 
 
-@pytest.mark.parametrize(
-    "protocol,path,header", [("openai", "/openai/v1", "authorization"), ("anthropic", "/anthropic", "x-api-key")]
-)
-def test_fetch_token_protocol_refresh_and_destination(protocol, path, header):
-    base = "https://bedrock-runtime.us-east-1.amazonaws.com" + path
-    auth = BedrockTokenAuth(base, protocol, "arn:role", "us-east-1")
-    with patch.object(auth, "_token", side_effect=["first", "second"]) as tokens:
-        for expected in ["first", "second"]:
-            r = next(auth.auth_flow(httpx.Request("POST", base + "/operation")))
-            assert r.headers[header] == ("Bearer " + expected if protocol == "openai" else expected)
-        with pytest.raises(ValueError):
-            next(auth.auth_flow(httpx.Request("POST", "https://example.com/")))
-        assert tokens.call_count == 2
+@pytest.fixture
+def synthetic_identity():
+    identity = MagicMock()
+    identity.get.return_value = Credentials("access", "secret", "session")
+    with patch("efile.utils.bedrock_clients.credentials_for", return_value=identity):
+        yield identity
+
+
+def test_tokens_use_atomic_role_credentials(synthetic_identity):
+    seen = []
+
+    def issue(**kwargs):
+        snapshot = kwargs["aws_credentials_provider"].load()
+        seen.append((snapshot.access_key, snapshot.token, kwargs["expiry"].total_seconds()))
+        return "temporary-token"
+
+    with patch("efile.utils.bedrock_clients.provide_token", side_effect=issue):
+        for messages_api in (True, False):
+            auth = WorkloadBearer("role", "us-east-1", messages_api=messages_api)
+            path = "/anthropic/v1/messages" if messages_api else "/openai/v1/responses"
+            request = httpx.Request("POST", "https://bedrock-runtime.us-east-1.amazonaws.com" + path)
+            output = next(auth.sync_auth_flow(request))
+            if messages_api:
+                assert output.headers["x-api-key"] == "temporary-token"
+                assert "authorization" not in output.headers
+            else:
+                assert output.headers["authorization"] == "Bearer temporary-token"
+                assert "x-api-key" not in output.headers
+    assert seen == [("access", "session", 300), ("access", "session", 300)]
 
 
 @pytest.mark.parametrize(
     "url",
     [
-        "http://bedrock-runtime.us-east-1.amazonaws.com/anthropic",
-        "https://bedrock-runtime.us-east-1.amazonaws.com.evil/anthropic",
-        "https://bedrock-runtime.us-east-1.amazonaws.com/anthropic?secret=x",
+        "http://bedrock-runtime.us-east-1.amazonaws.com/openai/v1/responses",
+        "https://example.com/openai/v1/responses",
+        "https://bedrock-runtime.us-east-1.amazonaws.com/openai/v1/files",
+        "https://bedrock-runtime.us-east-1.amazonaws.com/openai/v1/responses?token=bad",
+        "https://bedrock-runtime.us-west-2.amazonaws.com/openai/v1/responses",
     ],
 )
-def test_fetch_token_rejects_untrusted_endpoint(url):
+def test_auth_rejects_unapproved_operations_before_credentials(synthetic_identity, url):
+    auth = WorkloadBearer("role", "us-east-1")
     with pytest.raises(ValueError):
-        BedrockTokenAuth(url, "anthropic", "arn:role", "us-east-1")
+        next(auth.sync_auth_flow(httpx.Request("POST", url)))
+    synthetic_identity.get.assert_not_called()
 
 
-def test_messages_image_wire_and_usage():
-    seen = []
+def test_image_conversion_rejects_external_or_invalid_images():
+    for url in ["https://example.com/page.jpg", "data:image/jpeg;base64,!!!"]:
+        with pytest.raises(ValueError):
+            anthropic_content([{"type": "image_url", "image_url": {"url": url}}])
 
-    def handle(request):
-        seen.append(json.loads(request.content))
+
+def test_official_anthropic_sdk_contract_and_refusal(synthetic_identity):
+    bodies = []
+
+    def server(request):
         assert request.url.path == "/anthropic/v1/messages"
-        assert request.headers["x-api-key"] == "synthetic"
-        assert request.headers["anthropic-version"] == "2023-06-01"
+        assert request.headers["x-api-key"] == "temporary-token"
+        bodies.append(json.loads(request.content))
         return httpx.Response(
             200,
             json={
-                "id": "receipt",
+                "id": "message-1",
+                "type": "message",
+                "role": "assistant",
                 "model": "haiku-version",
-                "stop_reason": "end_turn",
-                "content": [{"type": "text", "text": '{"docket number":"2026 CV 1234"}'}],
-                "usage": {"input_tokens": 12, "output_tokens": 8},
+                "content": [{"type": "text", "text": "{}"}],
+                "stop_reason": "refusal",
+                "stop_sequence": None,
+                "usage": {"input_tokens": 17, "output_tokens": 2},
             },
         )
 
-    c = MessagesClient("arn:role", "us-east-1", "us.anthropic.claude-haiku-5-5")
-    c.client.close()
-    auth = BedrockTokenAuth(
-        "https://bedrock-runtime.us-east-1.amazonaws.com/anthropic", "anthropic", "arn:role", "us-east-1"
-    )
-    with patch.object(auth, "_token", return_value="synthetic"):
-        c.client = httpx.Client(
-            auth=auth, transport=httpx.MockTransport(handle), headers={"anthropic-version": "2023-06-01"}
-        )
-        r = c.create(
-            messages=[
-                {"role": "system", "content": "Extract JSON."},
-                {
-                    "role": "user",
-                    "content": [
-                        {"type": "text", "text": "Read"},
-                        {"type": "image_url", "image_url": {"url": "data:image/jpeg;base64,aW1hZ2U="}},
-                    ],
-                },
-            ]
-        )
-    c.close()
-    assert seen[0]["messages"][0]["content"][1]["source"] == {
+    transport = httpx.MockTransport(server)
+    with (
+        patch.object(httpx.Client, "_transport_for_url", return_value=transport),
+        patch("efile.utils.bedrock_clients.provide_token", return_value="temporary-token"),
+    ):
+        reader = BedrockMessages("role", "us-east-1", "us.anthropic.claude-haiku-5-5")
+        try:
+            response = reader.create(
+                messages=[
+                    {"role": "system", "content": "Return JSON"},
+                    {
+                        "role": "user",
+                        "content": [{"type": "image_url", "image_url": {"url": "data:image/jpeg;base64,aW1hZ2U="}}],
+                    },
+                ]
+            )
+        finally:
+            reader.close()
+    assert bodies[0]["model"] == "us.anthropic.claude-haiku-5-5"
+    assert bodies[0]["messages"][0]["content"][0]["source"] == {
         "type": "base64",
         "media_type": "image/jpeg",
         "data": "aW1hZ2U=",
     }
-    assert r.usage.prompt_tokens == 12 and r.usage.completion_tokens == 8
-    assert r.choices[0].finish_reason == "stop"
+    assert response.choices[0].finish_reason == "content_filter"
+    assert response.usage.total_tokens == 19
 
 
 @pytest.mark.parametrize("failed_initial, failed_terra", [(False, False), (True, False), (False, True)])

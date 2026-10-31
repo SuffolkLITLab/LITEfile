@@ -194,11 +194,11 @@ class Readers:
             credentials[role] = (url, key)
         for role, (url, key) in credentials.items():
             if settings.AI_PROVIDER == "bedrock":
-                from efile.utils.bedrock_auth import MessagesClient, bedrock_openai_client
+                from efile.utils.bedrock_clients import BedrockMessages, bedrock_openai_client
 
                 self.endpoint_hosts[role] = urlsplit(url).hostname
                 self.clients[role] = (
-                    MessagesClient(
+                    BedrockMessages(
                         settings.DOCUMENT_ENSEMBLE_BEDROCK_ROLE_ARN,
                         settings.DOCUMENT_ENSEMBLE_BEDROCK_REGION,
                         settings.DOCUMENT_ENSEMBLE_MODELS[role]["deployment"],
