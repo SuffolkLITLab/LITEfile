@@ -98,7 +98,7 @@ contract with the existing classifier. Legacy integration tests explicitly selec
 
 ## Bedrock staging and per-model routing
 
-Each role also accepts `DOCUMENT_ENSEMBLE_<ROLE>_BASE_URL` and `_API_KEY`. Both
+Each role also accepts `DOCUMENT_ENSEMBLE_<ROLE>_BASE_URL` and `_API_KEY`. For API-key authentication, both
 must be supplied together. A role override never borrows a credential from the
 shared readers endpoint. With no override, DeepSeek/Luna/GLM continue using the
 `READERS` pair; Terra uses the `TERRA` pair. Receipts identify the endpoint host
@@ -126,10 +126,12 @@ next deployment. Stage complete model/endpoint/credential/rate settings together
 and preserve the existing S3 and classifier credentials. A Bedrock serverless API
 does not require provisioning a GPU or an always-on inference endpoint.
 
-Both the default and `suffolk` AWS CLI sessions were expired during preparation;
-Fly authentication succeeded. AWS provisioning, account access checks, model smoke
-calls and secret staging remain pending `aws login --profile suffolk`. Nothing
-has been changed in the live Fly environments by this preparation.
+After the user refreshed the AWS session, the account inventory confirmed Terra
+and Luna US profiles. The DeepSeek/GLM alternatives in this region were text-only
+and did not match the benchmark variants. The complete hybrid configuration is
+now staged (not deployed) on both Fly apps. Existing S3 and classifier settings
+were not modified. CI's dependency audit was fixed by upgrading Pillow to 13.0.0
+and pypdf to 6.21.4; no audit exceptions were added.
 
 Sources:
 
@@ -139,3 +141,41 @@ Sources:
 - [AWS DeepSeek catalog](https://docs.aws.amazon.com/bedrock/latest/userguide/model-cards-deepseek.html)
 - [AWS Z.AI catalog](https://docs.aws.amazon.com/bedrock/latest/userguide/model-cards-zai.html)
 - [AWS API key lifecycle](https://docs.aws.amazon.com/bedrock/latest/userguide/api-keys.html)
+
+
+## Fly workload identity for Bedrock
+
+Luna and Terra use `DOCUMENT_ENSEMBLE_<ROLE>_AUTH=fly_oidc`, their Bedrock runtime
+base URL and US profile ID. API keys for these two roles must be absent. The
+staged `DOCUMENT_ENSEMBLE_BEDROCK_ROLE_ARN` is app-specific; the region is
+`us-east-1`. DeepSeek and GLM retain their Azure API-key route.
+
+`efile/utils/bedrock_auth.py` fetches a machine OIDC token from the local Fly
+socket, exchanges it via unsigned STS `AssumeRoleWithWebIdentity`, and signs
+Bedrock requests with SigV4. Credentials last one hour and are refreshed five
+minutes before expiration. Neither tokens nor temporary keys are written to disk.
+The existing S3 credential chain is not used or changed. Only the configured
+HTTPS Bedrock runtime host/path can be signed; redirects are disabled. Signing
+excludes hop-by-hop headers, which proxies may change.
+
+The existing organization OIDC provider is reused. New roles
+`litefile-staging-bedrock` and `litefile-prod-bedrock` trust only machines belonging
+to their corresponding app, with `sts.amazonaws.com` as audience. Checked-in
+policies under `infra/aws/bedrock/` allow `bedrock:InvokeModel` for Luna/Terra US
+profiles, their three regional foundation-model ARNs, and the default project.
+No new IAM user, long-lived AWS API key, compute instance or provisioned endpoint
+was created. The role references are configuration values, not bearer secrets.
+
+`infra/scripts/check_bedrock_from_fly.py` writes a preregistration and probes two
+fabricated captions from a specified existing Fly machine. It preserves inputs,
+request code hashes and usage/output receipts without logging token-bearing AWS
+errors. This tests endpoint/authentication compatibility, not corpus accuracy.
+Run it in the application environment with `--app`, `--machine`, `--role`, and a
+new `--out` directory. The first diagnostic attempt failed before inference
+because a proxy changed the signed Connection header; the corrected staging
+probe passed for both models.
+
+A Fly secret staging operation alone does not restart machines. These settings
+will take effect on the next deployment, which must include this OIDC adapter.
+The hybrid configuration still incurs Azure usage for DeepSeek/GLM; it is not a
+Bedrock-only replacement for the benchmarked ensemble.

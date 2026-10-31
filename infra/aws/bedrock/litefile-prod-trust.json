@@ -1,0 +1,20 @@
+{
+  "Version": "2012-10-17",
+  "Statement": [
+    {
+      "Effect": "Allow",
+      "Principal": {
+        "Federated": "arn:aws:iam::132950722695:oidc-provider/oidc.fly.io/suffolk-lit-lab"
+      },
+      "Action": "sts:AssumeRoleWithWebIdentity",
+      "Condition": {
+        "StringEquals": {
+          "oidc.fly.io/suffolk-lit-lab:aud": "sts.amazonaws.com"
+        },
+        "StringLike": {
+          "oidc.fly.io/suffolk-lit-lab:sub": "suffolk-lit-lab:litefile-prod:*"
+        }
+      }
+    }
+  ]
+}

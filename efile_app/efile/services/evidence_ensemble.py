@@ -18,6 +18,7 @@ from pathlib import Path
 from tempfile import TemporaryDirectory
 from urllib.parse import urlsplit
 
+import httpx
 from django.conf import settings
 from django.core.exceptions import ImproperlyConfigured
 from openai import BadRequestError, OpenAI
@@ -165,6 +166,16 @@ class Readers:
         for role, config in settings.DOCUMENT_ENSEMBLE_MODELS.items():
             group = "TERRA" if role == "terra" else "READERS"
             url, key = config.get("base_url", ""), config.get("api_key", "")
+            if config.get("auth", "api_key") == "fly_oidc":
+                if not url or key or not settings.DOCUMENT_ENSEMBLE_BEDROCK_ROLE_ARN:
+                    raise ImproperlyConfigured("Fly OIDC requires an endpoint and Bedrock role, with no API key")
+                expected = f"bedrock-runtime.{settings.DOCUMENT_ENSEMBLE_BEDROCK_REGION}.amazonaws.com"
+                if urlsplit(url).hostname != expected or urlsplit(url).scheme != "https":
+                    raise ImproperlyConfigured("Fly OIDC requires the configured Bedrock runtime endpoint")
+                credentials[role] = (url, None)
+                continue
+            if config.get("auth", "api_key") != "api_key":
+                raise ImproperlyConfigured("Unknown ensemble authentication mode")
             if url or key:
                 # Never send a group credential to an overridden provider URL.
                 if not url or not key:
@@ -177,7 +188,21 @@ class Readers:
             credentials[role] = (url, key)
         for role, (url, key) in credentials.items():
             self.endpoint_hosts[role] = urlsplit(url).hostname
-            self.clients[role] = OpenAI(api_key=key, base_url=url, max_retries=0, timeout=60)
+            if key is None:
+                from efile.utils.bedrock_auth import BedrockAuth
+
+                transport_client = httpx.Client(
+                    auth=BedrockAuth(
+                        settings.DOCUMENT_ENSEMBLE_BEDROCK_ROLE_ARN, settings.DOCUMENT_ENSEMBLE_BEDROCK_REGION
+                    ),
+                    follow_redirects=False,
+                    timeout=60,
+                )
+                self.clients[role] = OpenAI(
+                    api_key="sigv4", base_url=url, http_client=transport_client, max_retries=0, timeout=60
+                )
+            else:
+                self.clients[role] = OpenAI(api_key=key, base_url=url, max_retries=0, timeout=60)
 
     def close(self):
         for client in self.clients.values():

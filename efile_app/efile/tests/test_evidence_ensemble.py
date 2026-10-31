@@ -263,3 +263,35 @@ def test_provider_override_requires_its_own_credential(configured, settings):
     with pytest.raises(ImproperlyConfigured, match="both DOCUMENT_ENSEMBLE_LUNA"):
         ensemble.Readers("illinois", None)
     configured.assert_not_called()
+
+
+def test_oidc_route_requires_no_bearer_key(configured, settings):
+    import copy
+
+    settings.DOCUMENT_ENSEMBLE_BEDROCK_ROLE_ARN = "arn:aws:iam::123:role/litefile-bedrock"
+    settings.DOCUMENT_ENSEMBLE_MODELS = copy.deepcopy(settings.DOCUMENT_ENSEMBLE_MODELS)
+    settings.DOCUMENT_ENSEMBLE_MODELS["luna"].update(
+        auth="fly_oidc",
+        base_url="https://bedrock-runtime.us-east-1.amazonaws.com/openai/v1/",
+        api_key="",
+    )
+    with patch("efile.services.evidence_ensemble.httpx.Client") as transport:
+        readers = ensemble.Readers("illinois", None)
+        assert transport.call_args.kwargs["follow_redirects"] is False
+        assert configured.call_args_list[1].kwargs["api_key"] == "sigv4"
+        readers.close()
+
+
+def test_oidc_rejects_accidental_provider_key(configured, settings):
+    import copy
+
+    settings.DOCUMENT_ENSEMBLE_BEDROCK_ROLE_ARN = "arn:aws:iam::123:role/litefile-bedrock"
+    settings.DOCUMENT_ENSEMBLE_MODELS = copy.deepcopy(settings.DOCUMENT_ENSEMBLE_MODELS)
+    settings.DOCUMENT_ENSEMBLE_MODELS["luna"].update(
+        auth="fly_oidc",
+        base_url="https://bedrock-runtime.us-east-1.amazonaws.com/openai/v1/",
+        api_key="azure-key",
+    )
+    with pytest.raises(ImproperlyConfigured, match="no API key"):
+        ensemble.Readers("illinois", None)
+    configured.assert_not_called()

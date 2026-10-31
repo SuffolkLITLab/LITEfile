@@ -207,9 +207,12 @@ DOCUMENT_ENSEMBLE_TERRA_BASE_URL = os.getenv("DOCUMENT_ENSEMBLE_TERRA_BASE_URL",
 DOCUMENT_ENSEMBLE_TERRA_API_KEY = os.getenv("DOCUMENT_ENSEMBLE_TERRA_API_KEY", "")
 # Dated estimates from the October 30 corpus study; not billing guarantees.
 DOCUMENT_ENSEMBLE_MAX_CALLS = int(os.getenv("DOCUMENT_ENSEMBLE_MAX_CALLS", "32"))
+DOCUMENT_ENSEMBLE_BEDROCK_ROLE_ARN = os.getenv("DOCUMENT_ENSEMBLE_BEDROCK_ROLE_ARN", "")
+DOCUMENT_ENSEMBLE_BEDROCK_REGION = os.getenv("DOCUMENT_ENSEMBLE_BEDROCK_REGION", "us-east-1")
 DOCUMENT_ENSEMBLE_MODELS = {
     role: {
         "deployment": os.getenv(f"DOCUMENT_ENSEMBLE_{role.upper()}_MODEL", model),
+        "auth": os.getenv(f"DOCUMENT_ENSEMBLE_{role.upper()}_AUTH", "api_key"),
         # Optional per-role routing permits an explicit mixed-provider rollout.
         "base_url": os.getenv(f"DOCUMENT_ENSEMBLE_{role.upper()}_BASE_URL", ""),
         "api_key": os.getenv(f"DOCUMENT_ENSEMBLE_{role.upper()}_API_KEY", ""),
