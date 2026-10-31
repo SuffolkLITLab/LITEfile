@@ -187,6 +187,20 @@ class Readers:
                 raise ImproperlyConfigured(f"Configure DOCUMENT_ENSEMBLE_{group}_BASE_URL and _API_KEY")
             credentials[role] = (url, key)
         for role, (url, key) in credentials.items():
+            if settings.AI_PROVIDER == "bedrock":
+                from efile.utils.bedrock_auth import MessagesClient, bedrock_openai_client
+
+                self.endpoint_hosts[role] = urlsplit(url).hostname
+                self.clients[role] = (
+                    MessagesClient(
+                        settings.DOCUMENT_ENSEMBLE_BEDROCK_ROLE_ARN,
+                        settings.DOCUMENT_ENSEMBLE_BEDROCK_REGION,
+                        settings.DOCUMENT_ENSEMBLE_MODELS[role]["deployment"],
+                    )
+                    if settings.DOCUMENT_ENSEMBLE_MODELS[role].get("api") == "anthropic"
+                    else bedrock_openai_client()
+                )
+                continue
             self.endpoint_hosts[role] = urlsplit(url).hostname
             if key is None:
                 from efile.utils.bedrock_auth import BedrockAuth
@@ -256,14 +270,24 @@ class Readers:
             estimated_usd=None,
         )
         try:
-            response = self.clients[role].chat.completions.create(**params)
+            client = self.clients[role]
+            response = (
+                client.create(**params)
+                if config.get("api") == "anthropic"
+                else client.chat.completions.create(**params)
+            )
             receipt.update(model=response.model, response_id=response.id)
             if response.usage:
                 receipt["usage"] = response.usage.model_dump()
                 receipt["estimated_usd"] = (
-                    response.usage.prompt_tokens * config["input_usd_per_million"]
-                    + response.usage.completion_tokens * config["output_usd_per_million"]
-                ) / 1_000_000
+                    (
+                        response.usage.prompt_tokens * config["input_usd_per_million"]
+                        + response.usage.completion_tokens * config["output_usd_per_million"]
+                    )
+                    / 1_000_000
+                    if config["input_usd_per_million"] is not None and config["output_usd_per_million"] is not None
+                    else None
+                )
             choice = response.choices[0]
             if choice.finish_reason == "content_filter" or choice.message.refusal:
                 self.filtered = True
@@ -272,7 +296,10 @@ class Readers:
             if choice.finish_reason != "stop":
                 receipt["status"] = "incomplete"
                 return {}
-            value = json.loads(choice.message.content or "")
+            content = (choice.message.content or "").strip()
+            if content.startswith("```") and content.endswith("```"):
+                content = content.split("\n", 1)[-1].rsplit("```", 1)[0].strip()
+            value = json.loads(content)
             if not isinstance(value, dict):
                 raise ValueError("Expected evidence object")
             valid = {}
@@ -334,6 +361,44 @@ def extract_ensemble(file_path, jurisdiction, source_text, *, before_outbound=No
                     if readers.filtered:
                         break
                 return merge_blocks(chunks)
+
+            if settings.DOCUMENT_EVIDENCE_STRATEGY == "bedrock_ensemble":
+                first = full_read("luna", True)
+                second = full_read("haiku", True)
+                disagreement = any(
+                    comparable(first.get(k)) != comparable(second.get(k)) for k in first.keys() | second.keys()
+                )
+                initial_failure = readers.review
+                escalated = (disagreement or initial_failure) and not readers.filtered
+                third = full_read("terra", True) if escalated else {}
+                terra_ok = (
+                    escalated
+                    and all(c["status"] == "complete" for c in readers.calls if c["role"] == "terra")
+                    and any(c["role"] == "terra" for c in readers.calls)
+                )
+                if initial_failure and terra_ok:
+                    evidence = third
+                elif escalated and not terra_ok:
+                    # Do not arbitrarily prefer either disputed reading on failed adjudication.
+                    evidence = follow_up(first, second, {})
+                    readers.review = True
+                else:
+                    evidence = follow_up(first, second, third)
+                candidates = list(
+                    dict.fromkeys(v.get(DOCKET) for v in (evidence, first, second, third) if v.get(DOCKET))
+                )
+                return evidence, dict(
+                    policy="bedrock_luna_haiku_terra_v1",
+                    input_mode="ensemble_pdf_images" if asset["pages"] else "ensemble_docx_text",
+                    calls=readers.calls,
+                    manual_review=readers.review or readers.filtered,
+                    content_filtered=readers.filtered,
+                    escalated=bool(escalated),
+                    docket_candidates=candidates[:2],
+                    elapsed_seconds=time.perf_counter() - started,
+                    estimated_usd=sum(c["estimated_usd"] or 0 for c in readers.calls),
+                    cost_incomplete=any(c["estimated_usd"] is None for c in readers.calls),
+                )
 
             first = full_read("deepseek", True)
             second = full_read("luna", False)

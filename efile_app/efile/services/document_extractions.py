@@ -310,10 +310,10 @@ def analyze_document(file_path, jurisdiction, *, use_ai=True, before_outbound=No
     evidence_version, _definition, evidence_config = prompt_version(evidence_prompt)
     evidence_diagnostics = {}
     strategy = settings.DOCUMENT_EVIDENCE_STRATEGY
-    if strategy == "terra_ensemble":
+    if strategy in {"terra_ensemble", "bedrock_ensemble"}:
         from efile.services.evidence_ensemble import extract_ensemble
 
-        evidence_model = "terra_followup_v1"
+        evidence_model = "bedrock_luna_haiku_terra_v1" if strategy == "bedrock_ensemble" else "terra_followup_v1"
         raw_evidence, evidence_diagnostics = extract_ensemble(
             file_path, jurisdiction, source_text, before_outbound=before_outbound
         )

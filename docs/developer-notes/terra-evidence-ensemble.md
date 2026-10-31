@@ -179,3 +179,48 @@ A Fly secret staging operation alone does not restart machines. These settings
 will take effect on the next deployment, which must include this OIDC adapter.
 The hybrid configuration still incurs Azure usage for DeepSeek/GLM; it is not a
 Bedrock-only replacement for the benchmarked ensemble.
+
+## AWS-only deployment revision
+
+The personal Azure resource used in research is not Suffolk-owned. Its key and
+endpoint were removed from both apps' staged secrets. The historical hybrid
+configuration above is withdrawn, not a production recommendation.
+
+`AI_PROVIDER=bedrock` and `DOCUMENT_EVIDENCE_STRATEGY=bedrock_ensemble` select
+`bedrock_luna_haiku_terra_v1`: independent Luna and Haiku image readers, followed
+by a full Terra read on disagreement or initial reader failure. Agreed fields
+are retained; Terra resolves disputed fields. If initial readers fail, a complete
+Terra result is used with a review flag. Failed adjudication retains only agreed
+fields and flags review. Content filtering stops later calls. This new policy
+is not the historical docket-only blend or majority voting.
+
+The provider implementation mirrors `open-fetch` revision
+`8c387c4e475f6b527eae9b62b5193a8cc6e7a817`: five-minute bearer tokens from
+`aws-bedrock-token-generator`, OpenAI Chat Completions and Anthropic Messages
+(`/anthropic/v1/messages`). LITEfile's synchronous extraction worker uses a
+synchronous HTTP client. Its explicit app-scoped Fly OIDC credential provider
+is retained so existing S3 static credentials cannot override the AI role.
+Tokens are never persisted. Endpoint validation and redirects-disabled behavior
+prevent credential forwarding. SDK retries remain disabled for observable usage.
+
+The generic LLM helper, classifier, and single-reader rollback also use the
+same Bedrock-only client factory. No public OpenAI or Azure fallback is allowed.
+Small tasks use `us.openai.gpt-6-luna`; higher tiers use
+`us.openai.gpt-6.1-terra`. The independent reader is
+`us.anthropic.claude-haiku-5-5`. IAM permits those profiles and their routed
+foundation models, plus short-lived bearer calls. It does not grant Marketplace
+subscription management or storage access.
+
+The October 31 AWS agreement offer for Haiku reports USE1_input_tokens_standard
+as “Million Input Tokens Standard” at $0.11 and USE1_output_tokens_standard as
+“Million Response Tokens Standard” at $0.55. Recorded rates remain estimates;
+reported usage and incomplete-cost indicators are retained. Calls stay below
+Haiku's long-context threshold through page/text block limits.
+
+`infra/scripts/check_bedrock_only.py --out /tmp/unique-canary-directory` checks
+all three image endpoints, real ensemble assembly on a fabricated PDF, and the
+generic classifier client without submitting a filing. Local-only calibration
+can pass `--aws-profile suffolk`; Fly canaries must omit that override and use
+the actual machine identity. Production rollout follows passing offline checks,
+staging deployment/canary, then production deployment/canary. Existing live
+filing and storage settings must remain unchanged.

@@ -34,6 +34,11 @@ def get_config(key: str, default: Any = None) -> Any:
     """Read an LLM setting from environment variables or Django settings."""
     key_lower = key.lower()
     if key_lower == "open ai":
+        if getattr(settings, "AI_PROVIDER", "openai") == "bedrock":
+            return {
+                "key": None,
+                "base url": f"https://bedrock-runtime.{settings.DOCUMENT_ENSEMBLE_BEDROCK_REGION}.amazonaws.com/openai/v1/",
+            }
         return {
             "key": os.getenv("OPENAI_API_KEY") or getattr(settings, "OPENAI_API_KEY", None),
             "base url": os.getenv("OPENAI_BASE_URL") or getattr(settings, "OPENAI_BASE_URL", None),
@@ -54,9 +59,13 @@ def get_config(key: str, default: Any = None) -> Any:
     return value if value is not None else default
 
 
-if os.getenv("OPENAI_API_KEY"):
+if getattr(settings, "AI_PROVIDER", "openai") == "bedrock":
+    from efile.utils.bedrock_auth import bedrock_openai_client
+
+    client = bedrock_openai_client()
+elif os.getenv("OPENAI_API_KEY"):
     configured_base_url = get_config("open ai", {}).get("base url")
-    client: OpenAI | None = OpenAI(base_url=configured_base_url) if configured_base_url else OpenAI()
+    client = OpenAI(base_url=configured_base_url) if configured_base_url else OpenAI()
 elif get_config("openai api key"):
     open_ai_config = get_config("open ai", {}) or {}
     client = OpenAI(
@@ -128,7 +137,7 @@ THINKING_MODEL_PREFIXES = ("o1", "o3", "o4", "gpt-5", "gpt-6")
 
 def is_thinking_model(model: str) -> bool:
     """Reasoning models take an effort and reject any temperature but the default."""
-    return model.lower().startswith(THINKING_MODEL_PREFIXES)
+    return model.lower().removeprefix("us.openai.").startswith(THINKING_MODEL_PREFIXES)
 
 
 def reasoning_effort_for(model: str, effort: str | None, model_type: str = "small") -> str:
@@ -138,7 +147,7 @@ def reasoning_effort_for(model: str, effort: str | None, model_type: str = "smal
     models take "minimal" but not "none". Each is the other's nearest value.
     """
     effort = effort or TIER_REASONING_EFFORT.get((model_type or "small").lower(), "low")
-    lowered = model.lower()
+    lowered = model.lower().removeprefix("us.openai.")
     original_gpt5 = re.match(r"^gpt-5(-mini|-nano)?(-\d{4}-\d{2}-\d{2})?$", lowered) is not None
     if effort == "none" and original_gpt5:
         return "minimal"
@@ -179,6 +188,8 @@ def _extract_model_id(model: Any) -> str | None:
 
 def list_available_models(openai_client: OpenAI | None = None) -> list[str]:
     """Return model IDs available on the configured OpenAI-compatible provider."""
+    if getattr(settings, "AI_PROVIDER", "openai") == "bedrock":
+        return ["us.openai.gpt-6-luna", "us.openai.gpt-6.1-terra"]
     openai_client = openai_client or client
     if not openai_client:
         log("Warning: No OpenAI client available to fetch models list.", "warning")
@@ -297,6 +308,8 @@ def get_default_model(
 ) -> str:
     """Choose a configured or available model, with a sensible fallback."""
     open_ai_config = get_config("open ai", {}) or {}
+    if getattr(settings, "AI_PROVIDER", "openai") == "bedrock":
+        return "us.openai.gpt-6-luna" if model_type == "small" else "us.openai.gpt-6.1-terra"
     normalized_model_type = (model_type or "small").lower()
     config_model = (
         open_ai_config.get(f"default {normalized_model_type} model")
@@ -380,6 +393,14 @@ def chat_completion(
             {"role": "user", "content": user_message},
         ]
 
+    if getattr(settings, "AI_PROVIDER", "openai") == "bedrock":
+        if openai_api or (
+            openai_base_url
+            and openai_base_url
+            != f"https://bedrock-runtime.{settings.DOCUMENT_ENSEMBLE_BEDROCK_REGION}.amazonaws.com/openai/v1/"
+        ):
+            raise ValueError("External AI credentials/endpoints are disabled in Bedrock mode")
+        openai_client = client
     if not openai_client:
         if openai_api:
             openai_client = OpenAI(api_key=openai_api, base_url=openai_base_url)
@@ -565,6 +586,14 @@ def extract_fields_from_file(
             prompt_name=prompt_name,
         )
 
+    if getattr(settings, "AI_PROVIDER", "openai") == "bedrock":
+        if openai_api or (
+            openai_base_url
+            and openai_base_url
+            != f"https://bedrock-runtime.{settings.DOCUMENT_ENSEMBLE_BEDROCK_REGION}.amazonaws.com/openai/v1/"
+        ):
+            raise ValueError("External AI credentials/endpoints are disabled in Bedrock mode")
+        openai_client = client
     if not openai_client:
         if openai_api:
             openai_client = OpenAI(

@@ -33,6 +33,7 @@ dependencies = [
     "snowballstemmer>=3,<4",
     "holidays>=0.83,<1",
     "pillow>=13,<14",
+    "aws-bedrock-token-generator>=1.1.0,<2",
 ]
 
 [build-system]

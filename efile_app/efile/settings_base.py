@@ -136,6 +136,8 @@ STATICFILES_DIRS = [BASE_DIR / "efile/static"]
 DEFAULT_AUTO_FIELD = "django.db.models.BigAutoField"
 SUFFOLK_EFILE_API_KEY = os.getenv("SUFFOLK_EFILE_API_KEY", "")
 
+AI_PROVIDER = os.getenv("AI_PROVIDER", "openai")
+
 OPENAI_API_KEY = os.getenv("OPENAI_API_KEY", None)
 OPENAI_BASE_URL = os.getenv("OPENAI_BASE_URL", "https://api.openai.com/v1/")
 
@@ -200,7 +202,9 @@ DOCUMENT_EXTRACTION_MAX_TEXT_CHARS = int(os.getenv("DOCUMENT_EXTRACTION_MAX_TEXT
 DOCUMENT_EXTRACTION_MAX_ATTEMPTS = int(os.getenv("DOCUMENT_EXTRACTION_MAX_ATTEMPTS", "3"))
 DOCUMENT_CLASSIFICATION_SOURCE_PAGES = int(os.getenv("DOCUMENT_CLASSIFICATION_SOURCE_PAGES", "3"))
 # The single-reader path remains available as an explicit rollback.
-DOCUMENT_EVIDENCE_STRATEGY = os.getenv("DOCUMENT_EVIDENCE_STRATEGY", "terra_ensemble")
+DOCUMENT_EVIDENCE_STRATEGY = os.getenv(
+    "DOCUMENT_EVIDENCE_STRATEGY", "bedrock_ensemble" if AI_PROVIDER == "bedrock" else "terra_ensemble"
+)
 DOCUMENT_ENSEMBLE_READERS_BASE_URL = os.getenv("DOCUMENT_ENSEMBLE_READERS_BASE_URL", "")
 DOCUMENT_ENSEMBLE_READERS_API_KEY = os.getenv("DOCUMENT_ENSEMBLE_READERS_API_KEY", "")
 DOCUMENT_ENSEMBLE_TERRA_BASE_URL = os.getenv("DOCUMENT_ENSEMBLE_TERRA_BASE_URL", "")
@@ -228,6 +232,27 @@ DOCUMENT_ENSEMBLE_MODELS = {
         ("terra", "gpt-6.1-terra", "max_completion_tokens", "low", 1.10, 5.50),
     ]
 }
+# AWS-only deployment: no inherited API keys or third-party endpoints.
+if AI_PROVIDER == "bedrock":
+    DOCUMENT_ENSEMBLE_MODELS = {
+        role: {
+            "deployment": model,
+            "auth": "fly_oidc",
+            "base_url": f"https://bedrock-runtime.{DOCUMENT_ENSEMBLE_BEDROCK_REGION}.amazonaws.com/openai/v1/",
+            "api_key": "",
+            "api": "anthropic" if role == "haiku" else "openai",
+            "output_parameter": "max_tokens" if role == "haiku" else "max_completion_tokens",
+            "reasoning_effort": None if role == "haiku" else ("none" if role == "luna" else "low"),
+            "input_usd_per_million": input_rate,
+            "output_usd_per_million": output_rate,
+        }
+        for role, model, input_rate, output_rate in [
+            ("luna", "us.openai.gpt-6-luna", 0.11, 0.55),
+            ("haiku", "us.anthropic.claude-haiku-5-5", 0.11, 0.55),
+            ("terra", "us.openai.gpt-6.1-terra", 1.10, 5.50),
+        ]
+    }
+
 DOCUMENT_EVIDENCE_MODEL = os.getenv("DOCUMENT_EVIDENCE_MODEL", "")
 DOCUMENT_CLASSIFICATION_MODEL = os.getenv("DOCUMENT_CLASSIFICATION_MODEL", "")
 FORM_CODE_CROSSWALK_PATH = Path(
