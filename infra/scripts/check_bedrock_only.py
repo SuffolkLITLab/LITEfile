@@ -26,7 +26,6 @@ def main():
     django.setup()
     from django.conf import settings
     from PIL import Image, ImageDraw
-    from reportlab.pdfgen.canvas import Canvas
 
     from efile.services.evidence_ensemble import Readers, extract_ensemble, image_url
     from efile.utils import bedrock_auth
@@ -107,8 +106,8 @@ def main():
     ):
         raise RuntimeError("Model compatibility probe failed; inspect safe receipts")
     pdf = args.out / "synthetic-motion.pdf"
-    canvas = Canvas(str(pdf))
-    canvas.setFont("Helvetica", 14)
+    page = Image.new("RGB", (1224, 1584), "white")
+    draw = ImageDraw.Draw(page)
     lines = [
         "Circuit Court of Cook County, Illinois",
         "Avery Morgan, Plaintiff",
@@ -119,8 +118,8 @@ def main():
         "Plaintiff requests a fourteen-day continuance to obtain records.",
     ]
     for i, line in enumerate(lines):
-        canvas.drawString(50, 760 - i * 35, line)
-    canvas.save()
+        draw.text((70, 100 + i * 65), line, fill="black", font_size=24)
+    page.save(pdf, "PDF", resolution=144)
     evidence, metadata = extract_ensemble(pdf, "illinois", "\n".join(lines))
     (args.out / "ensemble.json").write_text(
         json.dumps({"evidence": evidence, "metadata": metadata}, indent=2) + "\n"
