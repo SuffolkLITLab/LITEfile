@@ -26,6 +26,7 @@ from efile.services.extraction_fields import (
     normalize_document_evidence,
 )
 from efile.services.taxonomy_classification import (
+    ClassificationRun,
     HierarchicalDocumentClassifier,
     deterministic_form_identity,
     exact_form_crosswalk_matches,
@@ -307,30 +308,41 @@ def analyze_document(file_path, jurisdiction, *, use_ai=True, before_outbound=No
 
     evidence_prompt = "document_evidence_extraction"
     evidence_version, _definition, evidence_config = prompt_version(evidence_prompt)
-    evidence_model = getattr(settings, "DOCUMENT_EVIDENCE_MODEL", "") or get_default_model(
-        evidence_config.get("preferred_model_tier", "small")
-    )
     evidence_diagnostics = {}
-    if before_outbound is not None:
-        before_outbound()
-    extraction_kwargs = {
-        "llm_hint": EXTRACTION_HINTS.get(jurisdiction, EXTRACTION_HINTS["default"]),
-        "model": evidence_model,
-        "prompt_name": evidence_prompt,
-        "prompt_version_name": evidence_version,
-    }
-    fields = EXTRACTION_FIELDS.get(jurisdiction, EXTRACTION_FIELDS["default"])
-    if Path(file_path).suffix.lower() == ".docx":
-        evidence_diagnostics["input_mode"] = "docx2python_text"
-        raw_evidence = extract_fields_from_text(source_text, fields, **extraction_kwargs)
-    else:
-        raw_evidence = extract_fields_from_file(
-            file_path,
-            fields,
-            diagnostics=evidence_diagnostics,
-            supplemental_text=_pdf_form_values(file_path),
-            **extraction_kwargs,
+    strategy = settings.DOCUMENT_EVIDENCE_STRATEGY
+    if strategy in {"terra_ensemble", "bedrock_ensemble"}:
+        from efile.services.evidence_ensemble import extract_ensemble
+
+        evidence_model = "bedrock_luna_haiku_terra_v1" if strategy == "bedrock_ensemble" else "terra_followup_v1"
+        raw_evidence, evidence_diagnostics = extract_ensemble(
+            file_path, jurisdiction, source_text, before_outbound=before_outbound
         )
+    elif strategy == "single":
+        evidence_model = getattr(settings, "DOCUMENT_EVIDENCE_MODEL", "") or get_default_model(
+            evidence_config.get("preferred_model_tier", "small")
+        )
+        if before_outbound is not None:
+            before_outbound()
+        extraction_kwargs = {
+            "llm_hint": EXTRACTION_HINTS.get(jurisdiction, EXTRACTION_HINTS["default"]),
+            "model": evidence_model,
+            "prompt_name": evidence_prompt,
+            "prompt_version_name": evidence_version,
+        }
+        fields = EXTRACTION_FIELDS.get(jurisdiction, EXTRACTION_FIELDS["default"])
+        if Path(file_path).suffix.lower() == ".docx":
+            evidence_diagnostics["input_mode"] = "docx2python_text"
+            raw_evidence = extract_fields_from_text(source_text, fields, **extraction_kwargs)
+        else:
+            raw_evidence = extract_fields_from_file(
+                file_path,
+                fields,
+                diagnostics=evidence_diagnostics,
+                supplemental_text=_pdf_form_values(file_path),
+                **extraction_kwargs,
+            )
+    else:
+        raise ValueError(f"Unknown document evidence strategy: {strategy}")
     evidence = normalize_document_evidence(raw_evidence)
     ai_form_identifier = evidence.get("form identifier")
     if form_identifier_scan.get("deterministic"):
@@ -340,7 +352,11 @@ def analyze_document(file_path, jurisdiction, *, use_ai=True, before_outbound=No
         evidence["form identifier"] = form_identifier_scan["deterministic_match"]["form_id"]
     if before_outbound is not None:
         before_outbound()
-    classification = HierarchicalDocumentClassifier().classify(jurisdiction, evidence, source_text)
+    classification = (
+        ClassificationRun(selections={}, metadata={"classification_skipped": "content_filter"})
+        if evidence_diagnostics.get("content_filtered")
+        else HierarchicalDocumentClassifier().classify(jurisdiction, evidence, source_text)
+    )
     guesses = display_extracted_fields(evidence)
     for level, selection in classification.selections.items():
         if selection.get("status") == "selected":
@@ -354,6 +370,8 @@ def analyze_document(file_path, jurisdiction, *, use_ai=True, before_outbound=No
             "evidence_prompt": evidence_prompt,
             "evidence_prompt_version": evidence_version,
             "evidence_model": evidence_model,
+            "evidence_strategy": strategy,
+            "evidence_diagnostics": evidence_diagnostics,
             "evidence_input_mode": evidence_diagnostics.get("input_mode", "unknown"),
             **_source_metadata(file_path, source_text, pages_converted),
             "form_identifier_scan": form_identifier_scan,

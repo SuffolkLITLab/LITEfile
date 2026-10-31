@@ -1,0 +1,38 @@
+{
+  "Version": "2012-10-17",
+  "Statement": [
+    {
+      "Sid": "SelectedEnsembleModelsOnly",
+      "Effect": "Allow",
+      "Action": [
+        "bedrock:InvokeModel"
+      ],
+      "Resource": [
+        "arn:aws:bedrock:us-east-1:132950722695:inference-profile/us.openai.gpt-6-luna",
+        "arn:aws:bedrock:us-east-1:132950722695:inference-profile/us.openai.gpt-6.1-terra",
+        "arn:aws:bedrock:us-east-1:132950722695:project/default",
+        "arn:aws:bedrock:us-east-1::foundation-model/openai.gpt-6-luna",
+        "arn:aws:bedrock:us-east-1::foundation-model/openai.gpt-6.1-terra",
+        "arn:aws:bedrock:us-east-2::foundation-model/openai.gpt-6-luna",
+        "arn:aws:bedrock:us-east-2::foundation-model/openai.gpt-6.1-terra",
+        "arn:aws:bedrock:us-west-2::foundation-model/openai.gpt-6-luna",
+        "arn:aws:bedrock:us-west-2::foundation-model/openai.gpt-6.1-terra",
+        "arn:aws:bedrock:us-east-1:132950722695:inference-profile/us.anthropic.claude-haiku-5-5",
+        "arn:aws:bedrock:us-east-1::foundation-model/anthropic.claude-haiku-5-5",
+        "arn:aws:bedrock:us-east-2::foundation-model/anthropic.claude-haiku-5-5",
+        "arn:aws:bedrock:us-west-2::foundation-model/anthropic.claude-haiku-5-5"
+      ]
+    },
+    {
+      "Sid": "ShortLivedBedrockTokens",
+      "Effect": "Allow",
+      "Action": "bedrock:CallWithBearerToken",
+      "Resource": "*",
+      "Condition": {
+        "StringEquals": {
+          "aws:RequestedRegion": "us-east-1"
+        }
+      }
+    }
+  ]
+}

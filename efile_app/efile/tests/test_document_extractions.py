@@ -127,7 +127,8 @@ def test_worker_caps_pages_and_persists_the_complete_payload(extraction_draft):
 
 
 @pytest.mark.django_db
-def test_worker_reads_a_real_uploaded_pdf_before_classification(extraction_draft):
+def test_worker_reads_a_real_uploaded_pdf_before_classification(extraction_draft, settings):
+    settings.DOCUMENT_EVIDENCE_STRATEGY = "single"
     """Do not let the standard worker test regress to a fully mocked document."""
     source_pdf = Path(__file__).resolve().parents[3] / "benchmarking/synthetic/filled_pdfs/flattened/MA-01.pdf"
     assert source_pdf.is_file()
