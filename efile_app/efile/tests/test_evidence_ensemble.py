@@ -61,11 +61,12 @@ def test_separate_clients_parameters_and_usage(configured):
         client.chat.completions.create.return_value = response('{"docket number":"26-CV-1"}')
     readers.read("deepseek", "caption")
     readers.read("terra", "caption", docket_only=True)
-    cheap = readers.clients["READERS"].chat.completions.create.call_args.kwargs
-    terra = readers.clients["TERRA"].chat.completions.create.call_args.kwargs
+    cheap = readers.clients["deepseek"].chat.completions.create.call_args.kwargs
+    terra = readers.clients["terra"].chat.completions.create.call_args.kwargs
     assert cheap["max_tokens"] == 8192
     assert terra["max_completion_tokens"] == 8192
     assert terra["reasoning_effort"] == "low"
+    assert readers.calls[1]["endpoint_host"] == "terra.example"
     assert readers.calls[1]["estimated_usd"] == pytest.approx(0.00022)
     assert all(call.kwargs["max_retries"] == 0 for call in configured.call_args_list)
     assert "fake-key" not in str(readers.calls)
@@ -78,22 +79,22 @@ def test_permission_checked_outside_error_handler(configured):
     readers = ensemble.Readers("illinois", stopped)
     with pytest.raises(ExtractionSuperseded):
         readers.read("luna", "private")
-    readers.clients["READERS"].chat.completions.create.assert_not_called()
+    readers.clients["luna"].chat.completions.create.assert_not_called()
 
 
 @pytest.mark.parametrize("finish,refusal", [("content_filter", None), ("stop", "refused")])
 def test_filter_stops_followup(configured, finish, refusal):
     readers = ensemble.Readers("illinois", None)
-    readers.clients["READERS"].chat.completions.create.return_value = response(finish=finish, refusal=refusal)
+    readers.clients["luna"].chat.completions.create.return_value = response(finish=finish, refusal=refusal)
     assert readers.read("luna", "private") == {}
     assert readers.read("terra", "private") == {}
     assert readers.filtered and readers.review
-    readers.clients["TERRA"].chat.completions.create.assert_not_called()
+    readers.clients["terra"].chat.completions.create.assert_not_called()
 
 
 def test_partial_output_retains_valid_fields(configured):
     readers = ensemble.Readers("illinois", None)
-    readers.clients["READERS"].chat.completions.create.return_value = response(
+    readers.clients["luna"].chat.completions.create.return_value = response(
         '{"court name":"Court", "docket number":42}'
     )
     assert readers.read("luna", "caption") == {"court name": "Court"}
@@ -104,7 +105,7 @@ def test_call_cap_prevents_unmetered_followups(configured, settings):
     settings.DOCUMENT_ENSEMBLE_MAX_CALLS = 0
     readers = ensemble.Readers("illinois", None)
     assert readers.read("terra", "caption") == {}
-    readers.clients["TERRA"].chat.completions.create.assert_not_called()
+    readers.clients["terra"].chat.completions.create.assert_not_called()
     assert readers.review
 
 
@@ -215,7 +216,7 @@ def test_ai_opt_out_never_constructs_ensemble():
 
 def test_transport_failure_has_no_hidden_retry_or_sensitive_exception(configured):
     readers = ensemble.Readers("illinois", None)
-    create = readers.clients["READERS"].chat.completions.create
+    create = readers.clients["luna"].chat.completions.create
     create.side_effect = ConnectionError("secret-key and private document text")
     assert readers.read("luna", "private document text") == {}
     create.assert_called_once()
@@ -228,9 +229,37 @@ def test_transport_failure_has_no_hidden_retry_or_sensitive_exception(configured
 
 def test_request_hash_and_receipt_are_retained_for_incomplete_output(configured):
     readers = ensemble.Readers("illinois", None)
-    readers.clients["READERS"].chat.completions.create.return_value = response(finish="length")
+    readers.clients["luna"].chat.completions.create.return_value = response(finish="length")
     assert readers.read("luna", "caption") == {}
     assert readers.calls[0]["status"] == "incomplete"
     assert readers.calls[0]["estimated_usd"] is not None
     assert len(readers.calls[0]["prompt_sha256"]) == 64
     assert readers.review
+
+
+def test_per_role_provider_override_does_not_move_other_readers(configured, settings):
+    import copy
+
+    settings.DOCUMENT_ENSEMBLE_MODELS = copy.deepcopy(settings.DOCUMENT_ENSEMBLE_MODELS)
+    settings.DOCUMENT_ENSEMBLE_MODELS["luna"].update(
+        base_url="https://bedrock-runtime.us-east-1.amazonaws.com/openai/v1/",
+        api_key="bedrock-fake-key",
+        deployment="us.openai.gpt-6-luna",
+    )
+    readers = ensemble.Readers("illinois", None)
+    calls = configured.call_args_list
+    assert calls[0].kwargs["base_url"] == settings.DOCUMENT_ENSEMBLE_READERS_BASE_URL
+    assert calls[1].kwargs["base_url"].startswith("https://bedrock-runtime.")
+    assert calls[1].kwargs["api_key"] == "bedrock-fake-key"
+    assert calls[2].kwargs["base_url"] == settings.DOCUMENT_ENSEMBLE_READERS_BASE_URL
+    readers.close()
+
+
+def test_provider_override_requires_its_own_credential(configured, settings):
+    import copy
+
+    settings.DOCUMENT_ENSEMBLE_MODELS = copy.deepcopy(settings.DOCUMENT_ENSEMBLE_MODELS)
+    settings.DOCUMENT_ENSEMBLE_MODELS["luna"].update(base_url="https://different-provider.example/v1/", api_key="")
+    with pytest.raises(ImproperlyConfigured, match="both DOCUMENT_ENSEMBLE_LUNA"):
+        ensemble.Readers("illinois", None)
+    configured.assert_not_called()

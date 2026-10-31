@@ -95,3 +95,47 @@ accounting, filters/refusals, callback propagation, AI opt-out, call caps, multi
 widgets without appearances, page limits, DOCX handling, and the nested extraction
 contract with the existing classifier. Legacy integration tests explicitly select
 `single` where they assert the old provider request format.
+
+## Bedrock staging and per-model routing
+
+Each role also accepts `DOCUMENT_ENSEMBLE_<ROLE>_BASE_URL` and `_API_KEY`. Both
+must be supplied together. A role override never borrows a credential from the
+shared readers endpoint. With no override, DeepSeek/Luna/GLM continue using the
+`READERS` pair; Terra uses the `TERRA` pair. Receipts identify the endpoint host
+without persisting API keys or URL query parameters.
+
+AWS documents an OpenAI-compatible Chat Completions endpoint at
+`https://bedrock-runtime.us-east-1.amazonaws.com/openai/v1/`. The documented US
+inference IDs are `us.openai.gpt-6-luna` and `us.openai.gpt-6.1-terra`. These need
+account-specific access verification before use; a model card is not proof of
+access. Geographic cross-region inference stays within its documented US routing.
+The Luna US rates are $0.11 input/$0.55 output per million tokens; Terra rates are
+$1.10/$5.50 for short context. Override the corresponding rate settings when
+switching providers; Azure benchmark costs must not be relabeled as Bedrock costs.
+
+As checked October 31, the public DeepSeek catalog lists V3.2, V3.1 and R1;
+the Z.AI catalog lists GLM 5.3 but not GLM 5.3 Flash. Do not silently substitute
+these for the benchmark models. Verify the account catalog, then use explicit
+mixed-provider routing or preregister and evaluate a new Bedrock-only ensemble.
+
+The requested staging targets are Fly `litefile-prod` and its existing
+`litefile-staging` environment. Use `fly secrets import --stage` with secrets piped
+through stdin from memory; do not put them in command arguments, files, notebooks,
+or Git. Staging does not restart machines, but staged secrets take effect on the
+next deployment. Stage complete model/endpoint/credential/rate settings together,
+and preserve the existing S3 and classifier credentials. A Bedrock serverless API
+does not require provisioning a GPU or an always-on inference endpoint.
+
+Both the default and `suffolk` AWS CLI sessions were expired during preparation;
+Fly authentication succeeded. AWS provisioning, account access checks, model smoke
+calls and secret staging remain pending `aws login --profile suffolk`. Nothing
+has been changed in the live Fly environments by this preparation.
+
+Sources:
+
+- [AWS Chat Completions API](https://docs.aws.amazon.com/bedrock/latest/userguide/inference-chat-completions.html)
+- [AWS Terra model card](https://docs.aws.amazon.com/bedrock/latest/userguide/model-card-openai-gpt-6-1-terra.html)
+- [AWS Luna model card](https://docs.aws.amazon.com/bedrock/latest/userguide/model-card-openai-gpt-6-luna.html)
+- [AWS DeepSeek catalog](https://docs.aws.amazon.com/bedrock/latest/userguide/model-cards-deepseek.html)
+- [AWS Z.AI catalog](https://docs.aws.amazon.com/bedrock/latest/userguide/model-cards-zai.html)
+- [AWS API key lifecycle](https://docs.aws.amazon.com/bedrock/latest/userguide/api-keys.html)

@@ -210,6 +210,9 @@ DOCUMENT_ENSEMBLE_MAX_CALLS = int(os.getenv("DOCUMENT_ENSEMBLE_MAX_CALLS", "32")
 DOCUMENT_ENSEMBLE_MODELS = {
     role: {
         "deployment": os.getenv(f"DOCUMENT_ENSEMBLE_{role.upper()}_MODEL", model),
+        # Optional per-role routing permits an explicit mixed-provider rollout.
+        "base_url": os.getenv(f"DOCUMENT_ENSEMBLE_{role.upper()}_BASE_URL", ""),
+        "api_key": os.getenv(f"DOCUMENT_ENSEMBLE_{role.upper()}_API_KEY", ""),
         "output_parameter": parameter,
         "reasoning_effort": reasoning,
         "input_usd_per_million": float(os.getenv(f"DOCUMENT_ENSEMBLE_{role.upper()}_INPUT_RATE", str(input_rate))),

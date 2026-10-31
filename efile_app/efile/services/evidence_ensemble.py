@@ -16,6 +16,7 @@ import subprocess  # nosec B404
 import time
 from pathlib import Path
 from tempfile import TemporaryDirectory
+from urllib.parse import urlsplit
 
 from django.conf import settings
 from django.core.exceptions import ImproperlyConfigured
@@ -158,16 +159,25 @@ class Readers:
         self.filtered = False
         self.review = False
         self.clients = {}
-        # Validate both endpoints before sending any document content.
+        self.endpoint_hosts = {}
+        # Validate every route before sending any document content.
         credentials = {}
-        for group in ("READERS", "TERRA"):
-            url = getattr(settings, f"DOCUMENT_ENSEMBLE_{group}_BASE_URL", "")
-            key = getattr(settings, f"DOCUMENT_ENSEMBLE_{group}_API_KEY", "")
+        for role, config in settings.DOCUMENT_ENSEMBLE_MODELS.items():
+            group = "TERRA" if role == "terra" else "READERS"
+            url, key = config.get("base_url", ""), config.get("api_key", "")
+            if url or key:
+                # Never send a group credential to an overridden provider URL.
+                if not url or not key:
+                    raise ImproperlyConfigured(f"Configure both DOCUMENT_ENSEMBLE_{role.upper()}_BASE_URL and _API_KEY")
+            else:
+                url = getattr(settings, f"DOCUMENT_ENSEMBLE_{group}_BASE_URL", "")
+                key = getattr(settings, f"DOCUMENT_ENSEMBLE_{group}_API_KEY", "")
             if not url or not key:
                 raise ImproperlyConfigured(f"Configure DOCUMENT_ENSEMBLE_{group}_BASE_URL and _API_KEY")
-            credentials[group] = (url, key)
-        for group, (url, key) in credentials.items():
-            self.clients[group] = OpenAI(api_key=key, base_url=url, max_retries=0, timeout=60)
+            credentials[role] = (url, key)
+        for role, (url, key) in credentials.items():
+            self.endpoint_hosts[role] = urlsplit(url).hostname
+            self.clients[role] = OpenAI(api_key=key, base_url=url, max_retries=0, timeout=60)
 
     def close(self):
         for client in self.clients.values():
@@ -213,11 +223,15 @@ class Readers:
             self.before_outbound()
         started = time.perf_counter()
         receipt = dict(
-            role=role, deployment=config["deployment"], prompt_sha256=prompt_hash, status="error", estimated_usd=None
+            role=role,
+            endpoint_host=self.endpoint_hosts[role],
+            deployment=config["deployment"],
+            prompt_sha256=prompt_hash,
+            status="error",
+            estimated_usd=None,
         )
         try:
-            group = "TERRA" if role == "terra" else "READERS"
-            response = self.clients[group].chat.completions.create(**params)
+            response = self.clients[role].chat.completions.create(**params)
             receipt.update(model=response.model, response_id=response.id)
             if response.usage:
                 receipt["usage"] = response.usage.model_dump()
