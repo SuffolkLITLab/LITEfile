@@ -199,6 +199,29 @@ DOCUMENT_EXTRACTION_MAX_PAGES = int(os.getenv("DOCUMENT_EXTRACTION_MAX_PAGES", "
 DOCUMENT_EXTRACTION_MAX_TEXT_CHARS = int(os.getenv("DOCUMENT_EXTRACTION_MAX_TEXT_CHARS", "100000"))
 DOCUMENT_EXTRACTION_MAX_ATTEMPTS = int(os.getenv("DOCUMENT_EXTRACTION_MAX_ATTEMPTS", "3"))
 DOCUMENT_CLASSIFICATION_SOURCE_PAGES = int(os.getenv("DOCUMENT_CLASSIFICATION_SOURCE_PAGES", "3"))
+# The single-reader path remains available as an explicit rollback.
+DOCUMENT_EVIDENCE_STRATEGY = os.getenv("DOCUMENT_EVIDENCE_STRATEGY", "terra_ensemble")
+DOCUMENT_ENSEMBLE_READERS_BASE_URL = os.getenv("DOCUMENT_ENSEMBLE_READERS_BASE_URL", "")
+DOCUMENT_ENSEMBLE_READERS_API_KEY = os.getenv("DOCUMENT_ENSEMBLE_READERS_API_KEY", "")
+DOCUMENT_ENSEMBLE_TERRA_BASE_URL = os.getenv("DOCUMENT_ENSEMBLE_TERRA_BASE_URL", "")
+DOCUMENT_ENSEMBLE_TERRA_API_KEY = os.getenv("DOCUMENT_ENSEMBLE_TERRA_API_KEY", "")
+# Dated estimates from the October 30 corpus study; not billing guarantees.
+DOCUMENT_ENSEMBLE_MAX_CALLS = int(os.getenv("DOCUMENT_ENSEMBLE_MAX_CALLS", "32"))
+DOCUMENT_ENSEMBLE_MODELS = {
+    role: {
+        "deployment": os.getenv(f"DOCUMENT_ENSEMBLE_{role.upper()}_MODEL", model),
+        "output_parameter": parameter,
+        "reasoning_effort": reasoning,
+        "input_usd_per_million": float(os.getenv(f"DOCUMENT_ENSEMBLE_{role.upper()}_INPUT_RATE", str(input_rate))),
+        "output_usd_per_million": float(os.getenv(f"DOCUMENT_ENSEMBLE_{role.upper()}_OUTPUT_RATE", str(output_rate))),
+    }
+    for role, model, parameter, reasoning, input_rate, output_rate in [
+        ("deepseek", "deepseek-v4.1-flash", "max_tokens", None, 0.30, 1.20),
+        ("luna", "gpt-6-luna", "max_completion_tokens", "none", 0.10, 0.50),
+        ("glm", "glm-5.3-flash", "max_tokens", None, 0.188, 0.625),
+        ("terra", "gpt-6.1-terra", "max_completion_tokens", "low", 1.10, 5.50),
+    ]
+}
 DOCUMENT_EVIDENCE_MODEL = os.getenv("DOCUMENT_EVIDENCE_MODEL", "")
 DOCUMENT_CLASSIFICATION_MODEL = os.getenv("DOCUMENT_CLASSIFICATION_MODEL", "")
 FORM_CODE_CROSSWALK_PATH = Path(

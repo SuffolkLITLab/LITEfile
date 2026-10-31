@@ -13,7 +13,7 @@ ENV PYTHONDONTWRITEBYTECODE=1 \
 # Install system deps (curl for the uv installer; git because MACourts and
 # VTCourts are installed straight from GitHub until they are on PyPI)
 RUN apt-get update && apt-get install -y --no-install-recommends \
-    curl ca-certificates git \
+    curl ca-certificates git poppler-utils tesseract-ocr \
  && rm -rf /var/lib/apt/lists/*
 
 # Install uv

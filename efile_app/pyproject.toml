@@ -32,6 +32,7 @@ dependencies = [
     "django-otp>=1.7.0,<2",
     "snowballstemmer>=3,<4",
     "holidays>=0.83,<1",
+    "pillow>=11,<13",
 ]
 
 [build-system]

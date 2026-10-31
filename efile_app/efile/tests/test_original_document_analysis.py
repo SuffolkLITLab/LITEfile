@@ -63,7 +63,8 @@ def rich_docx():
 
 
 @pytest.mark.django_db
-def test_docx_worker_sends_original_text_to_ai_and_classifier(extraction_draft):
+def test_docx_worker_sends_original_text_to_ai_and_classifier(extraction_draft, settings):
+    settings.DOCUMENT_EVIDENCE_STRATEGY = "single"
     document = reviewed_document(
         draft=extraction_draft,
         role=FilingDocument.Role.LEAD,
@@ -109,6 +110,7 @@ def test_docx_worker_sends_original_text_to_ai_and_classifier(extraction_draft):
 
 @pytest.mark.django_db
 def test_pdf_worker_sends_original_fields_even_without_appearances(extraction_draft, settings):
+    settings.DOCUMENT_EVIDENCE_STRATEGY = "single"
     settings.DOCUMENT_EXTRACTION_MAX_PAGES = 1
     document = reviewed_document(
         draft=extraction_draft,
