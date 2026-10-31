@@ -224,3 +224,9 @@ can pass `--aws-profile suffolk`; Fly canaries must omit that override and use
 the actual machine identity. Production rollout follows passing offline checks,
 staging deployment/canary, then production deployment/canary. Existing live
 filing and storage settings must remain unchanged.
+
+The first local canary passed all three endpoint probes but caught an application
+prompt ambiguity: “any visible prefix” caused a docket value to include “Case
+No.”. The Bedrock adapter now explicitly distinguishes identifier prefixes from
+printed field labels. The expected canary values were preserved, not relaxed;
+this correction precedes deployment and is captured by the prompt/source hashes.

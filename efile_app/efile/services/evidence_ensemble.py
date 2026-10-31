@@ -154,7 +154,13 @@ def assets(file_path, source_text, root):
 
 class Readers:
     def __init__(self, jurisdiction, before_outbound):
-        self.fields = EXTRACTION_FIELDS.get(jurisdiction, EXTRACTION_FIELDS["default"])
+        self.fields = dict(EXTRACTION_FIELDS.get(jurisdiction, EXTRACTION_FIELDS["default"]))
+        if settings.AI_PROVIDER == "bedrock":
+            self.fields[DOCKET] = (
+                "The literal case identifier, including letters and digits belonging to it, "
+                "but excluding printed labels such as Case No., Case Number, or Docket. "
+                "Preserve all identifier characters and spacing; never repair or guess them."
+            )
         self.before_outbound = before_outbound
         self.calls = []
         self.filtered = False
