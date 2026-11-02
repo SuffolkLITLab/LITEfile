@@ -41,6 +41,17 @@ query = """select json_build_object(
  'pending_extractions', (select count(*) from efile_documentextraction where status='pending'))"""
 
 
+if os.getenv("CAPACITY_MONITOR_PREPARATION") == "1":
+    query = (
+        query[:-1]
+        + """, 'pending_preparations',
+      (select count(*) from efile_documentpreparationjob where status='pending'),
+      'processing_preparations', (select count(*) from efile_documentpreparationjob where status='processing'),
+      'complete_preparations', (select count(*) from efile_documentpreparationjob where status='complete'),
+      'failed_preparations', (select count(*) from efile_documentpreparationjob where status='failed'))"""
+    )
+
+
 def write_snapshot(exit_code):
     temporary = output.with_suffix(".tmp")
     temporary.write_text(

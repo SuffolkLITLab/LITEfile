@@ -305,3 +305,21 @@ def test_postgres_locked_first_draft_does_not_idle_preparation_worker(draft, sto
         release.set()
         thread.join(timeout=10)
     assert not errors
+
+
+@pytest.mark.parametrize("status", ["pending", "processing", "failed"])
+def test_pending_replacement_blocks_the_real_submission_endpoint(draft, storage, client, monkeypatch, status):
+    upload_files(draft, files(), "illinois")
+    document = draft.documents.get()
+    approve_document_review(draft, preview_fingerprint([document]))
+    job = enqueue(draft, replacement_id=document.pk)
+    DocumentPreparationJob.objects.filter(pk=job.pk).update(status=status)
+    authorize(client, draft)
+    forward = MagicMock()
+    monkeypatch.setattr("efile.views.submission.forward_final_filing", forward)
+    response = client.post(reverse("submit_final_filing"), data="{}", content_type="application/json")
+    assert response.status_code == 412
+    assert "still being prepared" in response.json()["error"]
+    forward.assert_not_called()
+    document.refresh_from_db()
+    assert document.preparation_reviewed_at is not None  # The old copy alone is insufficient.

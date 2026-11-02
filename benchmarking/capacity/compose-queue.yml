@@ -1,0 +1,31 @@
+services:
+  web:
+    cpus: '${QUEUE_WEB_CPUS:-1}'
+    mem_limit: '${QUEUE_WEB_MEMORY:-1g}'
+    environment:
+      DB_POOL_MAX_SIZE: '8'
+      DB_POOL_TIMEOUT: '30'
+      DOCUMENT_PREPARATION_ASYNC: '${QUEUE_ASYNC:-true}'
+  gateway:
+    mem_limit: 1g
+  storage:
+    mem_limit: 2g
+  preparation:
+    image: litefile-capacity:270
+    environment:
+      DJANGO_SETTINGS_MODULE: capacity.settings
+      DJANGO_SECRET_KEY: isolated-capacity-test-key-never-use-outside-this-stack
+      DATABASE_URL: postgres://capacity:local-capacity-only@dbnet:5432/capacity
+      PYTHONPATH: /bench
+      AWS_EC2_METADATA_DISABLED: 'true'
+      DB_POOL_MAX_SIZE: '1'
+      GOTENBERG_URL: http://converter:3000
+      DOCUMENT_PREPARATION_ASYNC: 'true'
+    volumes: ['..:/bench']
+    command: [/app/efile_app/.venv/bin/python, manage.py, process_document_preparations]
+    cpus: 1
+    mem_limit: 1g
+    networks: [isolated]
+    depends_on:
+      db:
+        condition: service_healthy

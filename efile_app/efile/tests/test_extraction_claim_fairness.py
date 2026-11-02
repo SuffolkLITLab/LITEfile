@@ -91,3 +91,36 @@ def test_competing_workers_never_claim_the_same_job(django_user_model):
     assert job.attempts == 1
     assert job.claim_token is not None
     assert DocumentExtraction.objects.filter(status="processing").count() == 1
+
+
+def test_provider_throttling_has_bounded_retries_and_does_not_stall_other_jobs(django_user_model, settings):
+    import httpx
+    from django.utils import timezone
+    from openai import RateLimitError
+
+    from efile.services.document_extractions import extraction_is_waiting, record_extraction_failure
+
+    settings.DOCUMENT_EXTRACTION_MAX_ATTEMPTS = 3
+    user = django_user_model.objects.create_user(username="claim-throttle")
+    _, job = job_for(user)
+    _, other = job_for(user)
+    error = RateLimitError(
+        "Synthetic throttle",
+        response=httpx.Response(429, request=httpx.Request("POST", "https://synthetic.invalid")),
+        body={},
+    )
+    for attempt in range(1, 4):
+        claimed = claim_next_extraction()
+        assert claimed.pk == job.pk
+        assert claimed.attempts == attempt
+        record_extraction_failure(job.pk, claimed.claim_token, error)
+        job.refresh_from_db()
+        assert job.status == ("failed" if attempt == 3 else "pending")
+        assert job.available_at > timezone.now()
+        assert "Synthetic throttle" not in job.error
+        if attempt == 1:
+            assert claim_next_extraction().pk == other.pk
+            DocumentExtraction.objects.filter(pk=other.pk).update(status="complete")
+        assert claim_next_extraction() is None
+        DocumentExtraction.objects.filter(pk=job.pk).update(available_at=timezone.now())
+    assert not extraction_is_waiting(job)
