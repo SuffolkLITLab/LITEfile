@@ -409,6 +409,8 @@ def test_analytics_worker_failure_retry_allowlist_and_staff_exclusion(owner, adm
     assert not UsageEvent.objects.filter(draft=other).exists()
 
 
+# The real supervisor closes request connections; do not wrap it in a test-owned transaction.
+@pytest.mark.django_db(transaction=True)
 def test_extraction_supervisor_rolls_usage_and_survives_rollup_failure(owner, settings):
     from django.core.management import call_command
 

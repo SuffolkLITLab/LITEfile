@@ -14,7 +14,7 @@ An interrupted original upload is never acknowledged as accepted or passed to a
 preparation worker. Its page offers removal and re-upload. Accepted originals
 remain durable across worker death; fencing prevents an old worker publishing.
 Cancellation retains the storage lease, so cleanup and privacy deletion wait
-until in-flight writes have stopped. Original upload leases allow 30 minutes;
+until in-flight writes have stopped. Original upload leases renew to 30 minutes before each file;
 preparation leases allow the worker's hard time limit plus 60 seconds. S3 uses
 5-second connect and 60-second read timeouts, with at most three attempts.
 These are operational bounds, not a transactional guarantee from S3: a storage
@@ -45,7 +45,9 @@ A starting budget for one two-process web machine is four connections per web
 process (eight total), up to two each for extraction and preparation supervisors
 and children, and one for code indexing: thirteen slots, leaving two spare.
 Confirm all other database consumers before enabling this. An extra web machine
-requires rebudgeting. `DB_POOL_MAX_IDLE=60` retires idle pool connections sooner;
+requires rebudgeting, including overlapping old/new machines during deployment
+and the migration release process. Use a stop/start or otherwise explicitly
+budgeted rollout; the thirteen-slot example is a steady-state budget. `DB_POOL_MAX_IDLE=60` retires idle pool connections sooner;
 it does not replace the aggregate budget. Pooling and asynchronous preparation
 remain disabled by default. Deploy migrations and worker support before enabling
 preparation; drain jobs before rolling back to code without the queue.

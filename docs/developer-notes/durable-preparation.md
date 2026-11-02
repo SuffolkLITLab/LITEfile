@@ -16,8 +16,9 @@ A request UUID and content fingerprint make retries idempotent. Only one
 unfinished batch per draft is allowed. A worker claims a bounded lease with a
 fresh token; expired or superseded tokens cannot publish. Three automatic
 attempts and exponential retry delays bound failures. A supervisor runs one
-child at a time, with a 768 MB address-space limit and a five-minute timeout;
-a six-minute lease allows restart recovery after the supervisor itself dies.
+child at a time, with a 768 MB address-space limit. The reviewed follow-up scales
+the deadline with batch size (at least five minutes), with a lease 60 seconds
+longer for restart recovery after the supervisor itself dies.
 A final-attempt crash becomes a visible failure instead of remaining stuck.
 
 Originals are retained through preparation failures. Conversion occurs outside
@@ -27,11 +28,11 @@ keeps the old copy until publication. Existing review and submission guards
 also block unfinished or failed batches, so the old copy cannot be submitted
 while its replacement is pending. Prepared copies still require preview
 approval. Cancellation invalidates the claim. Privacy freezing uses the same
-draft lock and tracked original keys; late workers cannot recreate deleted
-filings or upload new copies after the freeze. Failed storage cleanup retains
+draft lock, precommitted storage journal and active storage leases; late workers
+cannot publish documents after the freeze. Failed storage cleanup retains
 ownership for subsequent privacy deletion.
 
-The upload batch limit is 50 MB, with the existing 10 MB limit per file. Larger
+The reviewed upload batch limit is ten files and 50 MB, with the existing 10 MB limit per file. Larger
 sets can be added in successive batches. The feature is disabled by default;
 synchronous callers such as handoff retain their existing contract. Converting
 an invalid file now produces a saved, actionable batch failure rather than an

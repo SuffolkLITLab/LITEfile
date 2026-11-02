@@ -113,6 +113,8 @@ def _enqueue(draft, files, request_token, replacement_id):
         if previous:
             if previous.fingerprint != fingerprint:
                 raise PreparationError("This upload request changed. Reload the page before uploading again.")
+            if previous.status == "cancelled":
+                raise PreparationError("This upload was removed. Reload the page before uploading again.")
             if not previous.originals_ready:
                 raise PreparationError("This upload did not finish. Reload the uploads page to check or remove it.")
             return previous
@@ -138,8 +140,14 @@ def _enqueue(draft, files, request_token, replacement_id):
     handler = S3UploadHandler()
     try:
         for file, manifest in zip(files, manifests, strict=True):
-            if not _upload_claim(job).exists():
-                raise PreparationError("This upload was removed or interrupted. Reload the uploads page.")
+            # Refresh under the same draft lock used by privacy freezing. A
+            # later file must never begin with only seconds left on the lease.
+            with transaction.atomic():
+                FilingDraft.objects.select_for_update().get(pk=draft.pk)
+                if not _upload_claim(job).update(lease_expires_at=timezone.now() + timedelta(minutes=30)):
+                    raise PreparationError("This upload was removed or interrupted. Reload the uploads page.")
+            if Path(file.name).suffix.lower() == ".pdf":
+                file.content_type = "application/pdf"
             release_connection()
             result = handler.upload_file(file, file_type="original", object_key=manifest["key"])
             if not result.get("success") or result.get("key") != manifest["key"]:
@@ -186,10 +194,11 @@ def maintain_preparations():
     )
     # Ownership rows remain discoverable even if cleanup fails or this process dies.
     for job in (
-        DocumentPreparationJob.objects.filter(status="cancelled")
+        DocumentPreparationJob.objects.filter(status="cancelled", available_at__lte=now)
         .filter(Q(lease_expires_at__isnull=True) | Q(lease_expires_at__lte=now))
         .exclude(originals=[], staged_keys=[])[:64]
     ):
+        DocumentPreparationJob.objects.filter(pk=job.pk).update(available_at=now + timedelta(minutes=5))
         if cleanup_unreferenced_uploads([item["key"] for item in job.originals] + job.staged_keys):
             DocumentPreparationJob.objects.filter(pk=job.pk, status="cancelled").update(originals=[], staged_keys=[])
         # The ownership registry remains until privacy deletion.
@@ -356,6 +365,7 @@ def process_preparation(pk, token):
             current.lease_expires_at = None
             current.completed_at = timezone.now()
             current.save()
+            transaction.on_commit(partial(cleanup_unreferenced_uploads, current.staged_keys), robust=True)
 
     return True
 

@@ -437,3 +437,60 @@ def test_privacy_waits_for_storage_grace_even_after_cancel(draft, storage, statu
     assert job.originals[0]["key"] in plan["keys"]
     DocumentPreparationJob.objects.filter(pk=job.pk).update(lease_expires_at=timezone.now() - timedelta(seconds=1))
     assert "preparation_storage_in_flight" not in preview(request)["blockers"]
+
+
+def test_each_original_renews_lease_and_uses_pdf_content_type(draft, storage):
+    handler, _ = storage
+    put = handler.upload_file.side_effect
+    observed = []
+
+    def checked(file, **kwargs):
+        job = draft.preparation_jobs.get()
+        observed.append((job.lease_expires_at - timezone.now()).total_seconds())
+        assert file.content_type == "application/pdf"
+        # Simulate the previous file consuming almost the whole lease.
+        DocumentPreparationJob.objects.filter(pk=job.pk).update(lease_expires_at=timezone.now() + timedelta(seconds=1))
+        return put(file, **kwargs)
+
+    handler.upload_file.side_effect = checked
+    job = enqueue(draft, files(pdf_bytes(), pdf_bytes()))
+    assert job.originals_ready
+    assert all(seconds > 1700 for seconds in observed)
+    queue.resolve_preparation(draft, "cancel_preparation", job.pk)
+    with pytest.raises(PreparationError, match="was removed"):
+        queue.enqueue_preparation(draft, files(pdf_bytes(), pdf_bytes()), job.request_token)
+
+
+def test_successful_retry_cleans_unused_filing_copy(draft, storage, monkeypatch):
+    from efile.services.document_preparation import PreparedDocument
+
+    job = enqueue(draft)
+    monkeypatch.setattr(
+        queue,
+        "prepare_document",
+        lambda file, jurisdiction: PreparedDocument(pdf_bytes(), file.name, "flattened", True),
+    )
+    claimed = queue.claim_preparation()
+    handler, objects = storage
+    put = handler.upload_file.side_effect
+
+    class ProcessKilled(BaseException):
+        pass
+
+    def interrupted(file, **kwargs):
+        put(file, **kwargs)
+        raise ProcessKilled()
+
+    handler.upload_file.side_effect = interrupted
+    with pytest.raises(ProcessKilled):
+        queue.process_preparation(job.pk, claimed.claim_token)
+    job.refresh_from_db()
+    orphan = job.staged_keys[0]
+    assert orphan in objects
+    DocumentPreparationJob.objects.filter(pk=job.pk).update(lease_expires_at=timezone.now() - timedelta(seconds=1))
+    handler.upload_file.side_effect = put
+    retry = queue.claim_preparation()
+    assert queue.process_preparation(job.pk, retry.claim_token)
+    assert orphan not in objects
+    document = draft.documents.get()
+    assert document.s3_key in objects and document.original_s3_key in objects

@@ -194,3 +194,21 @@ synchronized upload/submission journeys, and repeats upload bursts after both
 variants have warmed the database. It uses the actual application configuration
 helper and the lockfile's psycopg-pool version. Do not run other load generators
 against the shared synthetic sessions concurrently.
+
+## Durable preparation follow-up
+
+The [stack validation report](../../docs/developer-notes/scalability-stack-validation.md)
+compares equal total application resources, reports accepted versus completed
+uploads, and documents the actual 15-slot Supavisor constraint. Use
+`compose-queue.yml` with `compose.yml` and `compose-conversion.yml` for the
+opt-in queue candidate. Its web pool defaults to four per process. Run
+`queue_burst.py` with an unused session offset, then `queue_audit.py` with that
+burst's `--accepted-results` file and `--expected` count. The audit requires exact
+accepted job IDs; it cannot count prior successful cohorts as the current run.
+
+`queue_model.py` accepts measured `--bedrock-results`, a conservative
+`--preparation-seconds` value, and optional `--pipeline-cost-usd` for externally
+repriced estimates. Its output is a scenario calculation, not a live provider
+load test. Use local synthetic dependencies for bursts and keep any managed
+qualification explicitly bounded. Current production's connection budget must
+include every worker, release command, and overlapping deployment machine.

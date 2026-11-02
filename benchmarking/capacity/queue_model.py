@@ -44,6 +44,11 @@ def main():
     parser.add_argument("--bedrock-results", type=Path, required=True)
     parser.add_argument("--preparation-seconds", type=float, required=True)
     parser.add_argument("--output", type=Path, required=True)
+    parser.add_argument(
+        "--pipeline-cost-usd",
+        type=float,
+        help="Optional externally repriced mean; no invoice guarantee",
+    )
     args = parser.parse_args()
     evidence = json.loads(args.bedrock_results.read_text())
     services = [job["seconds"] for job in evidence["jobs"] if job.get("completed")]
@@ -87,7 +92,12 @@ def main():
                     / 3600,
                 }
             )
-    cost = evidence["estimated_usd"] / len(services)
+    cost = (
+        args.pipeline_cost_usd
+        if args.pipeline_cost_usd is not None
+        else evidence["estimated_usd"] / len(services)
+    )
+    assert math.isfinite(cost) and cost >= 0
     result = {
         "assumptions": "Three measured AI samples cycled deterministically; fixed preparation mean; no retries, throttling, contention, AI worker startup, multiday carry or seasonal variation. The two-zone launch has 25% in each of two 15-minute peaks one hour apart; Illinois has one 25% Central-time peak. Not a tail-latency guarantee.",
         "ai_sample_seconds": services,
