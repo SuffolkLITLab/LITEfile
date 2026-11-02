@@ -320,6 +320,12 @@ def parties(request, jurisdiction):
             messages.success(request, "Your role is saved. Check the party list, then continue.")
             return redirect(f"{_parties_url(jurisdiction, return_to)}#party-list")
 
+    roster_parties = list(FilingParty.objects.filter(draft=draft))
+    has_linked_party = any(party.on_case_roster and party.is_self for party in roster_parties)
+    if has_linked_party:
+        # The linked court party represents the filer in this list. Keep the
+        # separate account contact for correspondence, without listing it twice.
+        roster_parties = [party for party in roster_parties if party.role != "filer"]
     roster = [
         {
             "party": party,
@@ -329,9 +335,9 @@ def parties(request, jurisdiction):
             # somebody with a different name. The two are not the same action
             # and the screen does not call them the same thing.
             "replaces_a_name": claim_replaces_a_name(filer, party),
-            "claimable": party_can_be_the_filer(party),
+            "claimable": party_can_be_the_filer(party) and not party.is_self,
         }
-        for party in FilingParty.objects.filter(draft=draft)
+        for party in roster_parties
     ]
     saved_filing_for = {
         party.pk for party in FilingParty.objects.filter(draft=draft, role="other", is_filing_party=True)
@@ -378,6 +384,7 @@ def parties(request, jurisdiction):
         "is_logged_in": True,
         "filing_draft": draft_snapshot(draft),
         "filer": filer,
+        "has_linked_party": has_linked_party,
         "return_to": return_to,
         "continue_previews": continue_previews,
         "continue_preview": continue_previews.get(selected_role, continue_previews[""]),

@@ -191,11 +191,11 @@
                     {% else %}
                         {% translate "Check the names below." %}
                     {% endif %}
-                    {% if not filer.party_type %}
+                    {% if not filer.party_type and not has_linked_party %}
                         {% translate "If you are listed, choose “This is me”." %}
                     {% endif %}
                 </p>
-            {% elif not filer.party_type and roster|length > 1 %}
+            {% elif not filer.party_type and not has_linked_party and roster|length > 1 %}
                 <p class="party-roster__hint">{% translate "If you are listed, choose “This is me”." %}</p>
             {% endif %}
             {% for item in roster %}
