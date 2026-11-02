@@ -14,13 +14,9 @@
                          alt="{{ config.jurisdiction.logo_alt|default:'LITEfile logo' }}"
                          width="136"
                          height="42" />
-                    <span class="brand-title">
-                        {% if config.jurisdiction.display_name and config.jurisdiction.display_name != "LITEfile" %}
-                            {{ config.jurisdiction.display_name }} e-Filing
-                        {% else %}
-                            e-Filing
-                        {% endif %}
-                    </span>
+                    {% if config.jurisdiction.display_name and config.jurisdiction.display_name != "LITEfile" %}
+                        <span class="brand-title">{{ config.jurisdiction.display_name }}</span>
+                    {% endif %}
                 </a>
             </div>
             <div class="header-menus">
