@@ -11,6 +11,7 @@ from efile.services.current_drafts import attach_current_draft, create_current_d
 from efile.services.drafts import draft_snapshot, write_case_data
 from efile.services.filing_path import FilingPathSource, record_filing_path_source
 from efile.services.filing_plans import create_draft_from_plan
+from efile.utils.config_loader import config_loader
 from efile.utils.django_helpers import flush_cache_stay_logged_in
 from efile.workflow import ExistingCase, WorkflowStepKey, get_step_url, normalize_existing_case
 
@@ -57,6 +58,9 @@ def start_filing_from_plan(request, jurisdiction, plan_id):
 
     if not request.user.is_authenticated or not get_tyler_token(request, jurisdiction):
         return redirect("efile_login", jurisdiction=jurisdiction)
+
+    if not config_loader.document_checklists_enabled(jurisdiction):
+        return redirect("efile_options", jurisdiction=jurisdiction)
 
     plan = get_object_or_404(FilingPlan, pk=plan_id, user=request.user, jurisdiction=jurisdiction)
 

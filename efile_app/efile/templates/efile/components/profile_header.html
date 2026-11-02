@@ -53,10 +53,12 @@
                                 <i class="fas fa-file-circle-check" aria-hidden="true"></i>
                                 <span>{% translate "My filings" %}</span>
                             </a>
-                            <a class="dropdown-item" href="{% url 'filing_plans' jurisdiction %}">
-                                <i class="fas fa-list-check" aria-hidden="true"></i>
-                                <span>{% translate "My filing plans" %}</span>
-                            </a>
+                            {% if document_checklists_enabled %}
+                                <a class="dropdown-item" href="{% url 'filing_plans' jurisdiction %}">
+                                    <i class="fas fa-list-check" aria-hidden="true"></i>
+                                    <span>{% translate "My filing plans" %}</span>
+                                </a>
+                            {% endif %}
                             <div class="dropdown-divider"></div>
                             <a class="dropdown-item" href="{% url 'efile_options' jurisdiction %}">
                                 <i class="fas fa-house" aria-hidden="true"></i>

@@ -23,6 +23,7 @@ from efile.services.filing_plans import (
     status_choices,
 )
 from efile.services.filings import history_start_date
+from efile.utils.config_loader import config_loader
 
 
 def _plan_for(request, jurisdiction, plan_id):
@@ -33,6 +34,9 @@ def _plan_for(request, jurisdiction, plan_id):
 def filing_plans(request, jurisdiction):
     if not request.user.is_authenticated or not get_tyler_token(request, jurisdiction):
         return redirect("efile_login", jurisdiction=jurisdiction)
+
+    if not config_loader.document_checklists_enabled(jurisdiction):
+        return redirect("efile_options", jurisdiction=jurisdiction)
 
     if request.method == "POST":
         action = request.POST.get("action")

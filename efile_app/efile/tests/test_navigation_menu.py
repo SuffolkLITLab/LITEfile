@@ -43,7 +43,7 @@ def test_every_signed_in_screen_carries_the_filing_menu(client, user):
     assert "File into an existing case" not in content
     assert "My draft e-filings" in content
     assert "My filings" in content
-    assert "My filing plans" in content
+    assert "My filing plans" not in content
     assert reverse("my_drafts", kwargs={"jurisdiction": "illinois"}) in content
     assert reverse("filing_statuses", kwargs={"jurisdiction": "illinois"}) in content
 

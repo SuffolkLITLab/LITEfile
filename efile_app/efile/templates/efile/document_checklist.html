@@ -50,7 +50,13 @@
                             </label>
                         {% endfor %}
                     </fieldset>
-                    <button class="btn btn-primary" type="submit">{% translate "Show my documents" %}</button>
+                    <button class="btn btn-primary" type="submit">
+                        {% if document_checklists_enabled %}
+                            {% translate "Show my documents" %}
+                        {% else %}
+                            {% translate "Save my side of the case" %}
+                        {% endif %}
+                    </button>
                 </form>
             </section>
         {% endif %}

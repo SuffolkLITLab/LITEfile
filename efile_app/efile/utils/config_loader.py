@@ -145,6 +145,10 @@ class JurisdictionConfigLoader:
         """Statewide advance notices; independent of court selection and acceptance."""
         return deepcopy(self.load_jurisdiction_config(jurisdiction).get("upload_disclaimers") or [])
 
+    def document_checklists_enabled(self, jurisdiction):
+        """Whether this jurisdiction currently offers checklists and filing plans."""
+        return (self.load_jurisdiction_config(jurisdiction) or {}).get("document_checklists_enabled", True) is not False
+
     def get_document_checklist_config(self, jurisdiction, court=None):
         """
         Get the config sections that carry partner document checklists.

@@ -32,6 +32,7 @@ from efile.services.document_checklists import (
     resolve_plan_guidance,
 )
 from efile.services.drafts import create_draft
+from efile.utils.config_loader import config_loader
 from efile.workflow import ExistingCase, WorkflowStepKey
 
 logger = logging.getLogger(__name__)
@@ -248,6 +249,9 @@ def ensure_plan_for_draft(draft: FilingDraft) -> FilingPlan | None:
     Returns ``None`` when no partner checklist covers this case, so an
     unconfigured case type leaves the filer's experience exactly as it was.
     """
+
+    if not config_loader.document_checklists_enabled(draft.jurisdiction):
+        return None
 
     plan = draft.plan
     if plan is not None:
@@ -537,6 +541,8 @@ def plan_progress(plan: FilingPlan) -> dict[str, int]:
 def plans_for(user, jurisdiction: str) -> list[dict[str, Any]]:
     """List a filer's matters, most recently worked on first."""
 
+    if not config_loader.document_checklists_enabled(jurisdiction):
+        return []
     return [
         {"plan": plan, "progress": plan_progress(plan)}
         for plan in FilingPlan.objects.filter(user=user, jurisdiction=jurisdiction)
@@ -555,7 +561,7 @@ def documents_missing_from_envelope(plan: FilingPlan | None, draft: FilingDraft 
     at the last moment would be nagging, not helping.
     """
 
-    if plan is None or draft is None:
+    if plan is None or draft is None or not config_loader.document_checklists_enabled(draft.jurisdiction):
         return []
 
     missing = []

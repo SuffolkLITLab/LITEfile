@@ -13,6 +13,16 @@ must file and do not block a filer from proceeding.
 
 ---
 
+## Temporarily hiding checklists
+
+Set `document_checklists_enabled: false` at the top level of a state's YAML
+configuration to hide suggested-document checklists and filing-plan prompts.
+Illinois currently uses this setting. Other states keep the default, `true`.
+
+The setting preserves saved plans and their answers. Document previews,
+validation, case-side questions, and the form finder remain available, including
+links to individual forms. Set the value back to `true` to restore checklists.
+
 ## 1. Defining case type matching & guidance
 
 Checklists match against the **human-readable names** returned by the court e-filing system (never hardcoded numeric codes).
