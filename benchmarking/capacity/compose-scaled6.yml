@@ -1,0 +1,8 @@
+# Six CPU-bound request workers, four database slots each: 24 web connections.
+services:
+  web:
+    cpus: 6
+    mem_limit: 3g
+    environment:
+      CAPACITY_POOL_SIZE: '4'
+    command: [/app/efile_app/.venv/bin/gunicorn, efile.asgi:application, -k, uvicorn.workers.UvicornWorker, --bind, '0.0.0.0:8000', --workers, '6', --timeout, '60', --access-logfile, '-', --error-logfile, '-']

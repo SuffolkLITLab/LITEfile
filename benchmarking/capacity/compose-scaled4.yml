@@ -1,0 +1,8 @@
+# Four workers with eight connections each: 32 web connections in total.
+services:
+  web:
+    cpus: 4
+    mem_limit: 2g
+    environment:
+      CAPACITY_POOL_SIZE: '8'
+    command: [/app/efile_app/.venv/bin/gunicorn, efile.asgi:application, -k, uvicorn.workers.UvicornWorker, --bind, '0.0.0.0:8000', --workers, '4', --timeout, '60', --access-logfile, '-', --error-logfile, '-']
