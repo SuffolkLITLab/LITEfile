@@ -12,6 +12,10 @@ primary_region = 'lax'
   DJANGO_SETTINGS_MODULE = "efile.settings_staging"
   # Long-running workers' progress reaches fly logs as it happens.
   PYTHONUNBUFFERED = "1"
+  # One connection per background process; web overrides this to four.
+  DB_POOL_MAX_SIZE = "1"
+  DB_POOL_MAX_IDLE = "60"
+  DOCUMENT_PREPARATION_ASYNC = "true"
   # Copy filing codes straight from the EFSP proxy's codes database, read
   # only. Set the connection with: fly secrets set EFSP_CODES_DATABASE_URL=...
   FILING_CODE_SYNC_MODE = "database"
@@ -21,13 +25,16 @@ primary_region = 'lax'
   FILING_CODE_SYNC_TIMEZONE = "America/New_York"
 
 [deploy]
+  # Replace existing Machines in place; avoid blue/green pool overlap.
+  strategy = "rolling"
   # Run database migrations before each release
   release_command = "uv run python manage.py migrate --noinput --fake-initial"
   release_command_timeout = "30m"
 
 [processes]
-  app = "uv run gunicorn efile.asgi:application -k uvicorn.workers.UvicornWorker --bind 0.0.0.0:8000 --workers 2 --timeout 60 --access-logfile - --error-logfile - --log-level debug"
+  app = "env DB_POOL_MAX_SIZE=4 uv run gunicorn efile.asgi:application -k uvicorn.workers.UvicornWorker --bind 0.0.0.0:8000 --workers 2 --timeout 60 --access-logfile - --error-logfile - --log-level debug"
   extraction_worker = "uv run python manage.py process_document_extractions"
+  preparation_worker = "uv run python manage.py process_document_preparations"
   # Daily copy + index at FILING_CODE_SYNC_TIME, plus staff-requested resyncs and rebuilds.
   code_index_worker = "uv run python manage.py refresh_filing_code_index --daily --retry-interval 900"
 
