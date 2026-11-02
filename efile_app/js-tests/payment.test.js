@@ -16,7 +16,19 @@ function pageHarness(post, checks = {
             style: {},
             textContent: id === "selected-payment-account-id" ? '""' : '{}',
             scrollIntoView() {},
-            addEventListener() {},
+            focus() {
+                this.focused = true;
+            },
+            listeners: {},
+            addEventListener(event, handler) {
+                this.listeners[event] = handler;
+            },
+            showModal() {
+                this.open = true;
+            },
+            close() {
+                this.open = false;
+            },
             querySelectorAll: () => []
         });
         return nodes.get(id);
@@ -27,6 +39,7 @@ function pageHarness(post, checks = {
     const context = vm.createContext({
         document: {
             getElementById: node,
+            querySelectorAll: () => [],
             createElement: () => ({
                 textContent: "",
                 get innerHTML() {
@@ -399,4 +412,68 @@ test("statutory waiver selection confirms an exemption without claiming financia
     assert.equal(node("successText").textContent, "Fee exemption claimed: $0 due now. The court will review your filing.");
     assert.equal(node("selected-payment-account-type").value, "WV");
     assert.equal(node("submitButton").disabled, false);
+});
+
+test("adding an account waits for modal confirmation and cancellation does not start a handoff", async () => {
+    const {
+        payment,
+        node,
+        intent
+    } = pageHarness();
+    payment.loadAccountTypes = async () => {};
+    payment.loadAccounts = async () => {};
+    let handoffs = 0;
+    payment.addAccount = async () => {
+        handoffs += 1;
+    };
+    await payment.init();
+    intent.value = "pay";
+    await payment.chooseIntent();
+    const dialog = node("payment-gateway-dialog");
+    node("add-payment-method").listeners.click();
+    assert.equal(dialog.open, true);
+    assert.equal(handoffs, 0);
+    node("cancel-payment-gateway").listeners.click();
+    assert.equal(dialog.open, false);
+    assert.equal(handoffs, 0);
+    node("add-payment-method").listeners.click();
+    await node("confirm-payment-gateway").listeners.click();
+    assert.equal(dialog.open, false);
+    assert.equal(handoffs, 1);
+});
+
+test("a pending handoff cannot start twice and a failed handoff can be retried", async () => {
+    const {
+        payment,
+        node
+    } = pageHarness();
+    payment.loadAccountTypes = async () => {};
+    payment.loadAccounts = async () => {};
+    let reject;
+    let calls = 0;
+    payment.addAccount = () => {
+        calls += 1;
+        return new Promise((resolve, fail) => {
+            reject = fail;
+        });
+    };
+    await payment.init();
+    const confirm = node("confirm-payment-gateway").listeners.click;
+    node("add-payment-method").textContent = "Add credit card";
+    const pending = confirm();
+    assert.equal(node("add-payment-method").disabled, true);
+    assert.equal(node("add-payment-method").textContent, "Opening payment provider…");
+    await confirm();
+    assert.equal(calls, 1);
+    reject(new Error("Network unavailable"));
+    await pending;
+    assert.equal(node("add-payment-method").disabled, false);
+    assert.equal(node("add-payment-method").textContent, "Add credit card");
+    assert.match(node("errorText").textContent, /Please try again/);
+    assert.equal(node("add-payment-method").focused, true);
+    payment.addAccount = async () => {
+        calls += 1;
+    };
+    await confirm();
+    assert.equal(calls, 2);
 });

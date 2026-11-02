@@ -195,6 +195,21 @@
             </div>
         </form>
     </section>
+    <dialog id="payment-gateway-dialog"
+            class="payment-gateway-dialog"
+            aria-labelledby="payment-gateway-title"
+            aria-describedby="payment-gateway-help">
+        <h2 id="payment-gateway-title">{% translate "Add your payment information" %}</h2>
+        <p id="payment-gateway-help">{% translate "You’ll enter your payment details with the official e-filing payment provider, then return to LITEfile." %}</p>
+        <p>{% translate "Your card number and security code go directly to the official e-filing provider." %}</p>
+        <div class="workflow-actions">
+            <button type="button"
+                    class="btn btn-outline-secondary"
+                    id="cancel-payment-gateway"
+                    autofocus>{% translate "Cancel" %}</button>
+            <button type="button" class="btn btn-primary" id="confirm-payment-gateway">{% translate "Continue to payment provider" %}</button>
+        </div>
+    </dialog>
     {{ case_data|json_script:"case-data" }}
     {{ new_toga_url|json_script:"new-toga-url" }}
     {{ selected_payment_account_id|json_script:"selected-payment-account-id" }}
