@@ -524,34 +524,47 @@ def claim_next_extraction(stale_after_minutes=15):
         completed_at=now,
         updated_at=now,
     )
-    candidates = DocumentExtraction.objects.filter(
+    eligible = DocumentExtraction.objects.filter(
         attempts__lt=max_attempts, document__draft__deletion_pending=False
     ).filter(Q(status=DocumentExtraction.Status.PENDING, available_at__lte=now) | expired)
-    with transaction.atomic():
-        job = candidates.order_by("created_at").first()
-        if job is None:
-            return None
-        # Match deletion and completion lock order: draft, then extraction job.
-        drafts = FilingDraft.objects.filter(pk=job.document.draft_id, deletion_pending=False)
-        if connection.features.has_select_for_update_skip_locked:
-            drafts = drafts.select_for_update(skip_locked=True)
-        else:
-            drafts = drafts.select_for_update()
-        if drafts.first() is None:
-            return None
-        job = candidates.select_for_update().filter(pk=job.pk).first()
-        if job is None:
-            return None
-        job.status = DocumentExtraction.Status.PROCESSING
-        job.attempts += 1
-        job.started_at = timezone.now()
-        job.claim_token = uuid.uuid4()
-        job.lease_expires_at = job.started_at + timedelta(minutes=stale_after_minutes)
-        job.error = ""
-        job.save(
-            update_fields=["status", "attempts", "started_at", "claim_token", "lease_expires_at", "error", "updated_at"]
-        )
-        return job
+    candidates = list(eligible.order_by("created_at", "pk").values_list("pk", "document__draft_id")[:64])
+    for job_id, draft_id in candidates:
+        with transaction.atomic():
+            # Match deletion and completion lock order: draft, then extraction job.
+            drafts = FilingDraft.objects.filter(pk=draft_id, deletion_pending=False)
+            if connection.features.has_select_for_update_skip_locked:
+                drafts = drafts.select_for_update(skip_locked=True)
+            else:
+                drafts = drafts.select_for_update()
+            if drafts.first() is None:
+                continue
+            jobs = eligible.filter(pk=job_id)
+            if connection.features.has_select_for_update_skip_locked:
+                jobs = jobs.select_for_update(skip_locked=True)
+            else:
+                jobs = jobs.select_for_update()
+            job = jobs.first()
+            if job is None:
+                continue
+            job.status = DocumentExtraction.Status.PROCESSING
+            job.attempts += 1
+            job.started_at = timezone.now()
+            job.claim_token = uuid.uuid4()
+            job.lease_expires_at = job.started_at + timedelta(minutes=stale_after_minutes)
+            job.error = ""
+            job.save(
+                update_fields=[
+                    "status",
+                    "attempts",
+                    "started_at",
+                    "claim_token",
+                    "lease_expires_at",
+                    "error",
+                    "updated_at",
+                ]
+            )
+            return job
+    return None
 
 
 def _current_claim(job_id, claim_token):

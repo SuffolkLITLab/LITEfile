@@ -139,7 +139,12 @@ def claim_preparation():
             )
             if drafts.first() is None:
                 continue
-            job = eligible.select_for_update().filter(pk=pk).first()
+            jobs = eligible.filter(pk=pk)
+            if connection.features.has_select_for_update_skip_locked:
+                jobs = jobs.select_for_update(skip_locked=True)
+            else:
+                jobs = jobs.select_for_update()
+            job = jobs.first()
             if job is None:
                 continue
             job.status = "processing"
