@@ -8,12 +8,14 @@ import io
 import json
 import os
 import subprocess
+import threading
 from pathlib import Path
 from typing import Any, cast
 from unittest.mock import MagicMock, patch
 
 import pytest
 from django.conf import settings
+from django.db import close_old_connections, connections
 from django.urls import reverse
 from pypdf import PdfReader
 
@@ -27,7 +29,11 @@ from efile.tests.test_document_extractions import authorize
 @pytest.mark.skipif(
     not os.getenv("DOCUMENT_PREPARATION_BROWSER_TESTS"), reason="Opt-in: requires Gotenberg and Chromium"
 )
-def test_real_conversion_and_browser_previews(live_server, client, django_user_model, tmp_path):
+@pytest.mark.parametrize("async_preparation", [False, True])
+def test_real_conversion_and_browser_previews(
+    live_server, client, django_user_model, tmp_path, monkeypatch, async_preparation
+):
+    monkeypatch.setattr(settings, "DOCUMENT_PREPARATION_ASYNC", async_preparation)
     user = django_user_model.objects.create_user(username="synthetic-preview", tyler_jurisdiction="vermont")
     draft = FilingDraft.objects.create(
         user=user,
@@ -61,6 +67,13 @@ def test_real_conversion_and_browser_previews(live_server, client, django_user_m
     handler.upload_file.side_effect = store
     handler.get_public_url.side_effect = lambda key: f"https://synthetic.invalid/{key}"
     handler.s3_client.get_object.side_effect = lambda **kw: {"Body": io.BytesIO(objects[kw["Key"]])}
+
+    def download(key, destination):
+        Path(destination).write_bytes(objects[key])
+        return {"success": True}
+
+    handler.download_file.side_effect = download
+    handler.delete_file.side_effect = lambda key: {"success": objects.pop(key, None) is not None}
     paths = []
     for name, content in [
         (
@@ -78,6 +91,7 @@ def test_real_conversion_and_browser_previews(live_server, client, django_user_m
         json.dumps(
             {
                 "baseUrl": live_server.url,
+                "asyncPreparation": async_preparation,
                 "cookie": client.cookies[settings.SESSION_COOKIE_NAME].value,
                 "files": paths,
                 "evidence": str(evidence),
@@ -93,7 +107,30 @@ def test_real_conversion_and_browser_previews(live_server, client, django_user_m
             }
         )
     )
+    stop = threading.Event()
+    worker_errors = []
+
+    def drain():
+        from efile.services.document_preparation_queue import claim_preparation, fail_preparation, process_preparation
+
+        try:
+            while not stop.is_set():
+                close_old_connections()
+                job = claim_preparation()
+                if job:
+                    try:
+                        process_preparation(job.pk, job.claim_token)
+                    except ValueError as error:
+                        fail_preparation(job.pk, job.claim_token, error)
+                stop.wait(0.1)
+        except Exception as error:
+            worker_errors.append(error)
+        finally:
+            connections.close_all()
+
     with (
+        patch("efile.services.document_preparation_queue.S3UploadHandler", return_value=handler),
+        patch("efile.utils.s3_upload_handler.S3UploadHandler", return_value=handler),
         patch("efile.services.document_uploads.S3UploadHandler", return_value=handler),
         patch("efile.views.document_previews.S3UploadHandler", return_value=handler),
         patch("efile.views.extraction_review.S3UploadHandler", return_value=handler),
@@ -101,13 +138,23 @@ def test_real_conversion_and_browser_previews(live_server, client, django_user_m
         patch("efile.services.people.get_party_types", return_value=[]),
         patch("efile.views.payment.estimate_fees", return_value={}),
     ):
-        result = subprocess.run(
-            ["node", "tests/document-preparation-browser.js", str(config)],
-            cwd=settings.BASE_DIR,
-            capture_output=True,
-            text=True,
-            timeout=180,
-        )
+        worker = threading.Thread(target=drain) if async_preparation else None
+        if worker:
+            worker.start()
+        try:
+            result = subprocess.run(
+                ["node", "tests/document-preparation-browser.js", str(config)],
+                cwd=settings.BASE_DIR,
+                capture_output=True,
+                text=True,
+                timeout=180,
+            )
+        finally:
+            stop.set()
+            if worker:
+                worker.join(timeout=60)
+                assert not worker.is_alive()
+    assert not worker_errors, worker_errors
     print(result.stdout)
     assert result.returncode == 0, result.stdout + result.stderr
     assert draft.documents.count() == 2

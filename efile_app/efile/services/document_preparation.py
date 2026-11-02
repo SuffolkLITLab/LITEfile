@@ -287,11 +287,12 @@ def prepare_document(uploaded_file, jurisdiction):
     return PreparedDocument(content, filename, operation, upload_has_form_fields)
 
 
-def store_prepared_document(handler, uploaded_file, jurisdiction, role, *, keys, metadata=None):
+def store_prepared_document(
+    handler, uploaded_file, jurisdiction, role, *, keys, metadata=None, prepared=None, original_key=""
+):
     """Store both copies. The caller cleans ``keys`` on any later failure."""
-    prepared = prepare_document(uploaded_file, jurisdiction)
-    original_key = ""
-    if prepared.operation != "unchanged":
+    prepared = prepared or prepare_document(uploaded_file, jurisdiction)
+    if prepared.operation != "unchanged" and not original_key:
         uploaded_file.seek(0)
         original = handler.upload_file(uploaded_file, file_type="original", metadata=metadata)
         if not original.get("success"):
@@ -299,10 +300,14 @@ def store_prepared_document(handler, uploaded_file, jurisdiction, role, *, keys,
         original_key = original["key"]
         keys.append(original_key)
     filing = SimpleUploadedFile(prepared.filename, prepared.content, content_type="application/pdf")
-    result = handler.upload_file(filing, file_type=role, metadata=metadata)
-    if not result.get("success"):
-        raise PreparationUnavailable("The filing copy could not be saved. Try uploading again.")
-    keys.append(result["key"])
+    if original_key and prepared.operation == "unchanged":
+        result = {"success": True, "key": original_key}
+        original_key = ""
+    else:
+        result = handler.upload_file(filing, file_type=role, metadata=metadata)
+        if not result.get("success"):
+            raise PreparationUnavailable("The filing copy could not be saved. Try uploading again.")
+        keys.append(result["key"])
     return {
         "name": prepared.filename[:255],
         "original_filename": uploaded_file.name[:255],

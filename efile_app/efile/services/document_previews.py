@@ -20,8 +20,10 @@ class DocumentReviewError(ValueError):
 
 def prepare_document_review(draft, handler):
     """Prepare stored uploads so the filer reviews the copies that will be filed."""
+    from efile.services.document_preparation_queue import require_preparation_finished
     from efile.services.document_uploads import prepare_stored_documents
 
+    require_preparation_finished(draft)
     prepare_stored_documents(draft, handler)
 
 
@@ -29,6 +31,12 @@ def approve_document_review(draft, fingerprint):
     """Approve only the current prepared copies, serialized against uploads."""
     with transaction.atomic():
         locked = FilingDraft.objects.select_for_update().get(pk=draft.pk)
+        from efile.services.document_preparation_queue import require_preparation_finished
+
+        try:
+            require_preparation_finished(locked)
+        except ValueError as error:
+            raise DocumentReviewError(str(error), status=409) from error
         documents = list(locked.documents.order_by("role", "sort_order", "pk"))
         if locked.status not in ACTIVE_DRAFT_STATUSES or locked.deletion_pending:
             raise DocumentReviewError("This filing is no longer available to edit.", status=409)
@@ -55,6 +63,9 @@ def preview_fingerprint(documents):
 
 
 def require_document_previews(draft):
+    from efile.services.document_preparation_queue import require_preparation_finished
+
+    require_preparation_finished(draft)
     if draft.documents.filter(preparation="").exists() or unreviewed_documents(draft).exists():
         raise ValueError("Review your PDFs before you submit.")
 

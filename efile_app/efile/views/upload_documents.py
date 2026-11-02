@@ -1,6 +1,8 @@
 import logging
 import math
+import uuid
 
+from django.conf import settings
 from django.db import transaction
 from django.db.models import Q
 from django.http import JsonResponse
@@ -19,6 +21,7 @@ from efile.services.document_extractions import (
 )
 from efile.services.document_finder import has_document_finder
 from efile.services.document_preparation import requires_flattening
+from efile.services.document_preparation_queue import enqueue_preparation, resolve_preparation, unfinished_preparation
 from efile.services.document_previews import document_storage_keys
 from efile.services.document_uploads import upload_files
 from efile.services.drafts import draft_snapshot, read_upload_data
@@ -92,6 +95,16 @@ def upload_documents(request, jurisdiction):
 
     if request.method == "POST":
         action = request.POST.get("action", "upload")
+        if action in {"retry_preparation", "cancel_preparation"}:
+            try:
+                resolve_preparation(draft, action)
+            except ValueError as error:
+                return JsonResponse({"success": False, "error": str(error)}, status=409)
+            return JsonResponse({"success": True})
+        if action == "remove" and unfinished_preparation(draft):
+            return JsonResponse(
+                {"success": False, "error": "Wait for preparation or remove the pending upload first."}, status=409
+            )
         if action == "ai_preference":
             # The filer changed their mind after uploading. Drop what AI read
             # from the document before re-reading it the way they now want it
@@ -163,6 +176,17 @@ def upload_documents(request, jurisdiction):
             draft.ai_assistance_opted_out = opted_out
             draft.save(update_fields=["ai_assistance_opted_out", "updated_at"])
         try:
+            if settings.DOCUMENT_PREPARATION_ASYNC:
+                job = enqueue_preparation(
+                    draft,
+                    uploaded_files,
+                    request.POST.get("upload_request_token"),
+                    request.POST.get("replace_document_id"),
+                )
+                return JsonResponse(
+                    {"success": True, "preparation_pending": job.status in {"pending", "processing", "failed"}},
+                    status=202,
+                )
             upload_data = upload_files(
                 draft, uploaded_files, jurisdiction, replace_document_id=request.POST.get("replace_document_id")
             )
@@ -191,14 +215,18 @@ def upload_documents(request, jurisdiction):
     documents = list(FilingDocument.objects.filter(draft=draft).order_by("role", "sort_order", "created_at"))
     lead = next((document for document in documents if document.role == FilingDocument.Role.LEAD), None)
     extraction = extraction_for_document(lead) if lead else None
+    preparation_job = unfinished_preparation(draft)
     context = {
+        "preparation_job": preparation_job,
+        "upload_request_token": str(uuid.uuid4()),
         "saved_path": draft.existing_case if draft.existing_case in {ExistingCase.NEW, ExistingCase.EXISTING} else "",
         "is_logged_in": True,
         "filing_draft": draft_snapshot(draft),
         "documents": documents,
-        "has_lead_document": lead is not None,
+        "has_lead_document": lead is not None and preparation_job is None,
         "extraction": extraction,
-        "extraction_pending": extraction is not None
+        "extraction_pending": preparation_job is None
+        and extraction is not None
         and extraction.status in {DocumentExtraction.Status.PENDING, DocumentExtraction.Status.PROCESSING},
         "extraction_wait_seconds": _wait_seconds(extraction),
         "flatten_pdf_forms": requires_flattening(jurisdiction),
@@ -232,6 +260,16 @@ def document_extraction_status(request, jurisdiction):
     draft = get_current_draft(request, jurisdiction=jurisdiction)
     if draft is None:
         return JsonResponse({"success": True, "status": "not_queued", "ready": False})
+    preparation = unfinished_preparation(draft)
+    if preparation:
+        return JsonResponse(
+            {
+                "success": True,
+                "ready": False,
+                "status": "preparing",
+                "preparation": {"status": preparation.status, "error": preparation.error},
+            }
+        )
     lead = FilingDocument.objects.filter(draft=draft, role=FilingDocument.Role.LEAD).first()
     extraction = extraction_for_document(lead) if lead else None
     if extraction is None:

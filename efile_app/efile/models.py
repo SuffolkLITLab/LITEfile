@@ -599,6 +599,45 @@ def sync_primary_filing_type(draft):
         setattr(draft, field, value)
 
 
+class DocumentPreparationJob(models.Model):
+    """Originals accepted durably before bounded preparation begins."""
+
+    class Status(models.TextChoices):
+        PENDING = "pending", "Waiting"
+        PROCESSING = "processing", "Preparing"
+        COMPLETE = "complete", "Complete"
+        FAILED = "failed", "Needs attention"
+        CANCELLED = "cancelled", "Cancelled"
+
+    draft = models.ForeignKey(FilingDraft, on_delete=models.CASCADE, related_name="preparation_jobs")
+    request_token = models.UUIDField()
+    fingerprint = models.CharField(max_length=64)
+    document_fingerprint = models.CharField(max_length=64)
+    originals = models.JSONField(default=list)
+    replacement_id = models.PositiveBigIntegerField(null=True, blank=True)
+    status = models.CharField(max_length=20, choices=Status.choices, default=Status.PENDING, db_index=True)
+    attempts = models.PositiveSmallIntegerField(default=0)
+    claim_token = models.UUIDField(null=True, blank=True)
+    lease_expires_at = models.DateTimeField(null=True, blank=True)
+    available_at = models.DateTimeField(default=timezone.now)
+    error = models.TextField(blank=True)
+    started_at = models.DateTimeField(null=True, blank=True)
+    completed_at = models.DateTimeField(null=True, blank=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        constraints = [
+            models.UniqueConstraint(fields=["draft", "request_token"], name="preparation_request_once"),
+            models.UniqueConstraint(
+                fields=["draft"],
+                condition=models.Q(status__in=["pending", "processing", "failed"]),
+                name="one_unfinished_preparation",
+            ),
+        ]
+        indexes = [models.Index(fields=["status", "available_at"], name="preparation_available")]
+
+
 class DocumentExtraction(models.Model):
     """Durable background work for analyzing one uploaded lead PDF."""
 

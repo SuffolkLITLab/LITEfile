@@ -21,7 +21,14 @@ from efile.workflow import WorkflowStepKey
 
 
 def upload_files(
-    draft, uploaded_files, jurisdiction, *, current_step=WorkflowStepKey.UPLOAD_DOCUMENTS, replace_document_id=None
+    draft,
+    uploaded_files,
+    jurisdiction,
+    *,
+    current_step=WorkflowStepKey.UPLOAD_DOCUMENTS,
+    replace_document_id=None,
+    _prepared_documents=None,
+    _preparation_job_id=None,
 ):
     """Prepare and store a whole batch, then queue analysis of the filing copy."""
     handler = S3UploadHandler()
@@ -33,6 +40,11 @@ def upload_files(
         draft = FilingDraft.objects.select_for_update().get(pk=draft.pk)
         if draft.deletion_pending or draft.status not in ACTIVE_DRAFT_STATUSES:
             raise ValueError("This filing is no longer available to edit.")
+        from efile.services.document_preparation_queue import unfinished_preparation
+
+        pending = unfinished_preparation(draft)
+        if pending is not None and pending.pk != _preparation_job_id:
+            raise PreparationError("Your files are still being prepared. Return to uploads to check their progress.")
         try:
             with transaction.atomic():
                 if not handler._ensure_initialized():
@@ -49,9 +61,17 @@ def upload_files(
                         raise ValueError("Choose one file to replace a document in this draft.")
                     old_keys = [replacement.s3_key, replacement.original_s3_key]
                 prepared = []
-                for file in uploaded_files:
+                for index, file in enumerate(uploaded_files):
                     try:
-                        prepared.append(store_prepared_document(handler, file, jurisdiction, "document", keys=keys))
+                        options = {}
+                        if _prepared_documents is not None:
+                            options = {
+                                "prepared": _prepared_documents[index][0],
+                                "original_key": _prepared_documents[index][1],
+                            }
+                        prepared.append(
+                            store_prepared_document(handler, file, jurisdiction, "document", keys=keys, **options)
+                        )
                     except ValueError as error:
                         raise ValueError(f"{file.name}: {error}") from error
                 has_lead = draft.documents.filter(role=FilingDocument.Role.LEAD).exists()

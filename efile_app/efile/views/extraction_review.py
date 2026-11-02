@@ -181,6 +181,11 @@ def extraction_review(request, jurisdiction):
         current_step=WorkflowStepKey.EXTRACTION_REVIEW,
         workflow_version=2,
     )
+    from efile.services.document_preparation_queue import unfinished_preparation
+
+    if unfinished_preparation(draft):
+        messages.info(request, "Your uploads are saved. Wait for preparation or resolve the upload before reviewing.")
+        return redirect("upload_documents", jurisdiction=jurisdiction)
     if not FilingDocument.objects.filter(draft=draft).exists():
         messages.error(request, "Upload at least one document before reviewing the filing.")
         return redirect("upload_documents", jurisdiction=jurisdiction)
