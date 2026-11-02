@@ -208,8 +208,8 @@ def _drop_undrawn_widgets(content, reader, widgets):
     return output.getvalue()
 
 
-def _flatten(content):
-    source, widgets = inspect_pdf(content)
+def _flatten(content, inspected=None):
+    source, widgets = inspected if inspected is not None else inspect_pdf(content)
     if not widgets:
         return content, False
     fields = source.get_fields() or {}
@@ -217,8 +217,13 @@ def _flatten(content):
         raise PreparationError("We cannot prepare this signed PDF. Print it to PDF and upload that copy.")
     content = _repair_text_appearances(content, source, widgets)
     result = _gotenberg(content, ".pdf", "/forms/pdfengines/flatten")
-    result = _drop_undrawn_widgets(result, *inspect_pdf(result))
     output, remaining = inspect_pdf(result)
+    cleaned = _drop_undrawn_widgets(result, output, remaining)
+    # Reuse the parsed result only while its bytes are unchanged. Removing
+    # leftover blank widgets rewrites the PDF and must be validated again.
+    if cleaned is not result:
+        output, remaining = inspect_pdf(cleaned)
+    result = cleaned
     if remaining or output.get_fields() or len(output.pages) != len(source.pages):
         raise PreparationError("We could not prepare this form. Print it to PDF and upload that copy.")
     # Engines can return 200 while dropping filled text. This is a conservative
@@ -260,7 +265,8 @@ def prepare_document(uploaded_file, jurisdiction):
     if not content or len(content) > settings.MAX_FILE_SIZE:
         raise PreparationError("Choose a file that is not empty and is up to 10 MB.")
     operation = "unchanged"
-    upload_has_form_fields = bool(inspect_pdf(content)[1]) if suffix == ".pdf" else None
+    inspected = inspect_pdf(content) if suffix == ".pdf" else None
+    upload_has_form_fields = bool(inspected[1]) if inspected is not None else None
     filename = uploaded_file.name
     if suffix in {".doc", ".docx"}:
         _word_format(content, suffix)
@@ -273,10 +279,10 @@ def prepare_document(uploaded_file, jurisdiction):
         filename = f"{Path(filename).stem}.pdf"
         operation = "converted"
     if requires_flattening(jurisdiction):
-        content, flattened = _flatten(content)
+        content, flattened = _flatten(content, inspected)
         if flattened:
             operation = "converted_flattened" if operation == "converted" else "flattened"
-    else:
+    elif inspected is None:
         inspect_pdf(content)
     return PreparedDocument(content, filename, operation, upload_has_form_fields)
 
