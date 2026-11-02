@@ -1,6 +1,7 @@
 # ruff: noqa: E402
 """Inspect durable outcomes in the disposable database, without correcting failures."""
 
+import argparse
 import json
 from pathlib import Path
 
@@ -31,11 +32,13 @@ result = {
     "saved_title_owner_mismatches": title_owner_mismatches,
     "in_flight_submissions": FilingDraft.objects.filter(status="submitting").count(),
 }
-output = Path("/bench/capacity/results/database-audit.json")
-output.parent.mkdir(parents=True, exist_ok=True)
-output.write_text(
-    json.dumps(result, indent=2) + "\n"
+parser = argparse.ArgumentParser()
+parser.add_argument(
+    "--output", type=Path, default=Path("/bench/capacity/results/database-audit.json")
 )
+output = parser.parse_args().output
+output.parent.mkdir(parents=True, exist_ok=True)
+output.write_text(json.dumps(result, indent=2) + "\n")
 print(json.dumps(result, indent=2))
 assert not title_owner_mismatches
 assert not result["in_flight_submissions"]

@@ -167,3 +167,30 @@ The recorded reference points are:
 These are proposed engineering acceptance criteria, not a partner-approved SLA.
 AI completion has a separate queue/latency requirement and cannot pass based on
 HTTP response time alone.
+
+## Same-resource pooling experiment
+
+On a fresh stack built from the pooling PR, build the small experimental image
+and apply `compose-pool-micro.yml`. It retains one CPU, 1 GB RAM, and two web
+workers. It mounts the checkout's Python application code; record the checkout
+revision and do not edit application files while a comparison runs.
+
+```bash
+docker build -t litefile-capacity:pool-micro \
+  -f benchmarking/capacity/Dockerfile.micro benchmarking/capacity
+docker compose -f benchmarking/capacity/compose.yml \
+  -f benchmarking/capacity/compose-pool-micro.yml up -d
+# Migrate and seed as above. Setup can bypass simulated network delay:
+docker compose -f benchmarking/capacity/compose.yml exec -T \
+  -e DATABASE_URL=postgres://capacity:local-capacity-only@db:5432/capacity \
+  web .venv/bin/python /bench/capacity/seed_submissions.py
+python benchmarking/capacity/pool_micro.py
+```
+
+Run the submission seeder only once after the user/history seeder. Timed web
+requests still use the latency proxy. The comparison toggles only
+`DB_POOL_MAX_SIZE` between zero and eight per worker, runs mixed activity and
+synchronized upload/submission journeys, and repeats upload bursts after both
+variants have warmed the database. It uses the actual application configuration
+helper and the lockfile's psycopg-pool version. Do not run other load generators
+against the shared synthetic sessions concurrently.

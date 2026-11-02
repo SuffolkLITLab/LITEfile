@@ -1,5 +1,6 @@
 """A real HTTP double click must yield exactly one accepted submission."""
 
+import argparse
 import asyncio
 import json
 from pathlib import Path
@@ -8,7 +9,7 @@ import aiohttp
 from load import BASE, J, ROOT, acquire_run_lock
 
 
-async def main():
+async def main(output):
     row = json.loads((ROOT / "submissions.json").read_text())[-1]
     jar = aiohttp.CookieJar(unsafe=True)
     async with aiohttp.ClientSession(
@@ -35,11 +36,8 @@ async def main():
         r["status"] == 200 and r["body"].get("success") is True for r in responses
     )
     result = {"draft": row["draft"], "accepted": accepted, "responses": responses}
-    output = ROOT / "results" / "double-submit.json"
     output.parent.mkdir(parents=True, exist_ok=True)
-    output.write_text(
-        json.dumps(result, indent=2) + "\n"
-    )
+    output.write_text(json.dumps(result, indent=2) + "\n")
     print(json.dumps(result, indent=2))
     assert accepted == 1, result
     assert sum(r["status"] in (400, 404, 409, 412) for r in responses) == 1, result
@@ -47,4 +45,8 @@ async def main():
 
 if __name__ == "__main__":
     run_lock = acquire_run_lock()
-    asyncio.run(main())
+    parser = argparse.ArgumentParser()
+    parser.add_argument(
+        "--output", type=Path, default=ROOT / "results" / "double-submit.json"
+    )
+    asyncio.run(main(parser.parse_args().output))
