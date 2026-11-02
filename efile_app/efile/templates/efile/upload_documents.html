@@ -45,16 +45,25 @@
                  id="preparation-state"
                  role="status"
                  data-status="{{ preparation_job.status }}"
+                 data-job-id="{{ preparation_job.pk }}"
                  data-status-url="{% url 'document_extraction_status' jurisdiction %}">
-                <strong>{% translate "Your uploads are saved" %}</strong>
+                <strong>
+                    {% if preparation_job.originals_ready %}
+                        {% translate "Your uploads are saved" %}
+                    {% else %}
+                        {% translate "Your upload is not finished" %}
+                    {% endif %}
+                </strong>
                 <p id="preparation-detail">
                     {% if preparation_job.status == "failed" %}
                         {{ preparation_job.error }}
+                    {% elif preparation_job.status == "uploading" %}
+                        {% translate "Receiving your files. Keep the upload tab open until it finishes." %}
                     {% else %}
                         {% translate "We are preparing your filing copies. You can leave and return to this filing while we work. Review the PDFs when they are ready." %}
                     {% endif %}
                 </p>
-                {% if preparation_job.status == "failed" %}
+                {% if preparation_job.status == "failed" and preparation_job.originals_ready %}
                     <button type="button" class="btn btn-primary" data-action="retry_preparation">{% translate "Retry preparation" %}</button>
                 {% endif %}
                 <button type="button"

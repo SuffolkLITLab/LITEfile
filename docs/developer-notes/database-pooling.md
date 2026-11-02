@@ -1,5 +1,9 @@
 # Bounded database pooling
 
+> Follow-up: the effective production Supavisor session pool has 15 slots.
+> Use the [reviewed connection budget and storage journal](preparation-storage-journal.md)
+> before enabling these changes; larger local pool experiments below are historical.
+
 Related work: #371, under #270. This change adds an opt-in pool; it does not
 change production sizing, session expiry, polling, filing validation, document
 contents, or court submission behavior.

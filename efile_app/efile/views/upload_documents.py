@@ -97,7 +97,10 @@ def upload_documents(request, jurisdiction):
         action = request.POST.get("action", "upload")
         if action in {"retry_preparation", "cancel_preparation"}:
             try:
-                resolve_preparation(draft, action)
+                job_id = int(request.POST.get("preparation_job_id", "0"))
+                if not job_id:
+                    raise ValueError("Reload the uploads page before changing this upload.")
+                resolve_preparation(draft, action, job_id)
             except ValueError as error:
                 return JsonResponse({"success": False, "error": str(error)}, status=409)
             return JsonResponse({"success": True})
@@ -184,7 +187,11 @@ def upload_documents(request, jurisdiction):
                     request.POST.get("replace_document_id"),
                 )
                 return JsonResponse(
-                    {"success": True, "preparation_pending": job.status in {"pending", "processing", "failed"}},
+                    {
+                        "success": True,
+                        "preparation_job_id": job.pk,
+                        "preparation_pending": job.status in {"pending", "processing", "failed"},
+                    },
                     status=202,
                 )
             upload_data = upload_files(

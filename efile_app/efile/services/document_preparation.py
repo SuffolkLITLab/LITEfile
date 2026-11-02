@@ -288,7 +288,7 @@ def prepare_document(uploaded_file, jurisdiction):
 
 
 def store_prepared_document(
-    handler, uploaded_file, jurisdiction, role, *, keys, metadata=None, prepared=None, original_key=""
+    handler, uploaded_file, jurisdiction, role, *, keys, metadata=None, prepared=None, original_key="", filing_key=None
 ):
     """Store both copies. The caller cleans ``keys`` on any later failure."""
     prepared = prepared or prepare_document(uploaded_file, jurisdiction)
@@ -304,7 +304,8 @@ def store_prepared_document(
         result = {"success": True, "key": original_key}
         original_key = ""
     else:
-        result = handler.upload_file(filing, file_type=role, metadata=metadata)
+        options = {"object_key": filing_key} if filing_key else {}
+        result = handler.upload_file(filing, file_type=role, metadata=metadata, **options)
         if not result.get("success"):
             raise PreparationUnavailable("The filing copy could not be saved. Try uploading again.")
         keys.append(result["key"])
@@ -323,13 +324,17 @@ def store_prepared_document(
 
 
 def cleanup_uploads(handler, keys):
+    success = True
     for key in keys:
         try:
             result = handler.delete_file(key)
             if not result.get("success"):
+                success = False
                 logger.warning("Could not remove an uncommitted document upload")
         except Exception:
+            success = False
             logger.exception("Could not remove an uncommitted document upload")
+    return success
 
 
 def cleanup_unreferenced_uploads(keys, handler=None):
@@ -345,7 +350,8 @@ def cleanup_unreferenced_uploads(keys, handler=None):
         if key and not FilingDocument.objects.filter(Q(s3_key=key) | Q(original_s3_key=key)).exists()
     ]
     if not unused:
-        return
+        return True
     handler = handler or S3UploadHandler()
     if handler._ensure_initialized():
-        cleanup_uploads(handler, unused)
+        return cleanup_uploads(handler, unused)
+    return False

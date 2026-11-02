@@ -11,6 +11,7 @@ from django.utils import timezone
 
 from efile.models import (
     DocumentExtraction,
+    DocumentPreparationJob,
     FilingDocument,
     FilingDraft,
     PendingActivation,
@@ -118,6 +119,8 @@ def preview(request):
         blockers.append("submission_requires_reconciliation")
     if DocumentExtraction.objects.filter(document__draft_id__in=ids, status="processing").exists():
         blockers.append("extraction_worker_in_flight")
+    if DocumentPreparationJob.objects.filter(draft_id__in=ids, lease_expires_at__gt=timezone.now()).exists():
+        blockers.append("preparation_storage_in_flight")
     if FilingDraft.objects.filter(correction_of_id__in=ids).exclude(pk__in=ids).exists():
         blockers.append("corrections_outside_scope")
     shared = FilingDocument.objects.filter(Q(s3_key__in=keys) | Q(original_s3_key__in=keys)).exclude(draft_id__in=ids)

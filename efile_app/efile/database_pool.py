@@ -17,10 +17,13 @@ def configure_connection_pool(database):
     try:
         size = int(os.getenv("DB_POOL_MAX_SIZE", "0"))
         timeout = float(os.getenv("DB_POOL_TIMEOUT", "30"))
+        max_idle = float(os.getenv("DB_POOL_MAX_IDLE", "60"))
     except ValueError as error:
-        raise ImproperlyConfigured("DB_POOL_MAX_SIZE and DB_POOL_TIMEOUT must be numeric") from error
-    if size < 0 or not math.isfinite(timeout) or timeout <= 0:
-        raise ImproperlyConfigured("DB_POOL_MAX_SIZE must be nonnegative and DB_POOL_TIMEOUT positive and finite")
+        raise ImproperlyConfigured("Database pool limits must be numeric") from error
+    if size < 0 or not all(math.isfinite(value) and value > 0 for value in (timeout, max_idle)):
+        raise ImproperlyConfigured(
+            "DB_POOL_MAX_SIZE must be nonnegative and DB_POOL_TIMEOUT/DB_POOL_MAX_IDLE positive and finite"
+        )
     if not size:
         return
     if database.get("CONN_MAX_AGE", 0) != 0:
@@ -29,5 +32,6 @@ def configure_connection_pool(database):
         "min_size": 0,
         "max_size": size,
         "timeout": timeout,
+        "max_idle": max_idle,
     }
     database["CONN_HEALTH_CHECKS"] = True

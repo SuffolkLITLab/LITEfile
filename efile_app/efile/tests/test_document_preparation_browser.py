@@ -60,7 +60,7 @@ def test_real_conversion_and_browser_previews(
     handler.bucket_name = "synthetic"
 
     def store(file, **kwargs):
-        key = f"{kwargs['file_type']}/{len(objects)}"
+        key = kwargs.get("object_key") or f"{kwargs['file_type']}/{len(objects)}"
         objects[key] = file.read()
         return {"success": True, "key": key}
 

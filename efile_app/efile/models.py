@@ -603,6 +603,7 @@ class DocumentPreparationJob(models.Model):
     """Originals accepted durably before bounded preparation begins."""
 
     class Status(models.TextChoices):
+        UPLOADING = "uploading", "Receiving files"
         PENDING = "pending", "Waiting"
         PROCESSING = "processing", "Preparing"
         COMPLETE = "complete", "Complete"
@@ -614,6 +615,9 @@ class DocumentPreparationJob(models.Model):
     fingerprint = models.CharField(max_length=64)
     document_fingerprint = models.CharField(max_length=64)
     originals = models.JSONField(default=list)
+    originals_ready = models.BooleanField(default=True)
+    staged_keys = models.JSONField(default=list)
+    fingerprint_version = models.PositiveSmallIntegerField(default=1)
     replacement_id = models.PositiveBigIntegerField(null=True, blank=True)
     status = models.CharField(max_length=20, choices=Status.choices, default=Status.PENDING, db_index=True)
     attempts = models.PositiveSmallIntegerField(default=0)
@@ -631,7 +635,7 @@ class DocumentPreparationJob(models.Model):
             models.UniqueConstraint(fields=["draft", "request_token"], name="preparation_request_once"),
             models.UniqueConstraint(
                 fields=["draft"],
-                condition=models.Q(status__in=["pending", "processing", "failed"]),
+                condition=models.Q(status__in=["uploading", "pending", "processing", "failed"]),
                 name="one_unfinished_preparation",
             ),
         ]

@@ -1,5 +1,9 @@
 # LITEfile capacity test and Illinois growth plan
 
+> Follow-up: the effective production Supavisor session pool has 15 slots.
+> Use the [reviewed connection budget and storage journal](preparation-storage-journal.md)
+> before enabling these changes; larger local pool experiments below are historical.
+
 Test date: November 1, 2026 (Eastern). Code: `0ff456b8247ed5459d9cab3f426955d09572cbda`.
 `main` was fetched and already matched the merged remote branch. No production
 application settings were changed and no filings were sent to a court.

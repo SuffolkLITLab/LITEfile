@@ -29,6 +29,7 @@
             try {
                 const body = new FormData();
                 body.append("action", button.dataset.action);
+                body.append("preparation_job_id", panel.dataset.jobId);
                 body.append("csrfmiddlewaretoken", apiUtils.getCSRFToken());
                 const response = await fetch(window.location.href, {
                     method: "POST",

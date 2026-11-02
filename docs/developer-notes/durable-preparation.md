@@ -1,5 +1,9 @@
 # Durable document preparation
 
+> Follow-up: the effective production Supavisor session pool has 15 slots.
+> Use the [reviewed connection budget and storage journal](preparation-storage-journal.md)
+> before enabling these changes; larger local pool experiments below are historical.
+
 This opt-in change addresses the remaining queue work in #372. Parsing and
 conversion move out of the upload request and out of the database transaction.
 The request saves every original, its hash and ownership record, and one durable

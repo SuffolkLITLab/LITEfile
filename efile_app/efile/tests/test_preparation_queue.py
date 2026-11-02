@@ -34,7 +34,7 @@ def storage(monkeypatch):
 
     def put(file, **kwargs):
         file.seek(0)
-        key = f"synthetic/{uuid.uuid4()}"
+        key = kwargs.get("object_key") or f"synthetic/{uuid.uuid4()}"
         objects[key] = file.read()
         return {"success": True, "key": key}
 
@@ -214,12 +214,12 @@ def test_changed_document_cannot_be_silently_overwritten(draft, storage):
     document = draft.documents.get()
     job = enqueue(draft, replacement_id=document.pk)
     claimed = queue.claim_preparation()
-    document.name = "Changed while queued"
+    document.s3_key = "changed-by-another-operation"
     document.save()
     with pytest.raises(PreparationError, match="filing changed"):
         queue.process_preparation(job.pk, claimed.claim_token)
     document.refresh_from_db()
-    assert document.name == "Changed while queued"
+    assert document.s3_key == "changed-by-another-operation"
 
 
 def test_http_acceptance_resume_and_ownership(draft, storage, client, django_user_model, settings):
@@ -264,7 +264,7 @@ def test_failed_publication_retains_cleanup_ownership(draft, storage, monkeypatc
         queue.process_preparation(job.pk, claimed.claim_token)
     assert not draft.documents.exists()
     assert len(objects) == 3  # Two retained originals and one failed-cleanup filing copy.
-    assert set(StoredUpload.objects.filter(draft=draft).values_list("key", flat=True)) == set(objects)
+    assert set(StoredUpload.objects.filter(draft=draft).values_list("key", flat=True)) >= set(objects)
     job.refresh_from_db()
     assert job.status == "processing"
 
@@ -323,3 +323,117 @@ def test_pending_replacement_blocks_the_real_submission_endpoint(draft, storage,
     forward.assert_not_called()
     document.refresh_from_db()
     assert document.preparation_reviewed_at is not None  # The old copy alone is insufficient.
+
+
+def test_original_ownership_survives_process_death_after_put(draft, storage):
+    class ProcessKilled(BaseException):
+        pass
+
+    handler, objects = storage
+    put = handler.upload_file.side_effect
+
+    def killed(file, **kwargs):
+        assert not connection.in_atomic_block
+        assert StoredUpload.objects.filter(key=kwargs["object_key"], draft=draft).exists()
+        put(file, **kwargs)
+        raise ProcessKilled()
+
+    handler.upload_file.side_effect = killed
+    with pytest.raises(ProcessKilled):
+        enqueue(draft)
+    job = draft.preparation_jobs.get()
+    assert job.status == "uploading" and not job.originals_ready
+    assert set(objects) <= set(draft.stored_uploads.values_list("key", flat=True))
+    assert queue.claim_preparation() is None
+    DocumentPreparationJob.objects.filter(pk=job.pk).update(lease_expires_at=timezone.now() - timedelta(seconds=1))
+    queue.maintain_preparations()
+    job.refresh_from_db()
+    assert job.status == "failed"
+    with pytest.raises(PreparationError, match="did not finish"):
+        queue.resolve_preparation(draft, "retry_preparation", job.pk)
+    queue.resolve_preparation(draft, "cancel_preparation", job.pk)
+    assert not objects
+
+
+def test_filing_ownership_and_cancellation_survive_death_after_put(draft, storage, monkeypatch):
+    from efile.services.document_preparation import PreparedDocument
+
+    class ProcessKilled(BaseException):
+        pass
+
+    job = enqueue(draft)
+    claimed = queue.claim_preparation()
+    monkeypatch.setattr(
+        queue,
+        "prepare_document",
+        lambda file, jurisdiction: PreparedDocument(pdf_bytes(), file.name, "flattened", True),
+    )
+    handler, objects = storage
+    put = handler.upload_file.side_effect
+
+    def killed(file, **kwargs):
+        assert not connection.in_atomic_block
+        assert StoredUpload.objects.filter(key=kwargs["object_key"], draft=draft).exists()
+        put(file, **kwargs)
+        queue.resolve_preparation(draft, "cancel_preparation", job.pk)
+        raise ProcessKilled()
+
+    handler.upload_file.side_effect = killed
+    with pytest.raises(ProcessKilled):
+        queue.process_preparation(job.pk, claimed.claim_token)
+    assert len(objects) == 2  # Cancellation must not delete while a PUT may still run.
+    assert not draft.documents.exists()
+    job.refresh_from_db()
+    assert job.status == "cancelled" and job.lease_expires_at > timezone.now()
+    assert set(objects) <= set(StoredUpload.objects.filter(draft=draft).values_list("key", flat=True))
+    DocumentPreparationJob.objects.filter(pk=job.pk).update(lease_expires_at=timezone.now() - timedelta(seconds=1))
+    queue.maintain_preparations()
+    assert not objects
+
+
+def test_queued_replacement_preserves_new_filing_choices(draft, storage):
+    upload_files(draft, files(), "illinois")
+    document = draft.documents.get()
+    job = enqueue(draft, replacement_id=document.pk)
+    document.filing_type_code = "edited-while-queued"
+    document.save()
+    claimed = queue.claim_preparation()
+    assert queue.process_preparation(job.pk, claimed.claim_token)
+    document.refresh_from_db()
+    assert document.filing_type_code == "edited-while-queued"
+    with pytest.raises(PreparationError, match="already finished"):
+        queue.resolve_preparation(draft, "cancel_preparation", job.pk)
+    other = enqueue(draft)
+    with pytest.raises(PreparationError, match="already finished"):
+        queue.resolve_preparation(draft, "cancel_preparation", job.pk)
+    other.refresh_from_db()
+    assert other.status == "pending"
+
+
+def test_timeout_scales_with_batch_size_and_is_permanent(draft, storage):
+    job = enqueue(draft, files(*([pdf_bytes()] * 10)))
+    assert queue.preparation_timeout(job) == 1230
+    claimed = queue.claim_preparation()
+    assert (claimed.lease_expires_at - claimed.started_at).total_seconds() == 1290
+    queue.fail_preparation(
+        job.pk, claimed.claim_token, PreparationError("Preparation took too long. Try a smaller batch.")
+    )
+    job.refresh_from_db()
+    assert job.status == "failed" and job.attempts == 1
+
+
+@pytest.mark.parametrize("status", ["uploading", "processing", "cancelled", "failed"])
+def test_privacy_waits_for_storage_grace_even_after_cancel(draft, storage, status):
+    from efile.models import PrivacyRequest
+    from efile.services.privacy import preview
+
+    job = enqueue(draft)
+    DocumentPreparationJob.objects.filter(pk=job.pk).update(
+        status=status, lease_expires_at=timezone.now() + timedelta(minutes=5)
+    )
+    request = PrivacyRequest(target=draft.user, jurisdiction=draft.jurisdiction, account_wide=True)
+    plan = preview(request)
+    assert "preparation_storage_in_flight" in plan["blockers"]
+    assert job.originals[0]["key"] in plan["keys"]
+    DocumentPreparationJob.objects.filter(pk=job.pk).update(lease_expires_at=timezone.now() - timedelta(seconds=1))
+    assert "preparation_storage_in_flight" not in preview(request)["blockers"]

@@ -10,6 +10,7 @@ from efile.database_pool import configure_connection_pool
 def database(monkeypatch):
     monkeypatch.delenv("DB_POOL_MAX_SIZE", raising=False)
     monkeypatch.delenv("DB_POOL_TIMEOUT", raising=False)
+    monkeypatch.delenv("DB_POOL_MAX_IDLE", raising=False)
     return {"ENGINE": "django.db.backends.postgresql", "CONN_MAX_AGE": 0, "OPTIONS": {"sslmode": "require"}}
 
 
@@ -25,7 +26,7 @@ def test_pool_preserves_tls_and_uses_bounded_lazy_connections(database, monkeypa
     configure_connection_pool(database)
     assert database["OPTIONS"] == {
         "sslmode": "require",
-        "pool": {"min_size": 0, "max_size": 8, "timeout": 45},
+        "pool": {"min_size": 0, "max_size": 8, "timeout": 45, "max_idle": 60},
     }
     assert database["CONN_MAX_AGE"] == 0
     assert database["CONN_HEALTH_CHECKS"] is True
@@ -40,6 +41,8 @@ def test_pool_preserves_tls_and_uses_bounded_lazy_connections(database, monkeypa
         ("DB_POOL_TIMEOUT", "-1"),
         ("DB_POOL_TIMEOUT", "nan"),
         ("DB_POOL_TIMEOUT", "inf"),
+        ("DB_POOL_MAX_IDLE", "0"),
+        ("DB_POOL_MAX_IDLE", "nan"),
     ],
 )
 def test_invalid_pool_limits_fail_at_startup(database, monkeypatch, name, value):
