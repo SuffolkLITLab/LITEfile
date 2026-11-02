@@ -1,0 +1,2 @@
+FROM litefile-capacity:270
+RUN uv pip install --python /app/efile_app/.venv/bin/python psycopg-pool==3.3.0

@@ -146,9 +146,18 @@ async function main() {
             buffer: Buffer.from("not a PDF")
         });
         await page.locator("#upload-button").click();
-        await page.locator("#upload-error:not([hidden])").waitFor();
-        await screenshot("07-recoverable-error.png");
-        assert.match(await page.locator("#upload-error").innerText(), /could not be read/);
+        if (config.asyncPreparation) {
+            await page.locator('#preparation-state[data-status="failed"]').waitFor();
+            assert.match(await page.locator("#preparation-detail").innerText(), /could not be read/);
+            assert.equal(await page.locator("#continue-to-analysis").getAttribute("aria-disabled"), "true");
+            await screenshot("07-recoverable-error.png");
+            await page.locator('[data-action="cancel_preparation"]').click();
+            await page.locator("#continue-to-analysis:not(.disabled)").waitFor();
+        } else {
+            await page.locator("#upload-error:not([hidden])").waitFor();
+            await screenshot("07-recoverable-error.png");
+            assert.match(await page.locator("#upload-error").innerText(), /could not be read/);
+        }
         // A storage failure must leave a usable download/retry explanation.
         await page.route("**/documents/*/content/**", (route) =>
             route.fulfill({

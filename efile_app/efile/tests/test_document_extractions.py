@@ -417,14 +417,14 @@ def test_failed_extraction_allows_review_with_neutral_failure_copy(client, extra
     assert "try a different document" in content
 
 
-@pytest.mark.django_db
+@pytest.mark.django_db(transaction=True)
 def test_management_command_runs_once_with_no_jobs():
     from django.core.management import call_command
 
     call_command("process_document_extractions", once=True)
 
 
-@pytest.mark.django_db
+@pytest.mark.django_db(transaction=True)
 def test_management_command_processes_and_retries_failures(extraction_draft):
     from django.core.management import call_command
 
@@ -558,7 +558,7 @@ def test_late_analysis_keeps_fee_inputs_unchanged(extraction_draft, saved_amount
     assert fee_fingerprint(extraction_draft) == fingerprint
 
 
-@pytest.mark.django_db
+@pytest.mark.django_db(transaction=True)
 @pytest.mark.parametrize(("configured", "expected"), [(None, "2"), ("4", "4")])
 def test_worker_children_start_with_few_malloc_arenas(extraction_draft, monkeypatch, configured, expected):
     from django.core.management import call_command

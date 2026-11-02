@@ -76,7 +76,7 @@ class S3UploadHandler:
             logger.error("Document storage initialization failed")
             self.s3_client = None
 
-    def upload_file(self, file_obj, file_type="document", metadata=None):
+    def upload_file(self, file_obj, file_type="document", metadata=None, *, object_key=None):
         """
         Upload a file to S3 and return the URL
 
@@ -102,7 +102,7 @@ class S3UploadHandler:
             unique_filename = f"{uuid.uuid4().hex}{file_extension}"
 
             # Create S3 key with folder structure
-            s3_key = f"efile-documents/{file_type}/{unique_filename}"
+            s3_key = object_key or f"efile-documents/{file_type}/{unique_filename}"
 
             # Prepare metadata
             s3_metadata = {
@@ -117,17 +117,24 @@ class S3UploadHandler:
             # Determine content type
             content_type = file_obj.content_type or mimetypes.guess_type(file_obj.name)[0] or "application/octet-stream"
 
-            # Upload file
-            self.s3_client.upload_fileobj(
-                file_obj,
-                self.bucket_name,
-                s3_key,
-                ExtraArgs={
-                    "ContentType": content_type,
-                    "Metadata": s3_metadata,
-                    # No ACL specified - bucket policy controls access
-                },
-            )
+            # Journaled uploads are bounded files, sent in one request. Avoid
+            # transfer-manager threads or incomplete multipart uploads surviving
+            # a killed preparation child.
+            if object_key:
+                self.s3_client.put_object(
+                    Bucket=self.bucket_name,
+                    Key=s3_key,
+                    Body=file_obj,
+                    ContentType=content_type,
+                    Metadata=s3_metadata,
+                )
+            else:
+                self.s3_client.upload_fileobj(
+                    file_obj,
+                    self.bucket_name,
+                    s3_key,
+                    ExtraArgs={"ContentType": content_type, "Metadata": s3_metadata},
+                )
 
             # Generate the URL that can be used for efile submission
             file_url = self._generate_file_url(s3_key)

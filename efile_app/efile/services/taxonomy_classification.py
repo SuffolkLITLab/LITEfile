@@ -824,6 +824,7 @@ class HierarchicalDocumentClassifier:
     """Select every supported hierarchy level from current live candidates."""
 
     def __init__(self, taxonomy: TaxonomySource | None = None, model: str | None = None):
+        self.usage_receipts: list[dict[str, Any]] = []
         self.taxonomy = taxonomy or TylerTaxonomyClient()
         self.model = model or getattr(settings, "DOCUMENT_CLASSIFICATION_MODEL", "") or get_default_model("medium")
         self.prompt_name = "efile_taxonomy_classification"
@@ -923,6 +924,7 @@ class HierarchicalDocumentClassifier:
                 temperature=inference.get("temperature", 0),
                 reasoning_effort=inference.get("reasoning_effort"),
                 model_type=version_config.get("preferred_model_tier", "medium"),
+                usage_receipts=self.usage_receipts,
             )
             if not isinstance(result, dict) or result.get("status") != "request_more_candidates":
                 break
@@ -1000,6 +1002,7 @@ class HierarchicalDocumentClassifier:
         }
 
     def classify(self, jurisdiction: str, evidence: dict[str, Any], source_text: str) -> ClassificationRun:
+        self.usage_receipts = []
         filing_phase = str(evidence.get("filing phase") or "unknown").casefold()
         if filing_phase not in {"initial", "subsequent"}:
             filing_phase = "unknown"
@@ -1107,6 +1110,7 @@ class HierarchicalDocumentClassifier:
                 "prompt": self.prompt_name,
                 "prompt_version": self.prompt_version,
                 "model": self.model,
+                "classification_usage": self.usage_receipts,
                 "code_search_protocol": "v1",
                 "code_search_rounds": sum(value.get("search_rounds", 0) for value in selections.values()),
                 "taxonomy_endpoint": self.taxonomy.base_url,

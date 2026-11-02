@@ -2,6 +2,7 @@ import os
 
 import dj_database_url
 
+from efile.database_pool import configure_connection_pool
 from efile.settings_base import *  # noqa: F401,F403
 
 # Import specific names with aliases to avoid F405 from star import usage
@@ -97,3 +98,6 @@ DATABASES["default"] = dj_database_url.config(
     conn_max_age=0,
     ssl_require=True,
 )
+
+# Explicit opt-in; applies per process, including background worker processes.
+configure_connection_pool(DATABASES["default"])

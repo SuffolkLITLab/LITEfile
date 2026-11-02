@@ -1,0 +1,6 @@
+sessions.json
+document-*.pdf
+__pycache__/
+submissions.json
+submissions-initial.json
+results/

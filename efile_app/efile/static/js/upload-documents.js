@@ -3,9 +3,17 @@
         return [...existingFiles, ...incomingFiles];
     }
 
+    function extractionPollDelay(attempt, waitSeconds, random = Math.random) {
+        // Start promptly, then spread long waits across a bounded interval.
+        // Never schedule past the server's manual-entry deadline.
+        const delay = attempt === 0 ? 2500 : Math.min(10000, 2500 * 1.5 ** Math.min(attempt, 4)) * (0.8 + 0.2 * random());
+        return waitSeconds > 0 ? Math.min(delay, waitSeconds * 1000) : delay;
+    }
+
     if (typeof module !== "undefined" && module.exports) {
         module.exports = {
-            mergeFiles
+            mergeFiles,
+            extractionPollDelay
         };
     }
     if (typeof document === "undefined") return;
@@ -296,6 +304,8 @@
         });
     });
 
+    let pollAttempt = 0;
+    let previousStatus = null;
     async function pollExtraction() {
         if (!form.dataset.extractionStatusUrl || state.hidden) return;
         try {
@@ -308,7 +318,9 @@
             if (!response.ok || !result.success) throw new Error(result.error || "Could not check document analysis.");
             if (!result.ready) {
                 if (result.wait_seconds === 0) endWait();
-                window.setTimeout(pollExtraction, 2500);
+                if (result.status !== previousStatus) pollAttempt = 0;
+                previousStatus = result.status;
+                window.setTimeout(pollExtraction, extractionPollDelay(pollAttempt++, result.wait_seconds));
                 return;
             }
 

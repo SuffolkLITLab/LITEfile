@@ -6,6 +6,7 @@ import logging
 import mimetypes
 import os
 import re
+import time
 from pathlib import Path
 from typing import Any, Literal
 
@@ -365,6 +366,7 @@ def chat_completion(
     max_input_tokens: int | None = None,
     reasoning_effort: ReasoningEffort | None = None,
     model_type: str = "small",
+    usage_receipts: list[dict[str, Any]] | None = None,
 ) -> list[Any] | dict[str, Any] | str:
     """Call an OpenAI-compatible chat endpoint and optionally parse JSON."""
     config = get_config("open ai", {}) or {}
@@ -448,7 +450,46 @@ def chat_completion(
     else:
         parameters["temperature"] = temperature
 
-    response = openai_client.chat.completions.create(**parameters)
+    started = time.monotonic()
+    receipt: dict[str, Any] = {"model": model, "status": "error", "estimated_usd": None}
+    try:
+        response = openai_client.chat.completions.create(**parameters)
+        if usage_receipts is not None:
+            try:
+                receipt["status"] = "complete"
+                usage = response.usage.model_dump() if response.usage else None
+                if isinstance(usage, dict):
+                    receipt["usage"] = usage
+                    prices = next(
+                        (
+                            config
+                            for config in settings.DOCUMENT_ENSEMBLE_MODELS.values()
+                            if config.get("deployment") == model
+                        ),
+                        None,
+                    )
+                    if (
+                        prices
+                        and all(
+                            isinstance(prices.get(key), int | float)
+                            for key in ("input_usd_per_million", "output_usd_per_million")
+                        )
+                        and isinstance(usage.get("prompt_tokens"), int)
+                        and isinstance(usage.get("completion_tokens"), int)
+                    ):
+                        receipt["estimated_usd"] = (
+                            usage["prompt_tokens"] * prices["input_usd_per_million"]
+                            + usage["completion_tokens"] * prices["output_usd_per_million"]
+                        ) / 1_000_000
+            except Exception:
+                # Optional telemetry must never retry an already successful paid call.
+                receipt["status"] = "response_received"
+                receipt["estimated_usd"] = None
+                receipt["usage_unavailable"] = True
+    finally:
+        if usage_receipts is not None:
+            receipt["seconds"] = time.monotonic() - started
+            usage_receipts.append(receipt)
     finish_reason = response.choices[0].finish_reason
     if finish_reason != "stop":
         raise RuntimeError(f"OpenAI did not finish processing the document. Finish reason: {finish_reason}")
