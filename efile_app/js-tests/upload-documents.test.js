@@ -276,3 +276,39 @@ test("an upload failure keeps a ready result that arrived during the upload", as
     assert.match(page.node("upload-state-detail").textContent, /first 10 of 30 pages/);
     assert.equal(page.node("continue-to-analysis").attributes.get("href"), "/preview/?return_to=review");
 });
+test("long waits reduce polling without delaying the manual-entry deadline", () => {
+    const {
+        extractionPollDelay
+    } = require("../efile/static/js/upload-documents.js");
+    let now = 0;
+    let requests = 1;
+    while (now < 120000) {
+        const wait = Math.ceil((120000 - now) / 1000);
+        now += extractionPollDelay(requests - 1, wait, () => 0.5);
+        requests += 1;
+    }
+    assert.ok(now >= 120000 && now < 121000); // Server rounds remaining seconds upward.
+    assert.ok(requests <= 20, `Expected at most 20 checks, got ${requests}`);
+    assert.ok(requests < 49); // Prior fixed 2.5-second polling.
+    for (let attempt = 0; attempt < 100; attempt++) {
+        const delay = extractionPollDelay(attempt, 0, () => 0.5);
+        assert.ok(delay >= 2000 && delay <= 10000);
+    }
+});
+
+test("a pending response is the only source of the next poll", async () => {
+    let resolve;
+    const page = uploadPage({
+        pending: true,
+        fetch: () => new Promise(done => {
+            resolve = done;
+        })
+    });
+    assert.equal(page.timers.length, 1); // Only the fallback clock, no overlapping requests.
+    resolve(reply({
+        ready: true,
+        status: "complete"
+    }));
+    await flush();
+    assert.equal(page.timers.length, 1); // Terminal status stops polling.
+});

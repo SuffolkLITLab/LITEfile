@@ -10,7 +10,7 @@ from django.views.decorators.http import require_http_methods
 
 from efile.api.suffolk_api_views import get_tyler_token
 from efile.models import DocumentExtraction, FilingDocument, FilingDraft
-from efile.services.current_drafts import ensure_current_draft
+from efile.services.current_drafts import ensure_current_draft, get_current_draft
 from efile.services.document_extractions import (
     EXTRACTION_WAIT_LIMIT,
     extraction_for_document,
@@ -229,7 +229,9 @@ def document_extraction_status(request, jurisdiction):
     if not request.user.is_authenticated or not get_tyler_token(request, jurisdiction):
         return JsonResponse({"success": False, "error": "Sign in again to continue."}, status=401)
 
-    draft = ensure_current_draft(request, jurisdiction, workflow_version=2)
+    draft = get_current_draft(request, jurisdiction=jurisdiction)
+    if draft is None:
+        return JsonResponse({"success": True, "status": "not_queued", "ready": False})
     lead = FilingDocument.objects.filter(draft=draft, role=FilingDocument.Role.LEAD).first()
     extraction = extraction_for_document(lead) if lead else None
     if extraction is None:
