@@ -47,7 +47,6 @@ text:
   upload_documents:
     preparation_help: >-
       Upload your files as they are. We make PDF copies for court.
-      [Vermont's PDF rules](https://www.vtcourts.gov/about-vermont-judiciary/electronic-access/electronic-filing/faqs).
   terms:
     # Vermont courts call the document that opens a case a complaint.
     starting_document_example: "complaint"
@@ -99,7 +98,7 @@ court_selector:
             name_pattern: "Unit$|^Environmental Division$"
         - value: supreme
           label: "Supreme Court"
-          help: "Vermont's appellate court. It sits statewide."
+          help: "Vermont's appellate court, statewide."
           courts:
             name_pattern: "^Supreme Court$"
         - value: bureau
@@ -274,9 +273,9 @@ fee_waiver:
   income_bands:
     - max_fpl_percent: 150
       waiver_percent: 100
-      description: "Use your income before taxes. You may have fees waived."
+      description: "Use your income before taxes. [150% FPL](https://www.vtlawhelp.org/150-federal-poverty-level-fpl). You may have fees waived."
   # Repeat-filing and prior-order requirements have not yet been confirmed.
-  document_guidance: "Include your waiver form or order. Ask the court if an earlier order covers this filing."
+  document_guidance: "Include your waiver form or order. Ask the court if an earlier order covers this filing. If you don't pay, have a waiver order, or upload a fee waiver form, the court will reject your filing."
 
 # Standard notices shown before upload, before a court is selected.
 # Source: https://efile-test.suffolklitlab.org/jurisdictions/vermont/codes/courts/sc:addison/disclaimer_requirements

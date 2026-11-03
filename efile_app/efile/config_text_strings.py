@@ -53,6 +53,6 @@ CONFIG_STRINGS = [
     # Translators: Preparation guidance when flatten_pdf_forms is enabled. May link to state-specific requirements.
     pgettext_lazy(
         "upload_documents.preparation_help",
-        "Upload your files as they are. We make PDF copies for court. [Vermont's PDF rules](https://www.vtcourts.gov/about-vermont-judiciary/electronic-access/electronic-filing/faqs).",
+        "Upload your files as they are. We make PDF copies for court.",
     ),
 ]

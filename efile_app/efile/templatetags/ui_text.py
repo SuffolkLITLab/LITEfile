@@ -13,12 +13,17 @@ keyword arguments become placeholder values:
 A passage marked ``links=True`` in the catalog renders its inline Markdown as
 sanitized HTML; every other key is plain, escaped text.
 
+Other configured copy that may carry inline links, such as fee waiver guidance,
+goes through the ``inline_markdown`` filter:
+
+    <p>{{ fee_waiver.document_guidance|inline_markdown }}</p>
+
 See ``efile/utils/ui_text.py`` for the catalog of keys.
 """
 
 from django import template
 
-from efile.utils.ui_text import get_html
+from efile.utils.ui_text import get_html, render_inline_markdown
 
 register = template.Library()
 
@@ -31,3 +36,9 @@ def ui_text(context, key, **params):
         config=context.get("config"),
         **params,
     )
+
+
+@register.filter
+def inline_markdown(value):
+    """Render a state's configured copy as inline HTML with safe links only."""
+    return render_inline_markdown(str(value or ""))
