@@ -69,11 +69,11 @@ putting `text` under a court does not create a court-specific override.
 | `organize_documents.filing_component_label` | Court filing component | No |
 | `organize_documents.filing_component_help` | The court may call more than one PDF a “Lead Document”. This is separate from your `{main_document}`. | Yes |
 | `organize_documents.filing_component_fixed_note` | Required by the court. | No |
-| `organize_documents.filing_component_required_note` | Required by the court for this filing type. | No |
+| `organize_documents.filing_component_required_note` | Required by the court for this filing code. | No |
 | `organize_documents.confidentiality_help` | Choose confidential only when a court rule or court order requires it. | Yes |
 | `organize_documents.optional_services_summary` | Certified copy and courtesy email (optional) | No |
 | `organize_documents.optional_services_help` | A certified copy is a copy the court marks as official. | Yes |
-| `organize_documents.choose_filing_type_first` | Select a filing type first | No |
+| `organize_documents.choose_filing_type_first` | Select a filing code first | No |
 | `organize_documents.loading_choices` | Loading choices… | No |
 | `organize_documents.no_document_types` | No confidentiality choices are available | No |
 | `organize_documents.no_filing_components` | No filing components are available | No |

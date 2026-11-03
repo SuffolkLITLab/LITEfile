@@ -570,7 +570,7 @@
               margin-left:0.5rem">({{ mapping_rows|length }} mapping{{ mapping_rows|length|pluralize }})</span>
             </h2>
             <p class="identity-instructions">
-                For each mapping, use the read-only staged lookup to confirm or replace the category, case type, and filing type. The saved answers are names, not environment-specific numeric codes.
+                For each mapping, use the read-only staged lookup to confirm or replace the category, case type, and filing code. The saved answers are names, not environment-specific numeric codes.
             </p>
             {% for row in mapping_rows %}
                 {% with m=row.obj %}
@@ -726,7 +726,7 @@
                         </div>
                         <div class="field-answer">
                             <div class="review-field">
-                                <label for="filing-type-{{ m.pk }}">Reviewed filing type</label>
+                                <label for="filing-type-{{ m.pk }}">Reviewed filing code</label>
                                 <select id="filing-type-{{ m.pk }}"
                                         name="filing_type_{{ m.pk }}"
                                         class="taxonomy-select filing-type-select"
@@ -902,7 +902,7 @@
                 court = await loadCourts(card);
                 if (!court || !court.route_key) return;
             }
-            setStatus(card, "Loading staged categories, case types, and filing types…");
+            setStatus(card, "Loading staged categories, case types, and filing codes…");
             try {
                 const categoryPayload = await fetchOptions(card, "categories", {
                     court: court.route_key
@@ -975,7 +975,7 @@
                 try {
                     const latest = await loadCaseTypes(card, category.route_key);
                     updateLookupContext(card, latest.checked_at);
-                    setStatus(card, "Case types and filing types refreshed from " + latest.endpoint + ".", "success");
+                    setStatus(card, "Case types and filing codes refreshed from " + latest.endpoint + ".", "success");
                 } catch (error) {
                     setStatus(card, error.message, "error");
                 }
@@ -989,7 +989,7 @@
                 try {
                     const latest = await loadFilingTypes(card, category.route_key, caseType.route_key);
                     updateLookupContext(card, latest.checked_at);
-                    setStatus(card, "Filing types refreshed from " + latest.endpoint + ".", "success");
+                    setStatus(card, "Filing codes refreshed from " + latest.endpoint + ".", "success");
                 } catch (error) {
                     setStatus(card, error.message, "error");
                 }

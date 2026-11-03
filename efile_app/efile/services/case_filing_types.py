@@ -27,7 +27,7 @@ def case_fingerprint(draft):
 
 def permitted_filing_types(draft):
     if not import_ready(draft):
-        raise ValueError("Find and confirm your court case before choosing a filing type.")
+        raise ValueError("Find and confirm your court case before choosing a filing code.")
     snapshot = draft.existing_case_snapshot
     if any(snapshot.get(field) != getattr(draft, field) for field in ("case_category_code", "case_type_code")):
         raise ValueError("Your case details changed. Confirm the court case again.")
@@ -51,5 +51,5 @@ def permitted_filing_types(draft):
         ):
             raise ValueError
     except (requests.RequestException, ValueError) as exc:
-        raise ValueError("We could not check this case's filing types. Try again.") from exc
+        raise ValueError("We could not check this case's filing codes. Try again.") from exc
     return [{**option, "value": str(option["code"]), "text": str(option["name"])} for option in options]

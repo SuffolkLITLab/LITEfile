@@ -351,8 +351,8 @@ def validate_document_selections(efile_data):
         return
 
     raise PayloadValidationError(
-        f"No filing type is set for: {', '.join(missing)}. Go back to the documents step "
-        f"and choose a filing type for each document."
+        f"No filing code is set for: {', '.join(missing)}. Go back to the documents step "
+        f"and choose a filing code for each document."
     )
 
 

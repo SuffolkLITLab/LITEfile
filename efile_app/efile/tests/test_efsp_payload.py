@@ -218,7 +218,7 @@ def test_preparation_rejects_a_blank_filing_type_end_to_end():
     efile_data = _bundle(filing_type="", filename="petition.pdf")
 
     with override_settings(EFSP_TEST_DOCUMENT_URL=""):
-        with pytest.raises(PayloadValidationError, match="filing type"):
+        with pytest.raises(PayloadValidationError, match="filing code"):
             normalize_efile_payload(efile_data, "illinois", "edgar")
 
 

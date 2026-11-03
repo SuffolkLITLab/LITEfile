@@ -14,7 +14,7 @@ documents, Organize documents, People, Fees and Review.
 
 This guide follows the October 13, 2026 interface. Your court's available choices
 and local instructions may differ. [Find help for your state](./state-help.md)
-if you are unsure which court, documents or filing types apply.
+if you are unsure which court, documents or filing codes apply.
 
 ## Choose your filing path or find documents
 
@@ -74,7 +74,7 @@ Review suggested answers rather than treating them as court decisions. Analysis
 may omit pages/text beyond its limits; the screen identifies that limitation.
 An asterisk marks information read from your document where shown.
 
-For a **new case**, confirm the court, case category, case type and filing type
+For a **new case**, confirm the court, case category, case type and filing code
 shown. Use Edit to change a suggested court/category; dependent choices may need
 to be selected again. Guided court questions and filing-code search help you
 find the court's choices, but cannot decide legal eligibility. Some case types
@@ -97,7 +97,7 @@ types and fees again. Switching to existing goes through lookup.
   loading="lazy"
   className="doc-screenshot"
 />
-<p className="screenshot-caption">Synthetic Massachusetts example, October 13, 2026. Check the actual document and court choices; this image does not recommend a filing type.</p>
+<p className="screenshot-caption">Synthetic Massachusetts example, October 13, 2026. Check the actual document and court choices; this image does not recommend a filing code.</p>
 
 [View Confirm information and existing-case screenshots](https://gist.github.com/nonprofittechy/b855c1c8c3a69e8cd694f8ee3909b5a3#file-01-case-flow-html)
 (synthetic Massachusetts/Vermont examples, October 13).
@@ -110,7 +110,7 @@ court record. If it is wrong, return to lookup; changing court for an existing
 case requires finding and confirming the case again.
 
 Court-owned case/party details are shown as court records. Confirm the correct
-case before choosing a filing type from its current court list. Existing-case
+case before choosing a filing code from its current court list. Existing-case
 filing-type search happens after case confirmation; it does not ask you to
 reclassify the court's case. Your party association and who you file for are
 handled in People, rather than a role question on this confirmation screen.
@@ -118,12 +118,12 @@ handled in People, rather than a role question on this confirmation screen.
 ## Check documents
 
 Where a checklist is configured, **Check your documents** shows what filings like
-yours often include. It can depend on case type, filer side, main filing type
+yours often include. It can depend on case type, filer side, main filing code
 and local court supplements. Groups are **Commonly included**, **Often included**
 and **May apply**. You can mark what you have, already filed or will file later.
 If the checklist needs your side and you have not answered yet, it asks
 **Which side of this case are you on?** here. You can add documents on this screen;
-existing cases also offer **Find my filing type** after case confirmation.
+existing cases also offer **Find my filing code** after case confirmation.
 
 The checklist is non-blocking guidance. It does not establish that your filing
 is complete, and you do not have to tick every item. Verify forms and local rules
@@ -131,7 +131,7 @@ using the court or a legal-help service.
 
 ## Organize documents
 
-Choose each document's **filing type** from the court's choices and check the
+Choose each document's **filing code** from the court's choices and check the
 main document. Some courts require a particular filing component; more than one
 PDF can have the court's “Lead Document” component.
 
@@ -141,7 +141,7 @@ If unsure, ask the court about its rules and any required redaction or request
 before submitting. Confidentiality choices and instructions differ by court.
 
 Optional services, such as a certified copy or courtesy email, may appear here.
-A changed filing type/service can change the fee. A court or document restriction
+A changed filing code/service can change the fee. A court or document restriction
 may stop the path; read its message rather than choosing an inaccurate type to
 continue.
 
@@ -197,7 +197,7 @@ Do not submit while the current fee/payment details remain unresolved.
 Check the court/case, every filing PDF and type, people, notice address, optional
 services and current total. Use **Edit** for a change. Completing the edit usually
 returns to Review; a change that leaves document choices incomplete first returns
-to Organize. A replaced PDF needs another review. Court, filing type or service
+to Organize. A replaced PDF needs another review. Court, filing code or service
 changes cause the fees to be checked again.
 
 Read the selected court's requirements and acknowledgment. Requirements are

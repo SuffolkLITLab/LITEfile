@@ -99,7 +99,7 @@ court_specific_requirements:
       reason: "The court needs an address to issue or serve these documents."
 ```
 
-Set `required: true` when every other party in that layer needs an address. The three `required_for_*` lists may contain a Tyler code or name and are matched without regard to capitalization. A matching party type, filing type, or selected optional service makes the address required. LITEfile also honors an address-required flag from live Tyler party metadata if the code list provides one.
+Set `required: true` when every other party in that layer needs an address. The three `required_for_*` lists may contain a Tyler code or name and are matched without regard to capitalization. A matching party type, filing code, or selected optional service makes the address required. LITEfile also honors an address-required flag from live Tyler party metadata if the code list provides one.
 
 ---
 
@@ -401,7 +401,7 @@ request.
 ## Temporarily disable filing
 
 Add `filing_availability` under a court's `court_specific_requirements` entry to
-block the whole court or selected categories, case types, and filing types.
+block the whole court or selected categories, case types, and filing codes.
 Filing is enabled by default. Type selectors match human-readable names exactly
 or with explicit regexes, independent of Tyler's numeric type IDs. Filers see
 restrictions immediately after choosing an affected court or type.
@@ -414,7 +414,7 @@ and live-check API.
 ## Filing code search terms and explanations
 
 The “Find the right filing code” modal on Confirm case searches complete paths
-across court, case category, case type, and filing type. A selected court does not
+across court, case category, case type, and filing code. A selected court does not
 limit results. New and existing cases have separate filing-type lists. Search uses
 English Snowball stemming, phrase synonyms, and conservative spelling suggestions;
 it does not call an LLM or decide which court has jurisdiction over a person's case.
@@ -445,7 +445,7 @@ The modal walks through three steps, each answering one question:
    type, each with a link back to the step that set it. Applying revalidates the
    path with the court before it fills the form.
 
-When a search matches eight or more filing types, step 1 also asks **What do you
+When a search matches eight or more filing codes, step 1 also asks **What do you
 want to do?** (start a case, respond, ask the court, settle or end, supporting
 papers, proposed order, notice), with a count on each choice. The answer is a
 guess from the filing name alone, from the ordered `actions` rules in
@@ -475,7 +475,7 @@ words, case-insensitive), a one- or two-sentence `text`, and an optional
 `source` link. Under `jurisdictions:`, a state can reword a general term or add
 its own (Massachusetts' “summary process”); its entries replace general ones
 key by key. Wherever a result names a term, code search offers a “What does
-‘subrogation’ mean?” disclosure: on each filing type, above a court's case
+‘subrogation’ mean?” disclosure: on each filing code, above a court's case
 types, and on the final check. Meanings describe a term; they don't advise
 whether to file.
 
@@ -544,7 +544,7 @@ these rules, including when catalogs themselves have not changed.
 
 When a result was found through a related term rather than its own name (a
 search for “unlawful detainer” finding an eviction filing), it says “Related to
-eviction”. Concept definitions are expandable under “About this filing type”.
+eviction”. Concept definitions are expandable under “About this filing code”.
 They describe the topic, not the purpose of every document.
 
 At the bottom of the results, a link such as “10 results in ‘existing case’

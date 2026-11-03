@@ -68,7 +68,7 @@ class ReportForm(forms.Form):
             ("preparation", "Document preparation"),
             ("original_pdf_state", "Original PDF form fields"),
             ("usage_frequency", "Use frequency"),
-            ("filing_type", "Filing type"),
+            ("filing_type", "Filing code"),
             ("court", "Court division or location"),
             ("has_attorney", "Attorney representation"),
             ("fee_waiver", "Fee waiver submitted"),

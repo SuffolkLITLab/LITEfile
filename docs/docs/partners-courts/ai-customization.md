@@ -7,7 +7,7 @@ sidebar_position: 4
 
 # Customizing AI document extraction & prompts <span className="wip-badge">WIP</span>
 
-LITEfile includes a staged document-analysis engine that extracts facts from an uploaded court PDF or Word document and recommends an exact current court, case category, case type, and filing type for the filer to confirm.
+LITEfile includes a staged document-analysis engine that extracts facts from an uploaded court PDF or Word document and recommends an exact current court, case category, case type, and filing code for the filer to confirm.
 
 This guide explains how court partners and developers can customize extraction hints, field definitions, model tiers, and private LLM gateways.
 

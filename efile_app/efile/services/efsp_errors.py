@@ -41,7 +41,7 @@ _FIELD_LABELS = {
     "efile_case_type": "case type",
     "filing_component": "filing component",
     "filing_parties": "filing parties",
-    "filing_type": "filing type",
+    "filing_type": "filing code",
     "party_type": "party type",
     "previous_case_id": "case number",
     "tyler_payment_id": "payment account",
@@ -101,7 +101,7 @@ _KNOWN_MESSAGE_HINTS: list[tuple[re.Pattern, Callable[[re.Match], str]]] = [
     (
         re.compile(r"Need a filing type! FilingTypes are empty", re.IGNORECASE),
         lambda m: (
-            "This court doesn't offer any filing types for that case category and case type "
+            "This court doesn't offer any filing codes for that case category and case type "
             "together. Go back and double-check the case category, case type, and whether "
             "this is a new or existing case."
         ),

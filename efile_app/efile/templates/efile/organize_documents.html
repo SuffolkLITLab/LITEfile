@@ -9,7 +9,7 @@
     <section class="workflow-card">
         <h1>{% translate "Organize your documents" %}</h1>
         {% include "efile/partials/filing_guidance.html" %}
-        <p class="workflow-lede">{% translate "Choose a filing type for each document." %}</p>
+        <p class="workflow-lede">{% translate "Choose a filing code for each document." %}</p>
         {% if organize_context.guessed_filing_type %}
             <div class="extraction-page-help">
                 <span>{% translate "A * marks a choice suggested from your document." %}</span>
@@ -96,15 +96,15 @@
                             </label>
                             {% if document.role == "lead" %}<p class="filing-suggestion-message" role="status" hidden></p>{% endif %}
                             <label class="form-field">
-                                <span>{% translate "Filing type" %}</span>
+                                <span>{% translate "Filing code" %}</span>
                                 <select class="form-select filing-type" required>
-                                    <option value="">{% translate "Loading filing types…" %}</option>
+                                    <option value="">{% translate "Loading filing codes…" %}</option>
                                 </select>
                             </label>
                             {% if organize_context.existing_case == "yes" %}
                                 <details class="filing-type-finder">
-                                    <summary>{% translate "Find my filing type" %}</summary>
-                                    <label for="filing-search-{{ document.pk }}">{% translate "Search this case's filing types" %}</label>
+                                    <summary>{% translate "Find my filing code" %}</summary>
+                                    <label for="filing-search-{{ document.pk }}">{% translate "Search this case's filing codes" %}</label>
                                     <input type="search"
                                            class="form-control filing-search"
                                            id="filing-search-{{ document.pk }}"

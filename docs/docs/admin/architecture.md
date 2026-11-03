@@ -63,5 +63,5 @@ graph TB
 - All document access utilizes temporary, short-lived **Pre-Signed URLs**, ensuring buckets remain private while enabling Tyler's ingestion servers to fetch documents during envelope submission.
 
 ### 3. Declarative jurisdiction YAML system
-- YAML configuration files (`static/config/states/*.yaml`) define case categories, filing types, document checklist rules, court fees, and contact info.
+- YAML configuration files (`static/config/states/*.yaml`) define case categories, filing codes, document checklist rules, court fees, and contact info.
 - Loaded into an in-memory cache on application startup, allowing court rules to change without touching application code.

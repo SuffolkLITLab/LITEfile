@@ -287,8 +287,8 @@
         },
         filing_type: {
             url: "/api/dropdowns/filing-types/",
-            loading: "Loading filing types…",
-            placeholder: "Choose a filing type",
+            loading: "Loading filing codes…",
+            placeholder: "Choose a filing code",
             params: () => ({
                 court: fields.court.select.value,
                 case_category: fields.case_category.select.value,

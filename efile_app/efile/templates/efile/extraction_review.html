@@ -253,15 +253,15 @@
                 <fieldset class="form-field"
                           id="filing-proposal"
                           {% if chosen_existing_case != "existing" %}hidden disabled{% endif %}>
-                    <legend class="visually-hidden">{% translate "Suggested filing type" %}</legend>
-                    <label for="proposed-filing-type">{% translate "Suggested filing type" %}</label>
+                    <legend class="visually-hidden">{% translate "Suggested filing code" %}</legend>
+                    <label for="proposed-filing-type">{% translate "Suggested filing code" %}</label>
                     <input class="form-control"
                            id="proposed-filing-type"
                            name="proposed_filing_type"
                            value="{{ filing_type_proposal.name }}"
                            maxlength="255"
                            aria-describedby="proposed-filing-type-help" />
-                    <p id="proposed-filing-type-help" class="form-help">{% translate "Edit if needed. We still need to check whether your court allows this filing type." %}</p>
+                    <p id="proposed-filing-type-help" class="form-help">{% translate "Edit if needed. We still need to check whether your court allows this filing code." %}</p>
                 </fieldset>
             {% endif %}
             {% comment %}
@@ -351,7 +351,7 @@
                     <legend>{% translate "Is this for a new or existing court case?" %}</legend>
                     {% if saved_path %}
                         <p class="path-confirmation__note">
-                            {% translate "Your files stay saved. You will need to check filing types and fees again." %}
+                            {% translate "Your files stay saved. You will need to check filing codes and fees again." %}
                         </p>
                     {% endif %}
                     <label>
@@ -497,7 +497,7 @@
                          data-field="filing_type"
                          data-guess-key="filing type">
                         <label for="filing_type_code">
-                            {% translate "Filing type" %} <em>{% translate "if known" %}</em>
+                            {% translate "Filing code" %} <em>{% translate "if known" %}</em>
                         </label>
                         <div class="review-field__display" hidden>
                             <div class="review-field__found">
@@ -506,7 +506,7 @@
                             </div>
                             <button class="btn btn-link review-field__edit"
                                     type="button"
-                                    aria-label="{% translate "Edit filing type" %}">{% translate "Edit" %}</button>
+                                    aria-label="{% translate "Edit filing code" %}">{% translate "Edit" %}</button>
                         </div>
                         <div class="review-field__input">
                             <select class="form-select"

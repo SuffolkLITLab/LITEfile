@@ -32,7 +32,7 @@ def waiver_documents(request, jurisdiction):
         selected = next((item for item in options if str(item["code"]) == code), None)
         if selected is None:
             raise ValueError(
-                "We could not find a fee waiver filing type for this court. Try again or contact the court."
+                "We could not find a fee waiver filing code for this court. Try again or contact the court."
             )
         types, component = waiver_document_choices(draft, code)
         if request.method == "GET":

@@ -59,7 +59,7 @@ def test_invalid_or_stale_choices_are_rejected_without_document_changes(confirme
             "efile.views.organize_documents.permitted_filing_types",
             return_value=[{"value": "motion", "text": "Motion"}],
         ),
-        pytest.raises(ValueError, match="Choose a filing type for" if not selected else None),
+        pytest.raises(ValueError, match="Choose a filing code for" if not selected else None),
     ):
         _save_document_details(
             confirmed_case,

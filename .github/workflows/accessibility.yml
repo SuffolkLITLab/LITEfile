@@ -49,11 +49,13 @@ jobs:
         run: |
           uv run python manage.py migrate --noinput
           uv run python manage.py seed_accessibility_session --output playwright/.auth/a11y.json
+          uv run python manage.py seed_accessibility_session --jurisdiction massachusetts --output playwright/.auth/a11y-massachusetts.json
 
       - name: Run Axe checks
         working-directory: efile_app
         env:
           A11Y_STORAGE_STATE: playwright/.auth/a11y.json
+          A11Y_MASSACHUSETTS_STORAGE_STATE: playwright/.auth/a11y-massachusetts.json
         run: |
           uv run python manage.py runserver 127.0.0.1:8000 > /tmp/litefile-a11y-server.log 2>&1 &
           curl --retry 30 --retry-connrefused --retry-delay 1 --fail http://127.0.0.1:8000/choose-jurisdiction

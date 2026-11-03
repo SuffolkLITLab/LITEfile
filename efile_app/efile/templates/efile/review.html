@@ -113,7 +113,7 @@
                                     {% if document.document_type_name %}· {{ document.document_type_name }}{% endif %}
                                 </small>
                                 {% if document.filing_type_name %}
-                                    <span class="review-document-tag">{% translate "Filing type:" %} {{ document.filing_type_name }}{% if document.id in extracted_markers.document_ids %} *{% endif %}</span>
+                                    <span class="review-document-tag">{% translate "Filing code:" %} {{ document.filing_type_name }}{% if document.id in extracted_markers.document_ids %} *{% endif %}</span>
                                 {% endif %}
                             </div>
                         </article>
