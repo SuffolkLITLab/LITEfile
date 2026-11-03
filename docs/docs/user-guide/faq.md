@@ -1,79 +1,55 @@
 ---
 id: faq
-title: Frequently asked questions
-sidebar_label: FAQ & troubleshooting
-sidebar_position: 6
+title: Questions and problems
+sidebar_label: Questions and problems
+description: Quick answers to common questions, and what LITEfile can't do yet.
 ---
 
-# Frequently asked questions & troubleshooting
+# Questions and problems
 
-Find quick answers to common questions about electronic filing through LITEfile.
+## About LITEfile
 
----
+**What is LITEfile?**
+A free website that sends your court papers to the court online. The Suffolk
+University Law School LIT Lab built it with courts and legal aid groups.
 
-### General questions
+**Do I need a lawyer?**
+No. LITEfile is made for people filing on their own. You can still get help.
+See [Get help](./get-help.md).
 
-#### What is LITEfile?
-LITEfile is an open-source, web-based electronic court filing application developed by the Suffolk University Law School Legal Innovation & Technology (LIT) Lab in partnership with courts and legal aid organizations.
+**Does LITEfile cost money?**
+LITEfile is free. The court may charge a filing fee. There is also a small
+payment processing fee when you pay by card or bank account.
 
-#### Do I need to be a lawyer to use LITEfile?
-No. LITEfile is specifically designed for self-represented litigants (people representing themselves without an attorney), pro bono legal volunteers, and legal aid attorneys.
+**Is it safe to use AI to read my papers?**
+You choose. Check **Do not use AI to read my documents** on the Upload page to
+turn it off. You can always type the answers yourself.
 
-#### Does LITEfile charge a convenience fee?
-No. LITEfile does not add any surcharge or markup. Any statutory court filing fees charged by the court or payment processing fees charged by the state EFSP are paid directly to those entities.
+## Problems and fixes
 
----
+| Problem | See |
+| --- | --- |
+| No activation or reset email | [Sign in](./sign-in.md#if-something-is-different) |
+| My file won't upload | [Upload your documents](./upload-documents.md#if-something-is-different) |
+| I can't find my court, case or filing code | [Add or find case information](./case-information.md#if-something-is-different) |
+| LITEfile filled in the wrong answer | Change it. You always have the final say. |
+| I'm not sure my filing went through | [Review and submit](./review-submit.md#if-something-is-different) |
+| My filing was returned | [Fix a returned filing](./fix-returned-filing.md) |
+| No status change, or no stamped copy | [Check your filing status](./check-status.md#if-something-is-different) |
 
-### Documents & uploads
+## What LITEfile can't do yet
 
-#### What file types are accepted?
-LITEfile accepts **PDF and Word** (`.pdf`, `.doc`, `.docx`) files up to **10 MB per file**. It preserves originals and prepares PDF copies for court. Check layout, signatures and answers on **Confirm information**. Export Apple Pages or images to a supported format first.
+| Task | What to do instead |
+| --- | --- |
+| Pick your forms or give legal advice | Use a [forms website or help center](./before-you-begin.md). |
+| Edit, split or combine PDFs | Change the form where you made it, then upload it again. |
+| Send copies to the other side (service) | See [Send copies to the other side](./serve-papers.md). |
+| Schedule a hearing | Follow the court's notice, or call the clerk. |
+| Show your whole court case file | Ask the clerk, or use the court's records website. |
+| Take back papers you already sent | Call the clerk. Throwing away a draft doesn't take back a sent filing. |
+| Change the court's list of people in a case | Call the clerk. |
+| Reuse a fee waiver for each filing | Upload your waiver order with each filing that needs it. |
 
-#### Why was my PDF upload rejected?
-Common upload issues include:
-- **File size exceeds 10 MB**: Reduce its size with a tool appropriate for your document's privacy needs, then check the readable result.
-- **Password protection**: Ensure your PDF does not have security passwords or printing restrictions enabled.
-- **Corrupted PDF**: Open the PDF in a browser or viewer to verify it opens normally, then re-save.
-- **“We cannot prepare this signed PDF. Print it to PDF and upload that copy.”**:
-  A filled digital-signature field can prevent flattening. Keep your signed original;
-  use a printed PDF copy as instructed and verify its visible signature and pages.
-  A printed copy does not preserve cryptographic signature verification; check
-  your court's signature rules if those apply.
-- **“Some answers are missing. Print your file to PDF and upload that copy.”**:
-  Preparation detected lost form answers. Make a printed PDF with the answers
-  visible, upload it again and check the resulting filing copy.
+## Still stuck?
 
-Flattening is enabled by default in all three configured states. It does not
-replace your original, and visual review is still required.
-
----
-
-### Payments & fee waivers
-
-#### Can I file if I cannot afford court fees?
-You may be able to request a waiver under your state's rules. On Fees, open **Who qualifies for a fee waiver?** for local help. Under **Payment method**, select **I think I qualify for a fee waiver** and include the required form or order. A configured case exemption instead shows **Claim the fee exemption for this case** with its instructions. Eligibility, exemptions and allowed payment methods differ by court; selecting either option does not approve a waiver.
-
-#### What happens after I submit a fee waiver?
-Check the court's decision and instructions. It may approve the request or require payment. LITEfile's waiver option does not promise approval or a decision date.
-
----
-
-### Can I avoid AI document reading?
-
-Yes. Select **Do not use AI to read my documents** on Upload and complete the
-case details manually. Always check the prepared filing PDF, even with AI off.
-If analysis cannot supply an answer, enter and verify the missing details.
-
-### Does Sent mean the court accepted my filing?
-
-No. Sent/Received and Accepted are different stages. Sign in to the live tracker
-for the current update, and check each filing in a multi-filing submission.
-Missing or unknown status is not proof of failure. See
-[tracking and support](./case-management.md).
-
-### Need help?
-
-If you have questions about specific court requirements, forms, or clerk procedures:
-- **[State-by-state court help directory](./state-help.md)**: Find phone numbers, online chat services, self-help centers, and legal aid partners for your state.
-- **Suffolk LIT Lab technical support**: [suffolklitlab.org](https://suffolklitlab.org) | Email: `litlab@suffolk.edu`
-- **Court clerk information**: Use the court/help contacts where supplied in LITEfile, or the state directory. A specific clerk's direct contact may not be available.
+See [Get help](./get-help.md) for court, legal and technical help.

@@ -1,0 +1,8 @@
+{% load i18n %}
+{% if user_guide_url %}
+    <p class="user-guide-link">
+        <i class="fa-regular fa-circle-question" aria-hidden="true"></i>
+        {% translate "Need more help?" %}
+        <a href="{{ user_guide_url }}" target="_blank" rel="noopener">{% translate "Read the guide for this page" %}<span class="visually-hidden"> {% translate "(opens in a new tab)" %}</span></a>
+    </p>
+{% endif %}

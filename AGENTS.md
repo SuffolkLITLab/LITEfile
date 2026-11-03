@@ -20,6 +20,8 @@ This document provides conventions and context for AI coding assistants working 
 - **GitHub Pages deployment**: Documentation builds and deploys via GitHub Actions (`.github/workflows/deploy-docs.yml`) to `https://litefile-docs.suffolklitlab.org`.
 - **CNAME**: Custom domain is defined in `docs/static/CNAME` (`litefile-docs.suffolklitlab.org`).
 - **Validation screenshots**: Store screenshots in a gist and link to them from notes and PRs. Capture temporary images under `/tmp`. Do not commit validation screenshots or place them in `docs/developer-notes/`.
+- **User guide screenshots**: Screenshots shown in the public user guide are committed under `docs/static/img/user-guide/` and recorded in the screenshot register (`docs/docs/admin/documentation-review.md`). Use fictional names and case details.
+- **In-app guide links**: Each app screen links to its user guide page through `USER_GUIDE_PAGES` in `efile_app/efile/context_processors.py`. Update that map when you rename a user guide page or heading.
 - **Internal notes**: Internal developer notes, MVP vision briefs, and evaluation notes live in `docs/developer-notes/` and must not be published to the public Docusaurus docs tree (`docs/docs/`).
 - **Docker isolation**: `docs/`, `node_modules/`, and `.docusaurus/` are excluded in `.dockerignore` so they are never copied into backend container images.
 

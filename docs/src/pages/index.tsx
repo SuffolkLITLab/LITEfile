@@ -84,7 +84,7 @@ export default function Home(): React.JSX.Element {
                 A filing journey that adapts to new and existing cases, guiding users through document upload, case confirmation, people, fees, review, and submission.
               </p>
               <Link to="/docs/user-guide/walkthrough" className="button button--link">
-                View step-by-step walkthrough →
+                File step by step →
               </Link>
             </div>
 

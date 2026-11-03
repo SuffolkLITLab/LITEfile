@@ -20,6 +20,7 @@
                 <p>{% translate "Filing details are not available yet. Check your filing list for updates." %}</p>
                 <a href="{% url 'filing_statuses' jurisdiction %}">{% translate "View filings" %}</a>
             {% endif %}
+            {% include "efile/components/user_guide_link.html" %}
         </main>
     </body>
 </html>
