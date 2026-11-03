@@ -33,7 +33,6 @@ const signedInScreens = [
     ['people', '/jurisdiction/illinois/parties/'],
     ['payment', '/jurisdiction/illinois/payment/'],
     ['review', '/jurisdiction/illinois/review/'],
-    ['filing plans', '/jurisdiction/illinois/plans/'],
     ['my drafts', '/jurisdiction/illinois/my-drafts/'],
 ];
 
@@ -94,6 +93,26 @@ test.describe('authenticated filing screens', () => {
             await audit(page, label);
         });
     }
+});
+
+// Illinois pauses filing plans (#386), so audit the plans screen in
+// Massachusetts. It needs its own session: switching jurisdiction signs out.
+test.describe('authenticated filing plans', () => {
+    test.use({
+        storageState: process.env.A11Y_MASSACHUSETTS_STORAGE_STATE
+    });
+
+    test('accessible: filing plans', async ({
+        page
+    }) => {
+        const url = '/jurisdiction/massachusetts/plans/';
+        await page.goto(url, {
+            waitUntil: 'networkidle'
+        });
+        await expect(page).toHaveURL(routePattern(url));
+        await expect(page.locator('main, [role="main"]').first()).toBeVisible();
+        await audit(page, 'filing plans');
+    });
 });
 
 test.describe('authenticated dialog behavior', () => {
