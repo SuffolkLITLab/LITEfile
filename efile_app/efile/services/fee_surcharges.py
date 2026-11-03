@@ -31,6 +31,9 @@ def matching_exemption(policy, draft, exemption=None):
     return matched
 
 
+PLATFORM_FEE_LABEL = "E-filing service fee"
+
+
 def surcharge_estimate(policy, draft, bounds, *, first_use=None, exemption=None, method=None):
     """Return rows, total bounds and notes, preserving unknowns.
 
@@ -74,7 +77,7 @@ def surcharge_estimate(policy, draft, bounds, *, first_use=None, exemption=None,
         if matched and (not requires_waiver or waiver):
             platform_bounds = (ZERO, ZERO)
         if fee:
-            rows.append(("E-filing service fee", platform_bounds))
+            rows.append((PLATFORM_FEE_LABEL, platform_bounds))
         if bounds is None:
             rows.append(("Processing fee", None))
             return rows, None, notes

@@ -54,7 +54,8 @@ def _render():
     lines = [HEADER]
     for jurisdiction in config_loader.get_available_jurisdictions():
         config = config_loader.load_jurisdiction_config(jurisdiction) or {}
-        overrides = {key: value for key, value in config_overrides(config).items() if key in UI_STRINGS}
+        # An empty override hides a passage, so it has nothing to translate.
+        overrides = {key: value for key, value in config_overrides(config).items() if key in UI_STRINGS and value}
         errors = guidance_errors(config)
         if errors:
             raise CommandError(f"{jurisdiction}.yaml: {'; '.join(errors)}")

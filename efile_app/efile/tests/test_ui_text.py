@@ -142,6 +142,24 @@ def test_the_inline_markdown_filter_links_fee_waiver_copy():
     assert "<p><p>" not in rendered
 
 
+def test_an_empty_override_hides_a_passage():
+    config = {"text": {"payment": {"waiver_documents_warning": ""}}}
+
+    assert get_html("payment.waiver_documents_warning", config=config) == ""
+    assert "may reject" in get_html("payment.waiver_documents_warning", config={})
+
+
+def test_an_optional_passage_is_empty_until_a_state_sets_it():
+    template = Template(
+        '{% load ui_text %}{% ui_text "organize_documents.filing_type_help" as help %}'
+        "{% if help %}<small>{{ help }}</small>{% endif %}"
+    )
+
+    assert template.render(Context({"config": {}})) == ""
+    config = {"text": {"organize_documents": {"filing_type_help": "Pick the *specific* motion."}}}
+    assert template.render(Context({"config": config})) == "<small>Pick the <em>specific</em> motion.</small>"
+
+
 def test_email_and_phone_links_stay_in_this_tab():
     config = {"text": {"parties": {"role_help": "Ask [us](mailto:help@example.org) or [call](tel:+18005550100)."}}}
 
@@ -316,3 +334,56 @@ def test_organize_documents_hands_its_own_strings_to_the_script(client, django_u
     assert "filing_component_fixed_note" in content
     assert '"default_confidentiality": "non_confidential"' in content
     assert "only file a document confidentially when a court rule or court order requires it" in content
+
+
+@pytest.mark.django_db
+def test_vermont_explains_document_names_and_filing_codes_at_each_field(client, django_user_model):
+    draft = organize_draft(client, django_user_model, "vermont")
+    lead = draft.documents.get(role=FilingDocument.Role.LEAD)
+
+    content = client.get(reverse("organize_documents", kwargs={"jurisdiction": "vermont"})).content.decode()
+
+    assert f'aria-describedby="document-name-help-{lead.pk}"' in content
+    assert "Give each exhibit its own description." in content
+    assert f'aria-describedby="filing-type-help-{lead.pk}"' in content
+    assert "choose it instead of “Motion.”" in content
+
+
+@pytest.mark.django_db
+def test_a_state_without_field_help_shows_none(client, django_user_model):
+    organize_draft(client, django_user_model, "illinois")
+
+    content = client.get(reverse("organize_documents", kwargs={"jurisdiction": "illinois"})).content.decode()
+
+    assert "document-name-help-" not in content
+    assert "filing-type-help-" not in content
+
+
+@pytest.mark.django_db
+def test_vermont_upload_page_gives_its_document_rules_before_the_drop_zone(client, django_user_model):
+    user = django_user_model.objects.create_user(username="vermont-upload", tyler_jurisdiction="vermont")
+    draft = FilingDraft.objects.create(user=user, jurisdiction="vermont", workflow_version=2)
+    client.force_login(user)
+    session = client.session
+    session[CURRENT_DRAFT_SESSION_KEY] = draft.pk
+    session["auth_tokens"] = {"TYLER-TOKEN-VERMONT": "token"}
+    session["jurisdiction"] = "vermont"
+    session.save()
+
+    content = client.get(reverse("upload_documents", kwargs={"jurisdiction": "vermont"})).content.decode()
+
+    help_at = content.index('id="upload-help"')
+    assert help_at < content.index('id="document-drop-zone"')
+    assert "needs to be its own PDF" in content
+    assert "Add your most important document first" in content
+    assert 'aria-describedby="upload-help upload-requirements upload-preparation"' in content
+    # The rules link sits in the court-rules box, outside the clickable drop zone.
+    assert "e-filing questions and answers (opens in a new tab)</a>" in content
+
+
+@pytest.mark.django_db
+def test_vermont_start_page_explains_continuing_e_filing_and_after_hours_help(client):
+    content = client.get(reverse("efile_options", kwargs={"jurisdiction": "vermont"})).content.decode()
+
+    assert "keep e-filing in that case for as long as it lasts" in content
+    assert 'href="https://www.vtcourts.gov/family/relief-abuse"' in content

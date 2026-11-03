@@ -101,6 +101,34 @@ UI_STRINGS: dict[str, UIString] = {
         description="Preparation guidance when flatten_pdf_forms is disabled.",
         links=True,
     ),
+    "upload_documents.court_rules_intro": UIString(
+        default=(
+            "Before you upload your documents, please read the following rules that apply to all courts. "
+            "The court you file into may have more rules that we will show you before you send your "
+            "documents to the court."
+        ),
+        description=(
+            "Introduces the court's statewide filing rules in the collapsed box on the upload page. "
+            "A good place to link to the state's own e-filing rules."
+        ),
+        links=True,
+    ),
+    "upload_documents.document_rules_help": UIString(
+        default="",
+        description=(
+            "Shown above the upload area when set. The state's rules for splitting and signing "
+            "documents, such as one PDF per form or exhibit."
+        ),
+        links=True,
+    ),
+    "upload_documents.order_help": UIString(
+        default="",
+        description=(
+            "Shown above the upload area when set. Tells filers to add their main document first, "
+            "because the first file uploaded becomes the main document."
+        ),
+        links=True,
+    ),
     # -- Terms ---------------------------------------------------------------
     # Short nouns. Keep them lowercase and in the middle of a sentence: they are
     # interpolated into the passages below, which capitalize for themselves.
@@ -126,6 +154,16 @@ UI_STRINGS: dict[str, UIString] = {
     "organize_documents.main_document_help": UIString(
         default="Choose the document that starts this filing, like a {starting_document_example}.",
         description="Names the kind of document that opens a case, which differs by state.",
+        links=True,
+    ),
+    "organize_documents.document_name_help": UIString(
+        default="",
+        description="Shown under each document's name when set. Explains how to describe a document or exhibit.",
+        links=True,
+    ),
+    "organize_documents.filing_type_help": UIString(
+        default="",
+        description="Shown under each document's filing code choice when set. Helps filers pick the most specific code.",
         links=True,
     ),
     "organize_documents.filing_component_label": UIString(
@@ -196,6 +234,33 @@ UI_STRINGS: dict[str, UIString] = {
     "extraction_review.case_category_help": UIString(
         default="Choose the broad category that best describes the case.",
         description="May include familiar examples that help filers recognize the court's formal categories.",
+        links=True,
+    ),
+    "extraction_review.marker_meaning": UIString(
+        default="A * marks an answer found in your document.",
+        description="Explains the * next to an answer the tool suggested after reading the document.",
+        links=True,
+    ),
+    "extraction_review.marker_caution": UIString(
+        default="It may be wrong. Check it and fix any mistakes.",
+        description="Asks the filer to check a suggested answer. Make clear that the tool, not the filer, may be wrong.",
+        links=True,
+    ),
+    "extraction_review.helper_prompt_prefilled": UIString(
+        default="We filled in what we could. Something wrong?",
+        description="Prompt beside the Help me choose button after court and case details were suggested.",
+    ),
+    # -- Payment -------------------------------------------------------------
+    "payment.exemption_heading": UIString(
+        default="Claim your case’s fee exemption",
+        description="Heading when this type of case qualifies for a fee exemption. The exemption note follows it.",
+    ),
+    "payment.waiver_documents_warning": UIString(
+        default="The court may reject your waiver request if you do not include the required forms.",
+        description=(
+            "Shown before the fee waiver document guidance. Set it to an empty string to hide it, "
+            "for example when fee_waiver.document_guidance already gives the warning."
+        ),
         links=True,
     ),
     # -- Your information ----------------------------------------------------
@@ -275,7 +340,8 @@ def _source(key, overrides):
             f"Unknown UI text key {key!r}. Add it to efile.utils.ui_text.UI_STRINGS "
             f"before using it in a template or a state's text: config."
         )
-    return overrides.get(key) or entry.default
+    # An empty override hides an optional passage; the template skips it.
+    return overrides[key] if key in overrides else entry.default
 
 
 def _jurisdiction_params(config):

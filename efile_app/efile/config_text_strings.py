@@ -45,10 +45,55 @@ CONFIG_STRINGS = [
         "extraction_review.court_label",
         "Court unit or county",
     ),
+    # Translators: Prompt beside the Help me choose button after court and case details were suggested.
+    pgettext_lazy(
+        "extraction_review.helper_prompt_prefilled",
+        "Check the answers we suggested below, or get help choosing.",
+    ),
+    # Translators: Asks the filer to check a suggested answer. Make clear that the tool, not the filer, may be wrong.
+    pgettext_lazy(
+        "extraction_review.marker_caution",
+        "The suggestion may be wrong. Check it and fix any mistakes.",
+    ),
+    # Translators: Explains the * next to an answer the tool suggested after reading the document.
+    pgettext_lazy(
+        "extraction_review.marker_meaning",
+        "A * means {brand_name} suggested this answer after reading your document.",
+    ),
+    # Translators: Shown under each document's name when set. Explains how to describe a document or exhibit.
+    pgettext_lazy(
+        "organize_documents.document_name_help",
+        "Describe it in a few words, like “Small Claims Answer” or “Exhibit A – Copy of Contract.” Give each exhibit its own description.",
+    ),
+    # Translators: Shown under each document's filing code choice when set. Helps filers pick the most specific code.
+    pgettext_lazy(
+        "organize_documents.filing_type_help",
+        "Choose the code that best matches your document. If your kind of motion is listed, choose it instead of “Motion.”",
+    ),
+    # Translators: Heading when this type of case qualifies for a fee exemption. The exemption note follows it.
+    pgettext_lazy(
+        "payment.exemption_heading",
+        "No court fees for this type of case",
+    ),
     # Translators: What courts here usually call the document that opens a case, used as an example when asking the filer which PDF is the main one. Vermont says complaint.
     pgettext_lazy(
         "terms.starting_document_example",
         "complaint",
+    ),
+    # Translators: Introduces the court's statewide filing rules in the collapsed box on the upload page. A good place to link to the state's own e-filing rules.
+    pgettext_lazy(
+        "upload_documents.court_rules_intro",
+        "Before you upload, read these rules that apply to all Vermont courts. The court you file into may have more rules. We will show you those before you send your documents. [Vermont's e-filing questions and answers](https://www.vtcourts.gov/about-vermont-judiciary/electronic-access/electronic-filing/faqs) explain its rules for PDF files.",
+    ),
+    # Translators: Shown above the upload area when set. The state's rules for splitting and signing documents, such as one PDF per form or exhibit.
+    pgettext_lazy(
+        "upload_documents.document_rules_help",
+        "Each court form, pleading, motion and exhibit needs to be its own PDF. Sign your documents where needed. The court will reject a document that is missing a signature.",
+    ),
+    # Translators: Shown above the upload area when set. Tells filers to add their main document first, because the first file uploaded becomes the main document.
+    pgettext_lazy(
+        "upload_documents.order_help",
+        "Add your most important document first, like a complaint, answer or motion. Then add the rest.",
     ),
     # Translators: Preparation guidance when flatten_pdf_forms is enabled. May link to state-specific requirements.
     pgettext_lazy(

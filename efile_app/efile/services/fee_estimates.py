@@ -3,7 +3,7 @@
 import re
 from decimal import Decimal, InvalidOperation
 
-from efile.services.fee_surcharges import matching_exemption, surcharge_estimate
+from efile.services.fee_surcharges import PLATFORM_FEE_LABEL, matching_exemption, surcharge_estimate
 from efile.services.filing_plans import _codes
 from efile.utils.config_loader import config_loader
 
@@ -189,9 +189,15 @@ def estimate_fees(draft, *, first_use=None, exemption=None):
             exemption=exemption,
             method=method,
         )
+        # A state can say who charges the service fee, and when.
+        platform_note = policy.get("platform", {}).get("note", "")
         for label, bounds in extra_rows:
             rows.append(
-                {"label": label, "amount": display_range(*bounds) if bounds else "Not available yet", "note": ""}
+                {
+                    "label": label,
+                    "amount": display_range(*bounds) if bounds else "Not available yet",
+                    "note": platform_note if label == PLATFORM_FEE_LABEL else "",
+                }
             )
         # The payment page presents this guidance once, beside the choice.
         notes.extend(note for note in extra_notes if note != waiver_exemption.get("note"))

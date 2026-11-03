@@ -180,8 +180,8 @@ test("free first filing without an account explains the next step without creati
     intent.value = "pay";
     await payment.chooseIntent();
     assert.deepEqual(calls, []);
-    assert.match(node("paymentMethodsContainer").innerHTML, /Add a credit or bank account to continue/);
-    assert.match(node("paymentMethodsContainer").innerHTML, /Add credit or bank account/);
+    assert.match(node("paymentMethodsContainer").innerHTML, /Add a credit card or bank account to continue/);
+    assert.match(node("paymentMethodsContainer").innerHTML, /Add credit card or bank account/);
     assert.equal(node("submitButton").disabled, true);
 });
 
