@@ -193,8 +193,8 @@ def describe_path_change(change: FilingPathChange) -> str:
     ]
     if "filing_types" in change.cleared:
         parts.append(
-            "The court lists different filing types for new and existing cases, "
-            "so you will choose each document's filing type again."
+            "The court lists different filing codes for new and existing cases, "
+            "so you will choose each document's filing code again."
         )
     if "case" in change.cleared:
         parts.append("The case number from the existing case was removed.")

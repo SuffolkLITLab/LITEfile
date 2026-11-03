@@ -236,7 +236,7 @@ def metadata_issues(draft, *, empty_choices: set[str] | None = None):
         check(
             f"{court}/filing_types/",
             doc.filing_type_code,
-            f"filing type for {doc.name}",
+            f"filing code for {doc.name}",
             "organize_documents",
             params={
                 "initial": "false" if draft.existing_case == "existing" else "true",

@@ -167,7 +167,7 @@ def outgoing_unavailable_message(jurisdiction, court, case_data, payload):
     if "filing_types" in selectors:
         bundles = payload.get("al_court_bundle", [])
         if not isinstance(bundles, list) or not all(isinstance(item, dict) for item in bundles):
-            raise ValueError(_("We could not read the filing types. Reload the review page and try again."))
+            raise ValueError(_("We could not read the filing codes. Reload the review page and try again."))
         query = urlencode({"initial": str(initial).lower(), "category_id": category, "type_id": case_type})
         filing_names = resolve(f"filing_types/?{query}", [item.get("filing_type", "") for item in bundles])
     return _unavailable_message(

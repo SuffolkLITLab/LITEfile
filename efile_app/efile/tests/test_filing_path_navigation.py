@@ -290,7 +290,7 @@ def test_correcting_the_mistaken_new_case_keeps_the_draft_and_goes_to_case_looku
     assert fee_quote_state(draft) == FeeQuoteState.MISSING
 
     messages = [str(message) for message in signed_in.get(CASE_LOOKUP_URL).context["messages"]]
-    assert any("Your uploaded documents are kept" in message and "filing type again" in message for message in messages)
+    assert any("Your uploaded documents are kept" in message and "filing code again" in message for message in messages)
 
 
 @pytest.mark.django_db

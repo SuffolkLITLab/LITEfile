@@ -389,16 +389,16 @@
             suggestionMessage.hidden = false;
             if (filingSuggestion.status === "matched") {
                 selected = filingSuggestion.value;
-                suggestionMessage.textContent = interpolate(gettext("Suggested filing type: %(name)s. Change it if needed."), {
+                suggestionMessage.textContent = interpolate(gettext("Suggested filing code: %(name)s. Change it if needed."), {
                     name: filingSuggestion.name
                 }, true);
             } else {
-                suggestionMessage.textContent = interpolate(gettext("“%(name)s” is not on the court’s list. Choose a type below or use Find my filing type."), {
+                suggestionMessage.textContent = interpolate(gettext("“%(name)s” is not on the court’s list. Choose a type below or use Find my filing code."), {
                     name: filingSuggestion.name
                 }, true);
             }
         }
-        setOptions(filingType, options, selected, "Choose a filing type");
+        setOptions(filingType, options, selected, "Choose a filing code");
         card.dataset.filingTypesLoaded = "true";
         if (new URLSearchParams(window.location.search).get("find_filing_type") === "1" && card === cards()[0]) {
             const finder = card.querySelector(".filing-type-finder");

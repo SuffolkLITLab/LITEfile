@@ -536,7 +536,7 @@ def issues_for(draft, *, current_metadata=False):
     need("main_document", draft.documents.filter(role="lead").exists(), "Add the main PDF.", "upload_documents")
     for doc in draft.documents.all():
         for field, label in (
-            ("filing_type_code", "filing type"),
+            ("filing_type_code", "filing code"),
             ("document_type_code", "confidentiality setting"),
             ("filing_component_code", "document settings"),
         ):

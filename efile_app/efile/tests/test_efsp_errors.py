@@ -51,7 +51,7 @@ class FakeResponse:
 def test_wrong_var_names_the_field_and_the_document():
     message = describe_efsp_error(FakeResponse(400, WRONG_FILING_TYPE))
 
-    assert "filing type" in message
+    assert "filing code" in message
     assert "document 1" in message
     assert "400" not in message
 
@@ -103,7 +103,7 @@ def test_several_problems_are_all_reported():
 
     message = describe_efsp_error(FakeResponse(400, body))
 
-    assert "filing type" in message
+    assert "filing code" in message
     assert "filing component" in message
 
 

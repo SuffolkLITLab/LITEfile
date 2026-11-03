@@ -147,7 +147,7 @@ UI_STRINGS: dict[str, UIString] = {
         default="Required by the court.",
     ),
     "organize_documents.filing_component_required_note": UIString(
-        default="Required by the court for this filing type.",
+        default="Required by the court for this filing code.",
     ),
     "organize_documents.confidentiality_help": UIString(
         default="Choose confidential only when a court rule or court order requires it.",
@@ -169,7 +169,7 @@ UI_STRINGS: dict[str, UIString] = {
     # court's own choices have loaded. They are resolved here, and handed to the
     # script through the page, so they stay configurable and translatable.
     "organize_documents.choose_filing_type_first": UIString(
-        default="Select a filing type first",
+        default="Select a filing code first",
     ),
     "organize_documents.loading_choices": UIString(
         default="Loading choices…",
