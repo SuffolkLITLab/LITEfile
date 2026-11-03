@@ -73,6 +73,7 @@ TEMPLATES = [
                 "django.contrib.auth.context_processors.auth",
                 "django.contrib.messages.context_processors.messages",
                 "efile.context_processors.jurisdiction_context",
+                "efile.context_processors.user_guide_context",
                 "efile.services.draft_urls.browser_draft_context",
             ],
         },
@@ -171,6 +172,10 @@ AWS_S3_ENDPOINT_URL = os.getenv("AWS_S3_ENDPOINT_URL", None)
 CROSSWALK_REVIEW_ENABLED = False
 
 # Private staff URL: intentionally absent from public menus and sitemaps.
+# Public user guide. Each page links to the guide section for that step.
+LITEFILE_USER_GUIDE_URL = os.getenv(
+    "LITEFILE_USER_GUIDE_URL", "https://litefile-docs.suffolklitlab.org/docs/user-guide/"
+)
 LITEFILE_STAFF_PATH = os.getenv("LITEFILE_STAFF_PATH", "staff-7c83f0a2").strip("/")
 if not re.fullmatch(r"[A-Za-z][A-Za-z0-9_-]{11,79}", LITEFILE_STAFF_PATH):
     raise ValueError(

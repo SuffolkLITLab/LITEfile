@@ -44,3 +44,17 @@ footer {
     margin: 0.65rem 0 0;
     text-align: center;
 }
+
+/* Quiet, just-in-time link to the user guide page for the current screen. */
+.user-guide-link {
+    color: #4a5568;
+    font-size: 0.9rem;
+    margin: 1.5rem auto 1rem;
+    padding: 0 1rem;
+    text-align: center;
+}
+
+.user-guide-link a {
+    color: inherit;
+    text-decoration: underline;
+}

@@ -1,61 +1,78 @@
 ---
 id: before-you-begin
-title: Getting your documents ready
-sidebar_label: Getting ready to file
-sidebar_position: 2
+title: Get your forms ready first
+sidebar_label: Get your forms ready first
+description: You need finished, signed court forms before you use LITEfile. Here is where to get them.
 ---
 
-# Getting ready to file: a quick checklist
+# Get your forms ready first
 
-Before you start filing online, taking two minutes to gather your documents and information will make the process fast and stress-free.
+**LITEfile sends papers to the court. It does not write them.** Before you
+start, you need court forms that are:
 
----
+- the **right forms** for what you want to do,
+- **filled out** completely, and
+- **signed** where the form asks.
 
-## 1. Have your completed PDF or Word forms
+If a form is wrong or missing, the clerk may send it back. Then you have to fix
+it and file again.
 
-LITEfile accepts PDF (`.pdf`) and Word (`.doc`, `.docx`) files up to **10 MB per file** and prepares PDF copies for court. It preserves originals. Check the filing copy on **Confirm information** before sending, and recheck any replaced or changed document.
+## Where to get your forms
 
-:::tip Where to get free, approved court forms
-If your forms are not ready, use **Find forms and instructions** where offered, or check these resources for your jurisdiction. A guide or link is preparation help, not a court approval of your filing:
-- **[State-by-state court help & forms](./state-help.md)**: Direct links to official court form libraries and legal aid self-help centers for your state.
-- **[Suffolk LIT Lab Document Assembly Line](https://assemblyline.suffolklitlab.org)**: Free, mobile-friendly online form preparation interviews for self-represented litigants.
-- **[LawHelp.org](https://www.lawhelp.org)**: Nationwide directory of free legal aid tools and state court forms.
+Free websites can help you pick the right forms. Many have a **guided
+interview**. It asks you questions and fills in the form for you. Then you
+download it and upload it to LITEfile.
+
+### Illinois
+
+- [Illinois Legal Aid Online](https://www.illinoislegalaid.org/) — free "Easy
+  Forms" interviews and plain-language guides.
+- [Illinois Courts forms](https://www.illinoiscourts.gov/documents-and-forms/approved-forms) —
+  blank forms approved by the Illinois Supreme Court.
+- [Illinois Courts self-help](https://www.illinoiscourts.gov/self-help/) —
+  help from the state courts, including their own
+  [e-filing guides](https://www.illinoiscourts.gov/self-help/how-to-e-file).
+
+### Massachusetts
+
+- [CourtFormsOnline](https://courtformsonline.org/) — free guided interviews
+  for many Massachusetts court forms.
+- [MassLegalHelp](https://www.masslegalhelp.org/) — plain-language legal
+  information and forms.
+- [Massachusetts court forms](https://www.mass.gov/lists/court-forms) — blank
+  forms from the Trial Court.
+
+### Vermont
+
+- [VTLawHelp](https://vtlawhelp.org/) — legal information, forms and help
+  from Legal Services Vermont.
+- [Vermont court forms](https://www.vtcourts.gov/court-forms) — blank forms
+  from the Vermont Judiciary.
+
+## Use "Find documents" in LITEfile
+
+LITEfile can suggest forms for common tasks. On the start screen, choose
+**Find documents**. Type what you want to do, like "get my security deposit
+back." Then pick the guide that fits.
+
+<img src="/img/user-guide/find-forms-results.png" alt="Find the documents you need page. A search for getting a security deposit back shows guides for suing in small claims court, evicting a tenant and responding to an eviction." className="doc-screenshot" width="700" loading="lazy" />
+<p className="screenshot-caption">Search for what you want to do, then pick the guide that sounds most like your situation.</p>
+
+Each guide lists forms and where to get them. Links open a new tab. These
+sites **do not file anything** for you. When your forms are done, come back to
+LITEfile and choose **Start this filing** or **File into my case**.
+
+<img src="/img/user-guide/forms-guide-new-case.png" alt="Guide for suing someone in small claims court, with links to a guided interview, blank forms, instructions and fee waiver forms, and a Start this filing button." className="doc-screenshot" width="700" loading="lazy" />
+<p className="screenshot-caption">A guide shows where to get each form. Guides are available for some states and tasks.</p>
+
+Not every state or task has a guide yet. If you don't see one, use the
+websites above.
+
+## Ready? Check your files
+
+Once your forms are done, see [Step 1: Prepare your documents](./prepare-documents.md)
+to make sure the files will upload.
+
+:::tip Not sure which forms you need?
+Ask a court help center or legal aid office. See [Get help](./get-help.md).
 :::
-
-### Quick document checklist
-- [ ] **Supported format**: Save as PDF, DOC or DOCX. Export images or Apple Pages files to PDF.
-- [ ] **Signed and dated**: Make sure your signature is on the signature lines.
-- [ ] **Up to 10 MB per file**: Check each upload and prepared copy.
-- [ ] **No passwords**: Ensure the PDF is not encrypted or password-protected.
-
----
-
-## 2. Your login details
-
-LITEfile connects directly to the official statewide court e-filing system.
-
-- **Already have an e-filing account?** Sign in with your existing email and password.
-- **First time filing online?** You can register for a free account right on the sign-in screen.
-
----
-
-## 3. Payment or fee waiver details
-
-Depending on the type of case you are filing, the court may charge a filing fee.
-
-- **Paying by card or bank account**: Have your credit/debit card or account details ready. Some courts restrict bank payments; use an option allowed for your selected court.
-- **Applying for a fee waiver**: Check your state's eligibility rules and required forms/orders. On Fees, open **Who qualifies for a fee waiver?**, then select **I think I qualify for a fee waiver** under **Payment method** and upload the required document. If a configured case exemption applies, the option says **Claim the fee exemption for this case** instead. A selection is not approval; follow the court's decision and any payment instructions.
-
----
-
-## 4. Case number (if you already have an open case)
-
-If you are filing into a case that has already started (for example, replying to an eviction notice or submitting an appearance), make sure you have:
-- The **court / county** where your case is heard (e.g. *Cook County Circuit Court*).
-- Your **case number** (look at the top right of any paper or notice you received from the court or sheriff).
-
----
-
-## Let's begin!
-
-Ready to file? Jump into the [step-by-step walkthrough](./walkthrough.md) to follow along screen by screen.

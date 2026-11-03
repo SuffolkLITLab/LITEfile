@@ -16,6 +16,7 @@ Internal notes stay outside `docs/docs/`.
 
 | Evidence | PR/commit and capture date | Jurisdiction/scenario | Scope and current use |
 | --- | --- | --- | --- |
+| User guide screenshots in `docs/static/img/user-guide/` | `1138b29`; 2026-11-03 | Illinois new small claims case (DuPage) and existing case lookup (Sangamon test case) against the Tyler staging proxy; 1280px and 390px | Committed documentation images used by every user guide page. One staging submission (envelope 325803, test card, `EFSP_TEST_DOCUMENT_URL` sample PDF). AI reading was not configured locally, so Confirm information shows the manual path. The test account name, staging case captions and parties were replaced with the fictional Jordan Rivera and Sam Parker before capture; no labels, statuses or amounts were changed |
 | [Current finder gallery and manifest](https://gist.github.com/nonprofittechy/e88c3fce4148bc53c4a425d0fa3f67cc) | #324 audit; `b4be391`; 2026-10-13 | Illinois ambiguous name-change search and adult guide; Massachusetts no-guide state, 1280px/390px | Fresh anonymous local Chromium captures, configured content/test database. Six HTTP-200 screens, expected headings, no horizontal overflow. No account data, live court calls, filing/payment/email. IL substantive approval remains pending |
 | [Existing-case screens](https://gist.github.com/nonprofittechy/b855c1c8c3a69e8cd694f8ee3909b5a3#file-01-case-flow-html) | [PR #319](https://github.com/SuffolkLITLab/LITEFile/pull/319); `719cfed`; 2026-10-13 UTC | Massachusetts Confirm information, lookup/confirmation, changing inferred court; Vermont Organize | Synthetic browser/court/storage fixtures. Current labels/path checked against `b4be391` templates; not live-provider compatibility |
 | [Fees and Review screens](https://gist.github.com/nonprofittechy/b855c1c8c3a69e8cd694f8ee3909b5a3#file-02-fees-and-review-html) | PR #319; `719cfed`; 2026-10-13 UTC | Illinois waiver PDF check, replacement and return-to-Review, desktop/mobile | Synthetic; current in-place/review behavior, no actual waiver decision/payment |
@@ -24,10 +25,9 @@ Internal notes stay outside `docs/docs/`.
 | [Earlier preparation corpus](https://gist.github.com/nonprofittechy/54857d2ed0b841a486dbf7a30b1ad915) | #113 validation; 2026-09-30; source version in its [validation note](https://github.com/SuffolkLITLab/LITEFile/blob/main/docs/developer-notes/issue-113/validation.md) | Vermont form answers/signature/multiline; synthetic Word/PDF conversion | Older screen UI, including retired Preview step. Reuse only for PDF-content comparison, not current navigation |
 | Earlier `docs/static/img/screenshots/01…14` walkthrough images | Capture version/date/scope not recorded | Older fixed-step walkthrough | Removed from published static assets after a reference audit; preserved in Git history, not current evidence |
 
-Three selected PNGs in the current gist are embedded directly in the walkthrough
-with alt text, scenario captions and fallback source links. They are hosted in
-the gist, not committed as application/static assets. Their original source
-commit, capture date and SHA-256 are in its manifest.
+The user guide embeds committed screenshots from `docs/static/img/user-guide/`
+with alt text and captions. Validation-only evidence stays in gists, as below.
+Retake the user guide screenshots when a screen's labels or layout change.
 
 The full gist HTML galleries embed PNGs with descriptions/alt text. GitHub shows
 HTML source: select Raw, save as `.html`, and open locally to view/download the

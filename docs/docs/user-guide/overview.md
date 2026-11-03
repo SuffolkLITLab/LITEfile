@@ -1,62 +1,65 @@
 ---
 id: overview
-title: How e-filing works
-sidebar_label: How e-filing works
-sidebar_position: 1
+title: How filing online works
+sidebar_label: How filing online works
+description: What LITEfile does, what you need first, and what happens after you file.
 ---
 
-# How e-filing works in LITEfile
+# How filing online works
 
-LITEfile helps you prepare a filing and send its PDF documents to a supported
-court through the electronic filing service. Court choices, required details
-and fees differ by jurisdiction. Check the court's rules or get
-[local help](./state-help.md) when you are unsure what to file.
+LITEfile lets you send court papers to the court over the internet, instead of
+taking them to the courthouse.
 
-## Your filing journey
+LITEfile works with courts in **Illinois**, **Massachusetts** and **Vermont**.
+
+## Three big stages
+
+Filing has three stages. LITEfile helps with the middle one.
 
 ```mermaid
 flowchart LR
-    A["Prepare and upload PDF or Word"] --> B["Check filing PDFs and case details"]
-    B --> C["Check documents and people"]
-    C --> D["Check fees or request a waiver"]
-    D --> E["Review and submit"]
-    E --> F["Track the court's update"]
+    A["1. Get your forms ready<br/>(before LITEfile)"] --> B["2. Send them to the court<br/>(in LITEfile)"]
+    B --> C["3. Wait for the clerk,<br/>then do the next steps"]
 ```
 
-Starting a new case and filing into an existing case take different paths.
-An existing case needs court lookup and confirmation; court-owned details come
-from that record. Person details and case questions appear when needed, and
-editing from Review can return you to an earlier screen.
+1. **Get your forms ready.** Fill out and sign the right court forms first.
+   LITEfile does not write your forms for you.
+   [Learn where to get forms](./before-you-begin.md).
+2. **Send them to the court.** Upload your forms to LITEfile. Answer a few
+   questions. Pay the fee or ask for a waiver. Then submit.
+3. **Wait, then take the next steps.** A court clerk checks your papers. You
+   may need to send copies to the other side or go to a hearing.
+   [See what happens after you file](./after-you-file.md).
 
-## Prepare and check documents
+## What you do in LITEfile
 
-Upload PDF, DOC or DOCX files up to **10 MB per file**. LITEfile preserves the
-originals and prepares PDFs for court. Review each filing copy on **Confirm
-information**, including layout, signatures and form answers. Check changed
-copies again. You can opt out of AI reading and enter details manually.
+These are the screens you will see. You can go back and change things before
+you submit.
 
-If you need forms, use **Find forms and instructions** where guides are available,
-or your state's court/help resources. Checklists and search suggestions are
-non-blocking preparation aids; they do not decide legal eligibility or guarantee
-that all necessary forms are attached.
+```mermaid
+flowchart TD
+    S["Start"] --> U["Upload your forms"]
+    U --> C["Confirm the court and case"]
+    C --> D["Check and organize documents"]
+    D --> P["People in the case"]
+    P --> F["Fees"]
+    F --> R["Review and submit"]
+    R --> T["Check your filing status"]
+```
 
-## Organize, check people and review fees
+## What LITEfile does not do
 
-Choose accurate court filing codes and any required components. Mark a document
-confidential only as required by the applicable court rule or order; ask the
-court if unsure. Review your role, party association, other people and notice
-address. Court-owned existing-case records cannot be freely rewritten.
+- It does not give legal advice or pick your forms for you.
+- It does not fill in the court forms themselves.
+- It does not send copies to the other people in your case.
+- It does not set up hearings.
 
-Fees and allowed card/bank options depend on the court. Include the required
-local form/order if requesting a waiver. Requesting a waiver does not establish
-approval. Changes affecting fees require a fresh quote before submission.
+If you need help with these, see [Get help](./get-help.md).
 
-## After submission
+## Where do you want to start?
 
-Keep the receipt and follow the live tracker while signed in. Sent/Received is
-not court acceptance; one submission may contain filings with different outcomes.
-Email channels depend on deployment configuration and can include separate Tyler
-notices. Court-sourced review estimates are guidance, not a decision-date promise.
-See [tracking and support](./case-management.md) for missing or returned updates.
-
-Follow the [filing walkthrough](./walkthrough.md) for the current conditional paths.
+- **I need forms.** [Get your forms ready first](./before-you-begin.md).
+- **I'm not sure LITEfile can file my papers.** [Can I file here?](./can-i-file-here.md)
+- **I have my forms. I'm ready.** [File step by step](./walkthrough.md).
+- **I already filed.** [Check your filing status](./check-status.md).
+- **The court sent my papers back.** [Fix a returned filing](./fix-returned-filing.md).
