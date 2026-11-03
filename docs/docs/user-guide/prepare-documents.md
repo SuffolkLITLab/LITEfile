@@ -19,7 +19,7 @@ LITEfile can upload.
       Word files into PDFs for the court.
 - [ ] **Size:** 10 MB or less for each file.
 - [ ] **Signed:** Your signature is on every line that asks for it. A typed
-      signature like `/s/ Jordan Rivera` is often allowed. Check your form's
+      signature like `/s/ Jordan Rivera` ("/s/" means "signed") is often allowed. Check your form's
       instructions.
 - [ ] **Readable:** Pages are right side up and easy to read.
 - [ ] **No password:** The file opens without a password.
