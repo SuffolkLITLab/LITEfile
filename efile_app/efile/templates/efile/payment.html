@@ -1,6 +1,7 @@
 {% extends "efile/workflow_base.html" %}
 {% load static %}
 {% load i18n %}
+{% load ui_text %}
 {% block title %}
     {% translate "Payment information" %}
 {% endblock title %}
@@ -61,11 +62,11 @@
             <details class="fee-waiver-eligibility">
                 <summary>{% translate "Who qualifies for a fee waiver?" %}</summary>
                 <p>{% translate "You may qualify based on your benefits or income, or if paying fees would leave too little for basic needs. Income limits use the federal poverty level (FPL)." %}</p>
-                {% if fee_waiver.benefits %}<p>{{ fee_waiver.benefits }}</p>{% endif %}
+                {% if fee_waiver.benefits %}<p>{{ fee_waiver.benefits|inline_markdown }}</p>{% endif %}
                 {% for band in fee_waiver.income_bands %}
                     <p>
                         <strong>{% if band.min_fpl_percent_exclusive %}{{ band.min_fpl_percent_exclusive }}%–{{ band.max_fpl_percent }}%{% else %}{% translate "Up to" %} {{ band.max_fpl_percent }}%{% endif %} {% translate "of FPL" %}:</strong>
-                        {{ band.description }}
+                        {{ band.description|inline_markdown }}
                     </p>
                 {% endfor %}
                 {% if fee_waiver.source_url %}
@@ -120,7 +121,7 @@
                         <div id="waiver-upload-required"
                              {% if has_waiver_document %}hidden{% endif %}>
                             <p>{% translate "The court may reject your waiver request if you do not include the required forms." %}</p>
-                            <p>{% if fee_waiver.document_guidance %}{{ fee_waiver.document_guidance }}{% else %}{% translate "Include your fee waiver form or a court order that waives your fees." %}{% endif %}</p>
+                            <p>{% if fee_waiver.document_guidance %}{{ fee_waiver.document_guidance|inline_markdown }}{% else %}{% translate "Include your fee waiver form or a court order that waives your fees." %}{% endif %}</p>
                             <div id="waiver-upload-prompt">
                                 <button type="button"
                                         class="btn btn-outline-primary"

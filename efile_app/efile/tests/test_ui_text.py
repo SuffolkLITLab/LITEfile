@@ -130,6 +130,18 @@ def test_the_template_tag_renders_a_passages_link():
     assert '<small>Only when <a href="https://courts.example.gov/rule-138"' in rendered
 
 
+def test_the_inline_markdown_filter_links_fee_waiver_copy():
+    template = Template("{% load ui_text %}<p>{{ band.description|inline_markdown }}</p>")
+    band = {"description": "Use your income. [150% FPL](https://example.org/fpl). <script>x</script>"}
+
+    rendered = template.render(Context({"band": band}))
+
+    assert '<p>Use your income. <a href="https://example.org/fpl"' in rendered
+    assert "150% FPL (opens in a new tab)</a>" in rendered
+    assert "<script" not in rendered
+    assert "<p><p>" not in rendered
+
+
 def test_email_and_phone_links_stay_in_this_tab():
     config = {"text": {"parties": {"role_help": "Ask [us](mailto:help@example.org) or [call](tel:+18005550100)."}}}
 
