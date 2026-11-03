@@ -214,8 +214,8 @@ const PaymentPage = {
                 return `<div><label><input class="form-check-input" type="radio" name="paymentMethod" value="${escapeAttribute(account.paymentAccountID)}" data-name="${escapeAttribute(label)}" data-type="${escapeAttribute(account.paymentAccountTypeCode || "")}" ${String(selectedId) === String(account.paymentAccountID) ? "checked" : ""}/> <span><strong>${escapeHTML(label)}</strong></span></label> <button type="button" class="btn btn-outline-secondary btn-sm remove-payment-method" data-account-id="${escapeAttribute(account.paymentAccountID)}" data-account-label="${escapeAttribute(label)}" aria-label="${escapeAttribute(gettext("Remove payment method"))}: ${escapeAttribute(label)}">${gettext("Remove")}</button></div>`;
             }).join("");
             const bankUnavailable = result.bank_payment_policy && result.bank_payment_policy !== "allowed";
-            const addLabel = bankUnavailable ? gettext("Add credit card") : gettext("Add credit or bank account");
-            const addHelp = bankUnavailable ? gettext("Add a credit card to continue.") : gettext("Add a credit or bank account to continue.");
+            const addLabel = bankUnavailable ? gettext("Add credit card") : gettext("Add credit card or bank account");
+            const addHelp = bankUnavailable ? gettext("Add a credit card to continue.") : gettext("Add a credit card or bank account to continue.");
             const noAccountHelp = accounts.length ? "" : `<p>${addHelp}</p>`;
             container.innerHTML = `${noAccountHelp}<div class="compact-choice-list">${rows}</div>
                 <button type="button" class="btn btn-outline-primary mt-2" id="add-payment-method" aria-haspopup="dialog">${addLabel}</button>`;
@@ -246,7 +246,7 @@ const PaymentPage = {
             document.querySelector('input[name="paymentIntent"][value="pay"]').checked = true;
             return this.chooseIntent();
         };
-        document.getElementById("paid-account-label").textContent = result.bank_payment_policy && result.bank_payment_policy !== "allowed" ? gettext("Use a credit card") : gettext("Use a credit or bank account");
+        document.getElementById("paid-account-label").textContent = result.bank_payment_policy && result.bank_payment_policy !== "allowed" ? gettext("Use a credit card") : gettext("Use a credit card or bank account");
     },
 
     showChoiceRetry() {

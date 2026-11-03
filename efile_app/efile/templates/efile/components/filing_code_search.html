@@ -1,4 +1,5 @@
 {% load i18n %}
+{% load ui_text %}
 <div class="code-search-invitation">
     {% comment %}
     The court calls these four choices a filing code, but filers never see
@@ -6,7 +7,7 @@
     {% endcomment %}
     <div class="code-search-invitation__text">
         <strong id="code-search-prompt">{% translate "Not sure what to choose?" %}</strong>
-        <strong id="code-search-prompt-prefilled" hidden>{% translate "We filled in what we could. Something wrong?" %}</strong>
+        <strong id="code-search-prompt-prefilled" hidden>{% ui_text "extraction_review.helper_prompt_prefilled" %}</strong>
         <span>{% translate "Answer a few questions and we'll fill these in for you." %}</span>
     </div>
     <button type="button"

@@ -28,6 +28,18 @@ jurisdiction:
   help_number: ""
   contact_email: "litlab@suffolk.edu"
   contact_address: "Suffolk University Law School LIT Lab, 120 Tremont Street, Boston, MA"
+  # Shown at the top of the start page. Wording from the Vermont Judiciary's
+  # e-filing manager, via Kris's October 2026 testing notes.
+  copyedit:
+    landing_text: |
+      **Important:** Vermont rules say that when you e-file in a case, you must
+      keep e-filing in that case for as long as it lasts.
+
+      Court staff do not work nights, weekends or state holidays. Your filing
+      will not be reviewed, accepted or rejected during those times. If you are
+      asking for a Relief from Abuse order, call the
+      [after-hours Relief from Abuse phone number](https://www.vtcourts.gov/family/relief-abuse)
+      and tell them that you e-filed.
 
 # State metadata, for the address
 state:
@@ -47,16 +59,46 @@ text:
   upload_documents:
     preparation_help: >-
       Upload your files as they are. We make PDF copies for court.
+    # The PDF rules link lives here, not in preparation_help: a link inside the
+    # drop zone opens the file picker instead.
+    court_rules_intro: >-
+      Before you upload, read these rules that apply to all Vermont courts. The
+      court you file into may have more rules. We will show you those before you
+      send your documents.
+      [Vermont's e-filing questions and answers](https://www.vtcourts.gov/about-vermont-judiciary/electronic-access/electronic-filing/faqs)
+      explain its rules for PDF files.
+    document_rules_help: >-
+      Each court form, pleading, motion and exhibit needs to be its own PDF.
+      Sign your documents where needed. The court will reject a document that
+      is missing a signature.
+    order_help: >-
+      Add your most important document first, like a complaint, answer or
+      motion. Then add the rest.
   terms:
     # Vermont courts call the document that opens a case a complaint.
     starting_document_example: "complaint"
+  organize_documents:
+    document_name_help: >-
+      Describe it in a few words, like “Small Claims Answer” or “Exhibit A –
+      Copy of Contract.” Give each exhibit its own description.
+    filing_type_help: >-
+      Choose the code that best matches your document. If your kind of motion
+      is listed, choose it instead of “Motion.”
   extraction_review:
+    marker_meaning: "A * means {brand_name} suggested this answer after reading your document."
+    marker_caution: "The suggestion may be wrong. Check it and fix any mistakes."
+    helper_prompt_prefilled: "Check the answers we suggested below, or get help choosing."
     court_label: "Court unit or county"
     court_help: "Choose the Vermont court unit or county that should receive this filing."
     case_category_label: "Court division"
     case_category_help: >-
       Choose the court division. For example, Civil includes Small Claims,
       and Family includes Relief from Abuse.
+  payment:
+    exemption_heading: "No court fees for this type of case"
+    # fee_waiver.document_guidance already warns that the court will reject
+    # a filing without payment or a waiver, so this would repeat it.
+    waiver_documents_warning: ""
   about:
     project_partner_description: >-
       LITEfile's Vermont e-filing integration was developed in close partnership
@@ -205,6 +247,9 @@ fee_estimates:
     platform:
       amount: "14.00"
       timing: first_filing_per_filer
+      # Shown under the fee on the payment page.
+      # Source: https://www.vtcourts.gov/about-vermont-judiciary/electronic-access/electronic-filing/faqs
+      note: "Tyler Technologies, which runs Vermont's e-filing system, charges this the first time you file in a case."
       # Paid accounts still incur Tyler fees for $0 court-fee cases.
       # A catalog zero alone is not proof of a statutory exemption.
       exemptions:
@@ -212,7 +257,7 @@ fee_estimates:
         # supplies this ID yet, and it is never inferred from a $0 catalog fee.
         - id: no_court_fee_case
           requires_waiver_account: true
-          note: &waiver_exemption_note "For this type of case, choose a waiver payment account to claim the exemption. You do not need to qualify based on income."
+          note: &waiver_exemption_note "Vermont courts do not charge fees for this type of case. To claim the exemption, choose “Claim the fee exemption for this case” below. You do not need to qualify based on income."
         - id: protection_order
           case_pattern: 'relief from abuse|stalking|sexual assault|abuse prevention|abuse/neglect/exploitation|vulnerable adult'
           requires_waiver_account: true

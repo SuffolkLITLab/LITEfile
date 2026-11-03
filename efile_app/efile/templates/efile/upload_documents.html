@@ -26,7 +26,7 @@
             <details class="border rounded p-3 mb-3">
                 <summary>{% translate "Information from the court about filing rules" %}</summary>
                 <div class="mt-3">
-                    <p>{% translate "Before you upload your documents, please read the following rules that apply to all courts. The court you file into may have more rules that we will show you before you send your documents to the court." %}</p>
+                    <p>{% ui_text "upload_documents.court_rules_intro" %}</p>
                     {% include "efile/partials/court_disclaimers.html" with court_disclaimers=upload_disclaimers only %}
                 </div>
             </details>
@@ -96,12 +96,20 @@
                         <p>To replace a document, select it above and choose one new file. Its filing choices stay saved. Review the new PDF before submitting.</p>
                     </details>
                 {% endif %}
+                {% ui_text "upload_documents.document_rules_help" as document_rules_help %}
+                {% ui_text "upload_documents.order_help" as order_help %}
+                {% if document_rules_help or order_help %}
+                    <div class="upload-help" id="upload-help">
+                        {% if document_rules_help %}<p>{{ document_rules_help }}</p>{% endif %}
+                        {% if order_help %}<p>{{ order_help }}</p>{% endif %}
+                    </div>
+                {% endif %}
                 <div class="drop-zone" id="document-drop-zone">
                     <input id="documents-input"
                            type="file"
                            name="documents"
                            accept=".pdf,.doc,.docx,application/pdf,application/msword,application/vnd.openxmlformats-officedocument.wordprocessingml.document"
-                           aria-describedby="upload-requirements upload-preparation"
+                           aria-describedby="{% if document_rules_help or order_help %}upload-help {% endif %}upload-requirements upload-preparation"
                            multiple />
                     <span class="drop-zone__icon"><i class="fa-solid fa-cloud-arrow-up" aria-hidden="true"></i></span>
                     <label for="documents-input"><strong>{% translate "Choose PDF or Word files or drag them here" %}</strong></label>

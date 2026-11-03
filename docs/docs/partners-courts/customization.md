@@ -22,7 +22,10 @@ keys can replace earlier settings.
 | Visible element | Exact location/key | Default or fallback | Scope and markup | Code change? |
 | --- | --- | --- | --- | --- |
 | Start page branding and help | State YAML `jurisdiction.brand_name`, `logo`, `logo_alt`, `help_name`, `help_url`, `help_number`, `contact_email` | Base `jurisdiction` settings | Jurisdiction; plain labels, explicit URL fields | No |
+| Start page introduction and closing note | State YAML `jurisdiction.copyedit.landing_text`, `.post_action_text` | Nothing shown when absent | Jurisdiction; Markdown paragraphs and links | No |
 | Start menu, upload heading, AI opt-out label | `templates/efile/options.html`, `upload_documents.html` | Translated template copy | Shared; template markup | Yes; no corresponding `text` hook |
+| Upload document rules and upload order | State YAML `text.upload_documents.document_rules_help`, `.order_help` | Nothing shown when empty | Jurisdiction; inline Markdown, shown above the upload area | No |
+| Introduction to the court's filing rules on Upload | State YAML `text.upload_documents.court_rules_intro` | UI catalog | Jurisdiction; inline Markdown. Put rules links here rather than in the clickable upload area | No |
 | Upload preparation help | State YAML `text.upload_documents.preparation_help` / `preparation_help_unflattened` | UI catalog defaults below; branch depends on `document_preparation.flatten_pdf_forms` | Jurisdiction; inline Markdown | No |
 | Pre-upload court notices | State YAML `upload_disclaimers[].name`, `.text` | Configured snapshot; absent means no notice | Jurisdiction; sanitized HTML paragraphs, emphasis, lists and links with preserved line breaks; separate from `text` Markdown | No; requires source review |
 | Confirm information court/category labels and help | State YAML `text.extraction_review.court_label`, `court_help`, `case_category_label`, `case_category_help` | UI catalog | Jurisdiction; labels plain, help inline Markdown | No |
@@ -32,10 +35,14 @@ keys can replace earlier settings.
 | Checklist labels, descriptions, side and lead variants | State YAML `case_types.<id>.documents`, `.filer_roles`, `case_categories`; `court_specific_requirements.<court>.case_types` | Inherited base checklist; absent list stays empty | State/case/exact court; schema fields | No; [checklist guide](./document-checklists.md) |
 | Finder intent and form/help links | State YAML `document_finder.intents.<id>` (`title`, `summary`, `keywords`, `filing_path`, `checklist.case_type` or `.case_category`, `filer_role`, `lead_filing_type_name`, `resources`, `document_resources`) | No-guide state when absent | Jurisdiction; plain copy, HTTPS resource links | No; [finder guide](./document-finder.md) |
 | Organize main document, component and confidentiality help | State YAML `text.organize_documents.*` and `text.terms.*` | UI catalog below | Jurisdiction; prose Markdown only where listed | No for listed hooks |
+| Help under each document's name and filing code | State YAML `text.organize_documents.document_name_help`, `.filing_type_help` | Nothing shown when empty | Jurisdiction; inline Markdown, tied to the field for screen readers | No |
+| Explanation of the * on suggested answers, and the prompt beside **Help me choose** | State YAML `text.extraction_review.marker_meaning`, `.marker_caution`, `.helper_prompt_prefilled` | UI catalog | Jurisdiction; prompt plain, explanation inline Markdown | No |
 | People role question/help and contact introduction | State YAML `text.parties.role_question`, `.role_help`, `text.your_information.lede` | UI catalog | Jurisdiction; question plain, prose Markdown | No |
 | Individual People/contact field labels | `templates/efile/parties.html`, `party_details.html`, `your_information.html` | Template/form labels | Shared; ordinary translation workflow | Usually yes; confirm actual renderer before changing legacy YAML labels |
-| Fees eligibility and waiver-document instructions | State YAML `fee_waiver.benefits`, `.income_bands[].description`, `.document_guidance`, `.source_url` | Benefits/bands omitted if absent; default instruction is to include a waiver form or court order | Jurisdiction; plain escaped copy, separate source URL | No; substantive source/approval review required |
-| Case-exemption explanation on Fees | State YAML `fee_estimates.surcharges.platform.exemptions[].note` | No custom note unless the selected configured exemption supplies one | Jurisdiction and configured exemption matching; plain escaped copy | No; does not establish unimplemented exemption coverage |
+| Fees eligibility and waiver-document instructions | State YAML `fee_waiver.benefits`, `.income_bands[].description`, `.document_guidance`, `.source_url` | Benefits/bands omitted if absent; default instruction is to include a waiver form or court order | Jurisdiction; inline Markdown links, separate source URL | No; substantive source/approval review required |
+| Warning before the waiver-document instructions | State YAML `text.payment.waiver_documents_warning` | UI catalog; an empty string hides it | Jurisdiction; inline Markdown | No |
+| Case-exemption heading and explanation on Fees | State YAML `text.payment.exemption_heading`; `fee_estimates.surcharges.platform.exemptions[].note` | UI catalog heading; no custom note unless the selected configured exemption supplies one | Jurisdiction and configured exemption matching; heading and note plain | No; does not establish unimplemented exemption coverage |
+| Note under the e-filing service fee | State YAML `fee_estimates.surcharges.platform.note` | No note | Jurisdiction; plain escaped copy | No |
 | Fees contacts and ordinary screen copy | State YAML `court_specific_requirements.<court>.contact`, `jurisdiction.help_*`; `templates/efile/payment.html` for ordinary copy | Jurisdiction help fallback and translated template copy | Jurisdiction/exact court for contacts; explicit URLs; ordinary copy requires template edit | No for contacts; yes for other wording |
 | Informational message on Fees, Review or another step | State YAML `filing_guidance[]` | No local guidance enabled by default | Jurisdiction, exact saved codes; plain text, HTTPS resources | No |
 | Review heading, summaries and acknowledgment | `templates/efile/review.html`; `services/disclaimers.py` fetches court requirements | “Review your filing”; live requirements | Shared copy; court requirements are separate from curated notices | Yes for ordinary copy; court owns requirements |
@@ -55,17 +62,23 @@ to their agreed project contact or open a repository issue.
 
 Every key below is nested under `text` in State YAML. The English default lives
 in [ui_text.py](https://github.com/SuffolkLITLab/LITEFile/blob/main/efile_app/efile/utils/ui_text.py).
-An omitted or empty override uses that default. These hooks are jurisdiction-wide;
+An omitted override uses that default. An empty string (`""`) hides the passage;
+keys whose default is empty show nothing until a state sets them. These hooks are jurisdiction-wide;
 putting `text` under a court does not create a court-specific override.
 
 | Key under `text` | English fallback | Markdown links? |
 | --- | --- | --- |
 | `upload_documents.preparation_help` | Upload your files as they are. We make PDF copies for court. | Yes |
 | `upload_documents.preparation_help_unflattened` | We turn Word files into PDFs. You can check them next. | Yes |
+| `upload_documents.court_rules_intro` | Before you upload your documents, please read the following rules that apply to all courts. The court you file into may have more rules that we will show you before you send your documents to the court. | Yes |
+| `upload_documents.document_rules_help` | *(empty: not shown)* | Yes |
+| `upload_documents.order_help` | *(empty: not shown)* | Yes |
 | `terms.starting_document_example` | petition | No |
 | `terms.main_document` | main document | No |
 | `organize_documents.main_document_question` | Which PDF is the `{main_document}`? | No |
 | `organize_documents.main_document_help` | Choose the document that starts this filing, like a `{starting_document_example}`. | Yes |
+| `organize_documents.document_name_help` | *(empty: not shown)* | Yes |
+| `organize_documents.filing_type_help` | *(empty: not shown)* | Yes |
 | `organize_documents.filing_component_label` | Court filing component | No |
 | `organize_documents.filing_component_help` | The court may call more than one PDF a “Lead Document”. This is separate from your `{main_document}`. | Yes |
 | `organize_documents.filing_component_fixed_note` | Required by the court. | No |
@@ -81,6 +94,11 @@ putting `text` under a court does not create a court-specific override.
 | `extraction_review.court_help` | Choose the court that should receive this filing. | Yes |
 | `extraction_review.case_category_label` | Case category | No |
 | `extraction_review.case_category_help` | Choose the broad category that best describes the case. | Yes |
+| `extraction_review.marker_meaning` | A * marks an answer found in your document. | Yes |
+| `extraction_review.marker_caution` | It may be wrong. Check it and fix any mistakes. | Yes |
+| `extraction_review.helper_prompt_prefilled` | We filled in what we could. Something wrong? | No |
+| `payment.exemption_heading` | Claim your case’s fee exemption | No |
+| `payment.waiver_documents_warning` | The court may reject your waiver request if you do not include the required forms. | Yes |
 | `your_information.lede` | Check your name and contact information. | Yes |
 | `parties.role_question` | What is your role in this case? | No |
 | `parties.role_help` | Look for your role next to your name on the court documents. | Yes |

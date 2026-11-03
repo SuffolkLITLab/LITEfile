@@ -19,8 +19,8 @@ after you choose a payment method. You are not charged on this screen.
 
 ## Pay with a card or bank account
 
-1. Under **Payment method**, choose **Use a credit or bank account**.
-2. Pick a saved card or account. Or choose **Add credit or bank account** and
+1. Under **Payment method**, choose **Use a credit card or bank account**.
+2. Pick a saved card or account. Or choose **Add credit card or bank account** and
    follow the steps.
 3. Wait for **Confirmed fees** to show the total.
 4. Choose **Review your filing**.

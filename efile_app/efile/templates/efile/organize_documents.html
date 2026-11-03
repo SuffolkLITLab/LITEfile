@@ -6,6 +6,8 @@
     {% translate "Organize your documents" %}
 {% endblock title %}
 {% block workflow_content %}
+    {% ui_text "organize_documents.document_name_help" as document_name_help %}
+    {% ui_text "organize_documents.filing_type_help" as filing_type_help %}
     <section class="workflow-card">
         <h1>{% translate "Organize your documents" %}</h1>
         {% include "efile/partials/filing_guidance.html" %}
@@ -92,15 +94,24 @@
                                 <input class="form-control document-name"
                                        value="{{ document.name|default:document.original_filename }}"
                                        maxlength="255"
+                                       {% if document_name_help %}aria-describedby="document-name-help-{{ document.pk }}"{% endif %}
                                        required />
                             </label>
+                            {% if document_name_help %}
+                                <small class="form-help" id="document-name-help-{{ document.pk }}">{{ document_name_help }}</small>
+                            {% endif %}
                             {% if document.role == "lead" %}<p class="filing-suggestion-message" role="status" hidden></p>{% endif %}
                             <label class="form-field">
                                 <span>{% translate "Filing code" %}</span>
-                                <select class="form-select filing-type" required>
+                                <select class="form-select filing-type"
+                                        {% if filing_type_help %}aria-describedby="filing-type-help-{{ document.pk }}"{% endif %}
+                                        required>
                                     <option value="">{% translate "Loading filing codes…" %}</option>
                                 </select>
                             </label>
+                            {% if filing_type_help %}
+                                <small class="form-help" id="filing-type-help-{{ document.pk }}">{{ filing_type_help }}</small>
+                            {% endif %}
                             {% if organize_context.existing_case == "yes" %}
                                 <details class="filing-type-finder">
                                     <summary>{% translate "Find my filing code" %}</summary>

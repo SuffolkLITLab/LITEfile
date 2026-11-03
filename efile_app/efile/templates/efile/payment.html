@@ -48,10 +48,10 @@
         {% if fee_estimate.waiver_exemption.requires_waiver_account %}
             <aside class="alert alert-info"
                    aria-labelledby="statutory-exemption-heading">
-                <h2 id="statutory-exemption-heading">{% translate "Claim your case’s fee exemption" %}</h2>
+                <h2 id="statutory-exemption-heading">{% ui_text "payment.exemption_heading" %}</h2>
                 <p>{{ fee_estimate.waiver_exemption.note }}</p>
                 <p>{% translate "We will add a waiver payment account if you do not have one. You do not need a fee waiver application." %}</p>
-                <p>{% translate "If you choose a credit or bank account instead, service and processing fees may apply." %}</p>
+                <p>{% translate "If you choose a credit card or bank account instead, service and processing fees may apply." %}</p>
                 {% if fee_estimate.waiver_exemption.source_url %}
                     <a href="{{ fee_estimate.waiver_exemption.source_url }}"
                        target="_blank"
@@ -113,14 +113,15 @@
                                type="radio"
                                name="paymentIntent"
                                value="pay" />
-                        <span id="paid-account-label">{% translate "Use a credit or bank account" %}</span>
+                        <span id="paid-account-label">{% translate "Use a credit card or bank account" %}</span>
                     </label>
                 </div>
                 <div id="waiverHelp" hidden>
                     {% if not fee_estimate.waiver_exemption.requires_waiver_account %}
                         <div id="waiver-upload-required"
                              {% if has_waiver_document %}hidden{% endif %}>
-                            <p>{% translate "The court may reject your waiver request if you do not include the required forms." %}</p>
+                            {% ui_text "payment.waiver_documents_warning" as waiver_documents_warning %}
+                            {% if waiver_documents_warning %}<p>{{ waiver_documents_warning }}</p>{% endif %}
                             <p>{% if fee_waiver.document_guidance %}{{ fee_waiver.document_guidance|inline_markdown }}{% else %}{% translate "Include your fee waiver form or a court order that waives your fees." %}{% endif %}</p>
                             <div id="waiver-upload-prompt">
                                 <button type="button"

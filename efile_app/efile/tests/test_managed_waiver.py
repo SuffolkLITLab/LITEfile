@@ -263,13 +263,17 @@ def test_vermont_payment_and_review_use_real_exemption_estimate(client, payment_
         assert result.status_code == 200
         body = result.content.decode()
         # JSON carries the note too; count only its visible paragraph.
-        assert body.count("<p>For this type of case, choose a waiver payment account") == int(exempt)
+        assert body.count("<p>Vermont courts do not charge fees for this type of case.") == int(exempt)
         assert ('id="add-waiver-document"' not in body) is exempt
         assert ('class="fee-waiver-eligibility"' not in body) is exempt
         assert ("Read about this fee exemption" in body) is (exempt and code != "6177")
         assert ("I think I qualify for a fee waiver" in body) is not exempt
+        assert ("No court fees for this type of case" in body) is exempt
+        # Vermont's waiver guidance already gives this warning, so it is hidden.
+        assert "The court may reject your waiver request" not in body
         if code == "unverified-zero":
             assert "$14.40–$15.00" in body
+            assert "the first time you file in a case." in body
         review = client.get(reverse("case_review", kwargs={"jurisdiction": "vermont"}))
         assert review.status_code == 200
         assert ("Fee exemption claimed: $0 due now." in review.content.decode()) is exempt
