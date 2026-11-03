@@ -39,6 +39,10 @@ A page that says **Your filing was sent to the court**, with a
 
 **Sent does not mean accepted.** A clerk still needs to review your papers.
 
+**Have a deadline?** In many courts, if the clerk accepts your papers, they
+count as filed when you submitted them. Ask the clerk about your court's rule.
+Don't wait until the last day.
+
 ## If something is different
 
 - **"Before you can submit" list:** Fix each item it lists. Then try again.

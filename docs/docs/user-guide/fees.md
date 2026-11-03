@@ -59,6 +59,7 @@ What to include depends on your state. LITEfile tells you on this screen:
 - **Illinois:** Include your waiver application, or a waiver order you already
   have. An order usually lasts 12 months.
 - **Massachusetts:** Include an Affidavit of Indigency each time you file.
+  This is a signed form that says you can't afford court fees.
 - **Vermont:** Include your waiver form or order. Ask the court if an
   earlier order covers this filing.
 
