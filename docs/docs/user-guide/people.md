@@ -50,8 +50,12 @@ names here.
 ## Filing for someone else
 
 If you are not a party, choose **I am not one of the parties — I am filing for
-someone else**. Then pick who you are filing for. Usually, only a lawyer may
-file court papers for another adult. Ask a help center before you do this.
+someone else**. Then pick who you are filing for.
+
+You can do this if the person asked you to help, like a parent who wants a
+family member to send their papers. The papers must be theirs, and they must
+sign them. Unless you are a lawyer, you can't give them legal advice or speak
+for them in court.
 
 ## What you should see
 
