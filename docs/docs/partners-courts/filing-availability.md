@@ -10,7 +10,7 @@ sidebar_position: 3
 Use court configuration to stop filings that LITEfile cannot support yet—for
 example, when a court requires hearing scheduling that the e-filing service
 does not provide. Filing is enabled by default. A restriction can cover a whole
-court or selected case categories, case types, and filing types.
+court or selected case categories, case types, and filing codes.
 
 Filers see a warning as soon as their selections match a restriction, before
 continuing to the remaining questions. The restriction controls filing through
@@ -63,7 +63,7 @@ All fields are optional. Omit `filing_availability` when no restriction is neede
 | `rules` | List; empty by default | Each matching rule blocks filing. Rules are evaluated in list order. |
 | `rules[].case_categories` | List of name matchers | Match the selected case category. |
 | `rules[].case_types` | List of name matchers | Match the selected case type. |
-| `rules[].filing_types` | List of name matchers | Match a filing type on any document in the envelope, including supporting documents. |
+| `rules[].filing_types` | List of name matchers | Match a filing code on any document in the envelope, including supporting documents. |
 | `rules[].message` | Plain-text string; court message if absent or empty | Explanation for this particular restriction. |
 
 A **name matcher** is either a literal string or a mapping with a `regex` string.
@@ -122,7 +122,7 @@ filing_types: ["Motion", "Notice of hearing"]
 ```
 
 A Complaint in the same case would not match. If its envelope also includes a
-supporting document with filing type Motion, the whole envelope is blocked.
+supporting document with filing code Motion, the whole envelope is blocked.
 To block all Contract cases **or** all Motions, use two separate rules instead.
 
 ## Examples
@@ -172,7 +172,7 @@ court_specific_requirements:
 
 The example in `states/illinois.yaml` is commented out. It is not an active
 restriction or a determination that all Contract filings require scheduling.
-If only particular filing types require scheduling, narrow the rule by adding
+If only particular filing codes require scheduling, narrow the rule by adding
 `filing_types` to the same rule:
 
 ```yaml
@@ -184,7 +184,7 @@ rules:
     message: "LITEfile does not support hearing scheduling for this filing yet."
 ```
 
-### Disable categories or filing types independently
+### Disable categories or filing codes independently
 
 Each of these rules is independent. This example blocks every filing in Small
 Claims and, in other categories, any envelope containing Notice of hearing:
@@ -257,7 +257,7 @@ not exempt it from a county-prefix restriction. There is no allow-rule override.
 
 ## What filers experience
 
-On the confirmation screen, changing a court, category, case type, or filing type
+On the confirmation screen, changing a court, category, case type, or filing code
 starts a live availability check. The warning appears beside the changed
 selection. Continue is disabled while the check is pending or the selection is
 blocked. Changing to an allowed selection clears the warning; late responses
@@ -286,7 +286,7 @@ before sending the filing. A whole-court restriction does not need a name lookup
 
 1. Confirm the affected court route keys and the exact names offered in the
    target environment. Decide whether to block the whole court, a category,
-   a case type, a filing type, or a combination.
+   a case type, a filing code, or a combination.
 2. Add the smallest appropriate restriction to the existing YAML entry. Keep
    other court settings intact and write a plain-text explanation when the
    built-in message is insufficient.

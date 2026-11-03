@@ -42,7 +42,7 @@ that all necessary forms are attached.
 
 ## Organize, check people and review fees
 
-Choose accurate court filing types and any required components. Mark a document
+Choose accurate court filing codes and any required components. Mark a document
 confidential only as required by the applicable court rule or order; ask the
 court if unsure. Review your role, party association, other people and notice
 address. Court-owned existing-case records cannot be freely rewritten.

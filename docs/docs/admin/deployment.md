@@ -185,7 +185,7 @@ can't touch shared data, and the role's read-only default refuses them unless a
 client turns read-only off, which LITEfile never does.
 
 A court whose revision is unchanged is not read again. A court that suddenly
-has no filing types usually means the proxy's update is half finished, so the
+has no filing codes usually means the proxy's update is half finished, so the
 copy stops and keeps the old one. Failed states are retried every 15 minutes
 (`--retry-interval 900`), then the schedule returns to daily. On startup, the
 worker syncs immediately if any jurisdiction has no current index. That is the

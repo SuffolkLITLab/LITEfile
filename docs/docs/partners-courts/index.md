@@ -33,7 +33,7 @@ efile_app/efile/static/config/
 ```
 
 - **Base configuration (`base-case-types.yaml`)**: Defines common party structures, input widgets, and default field validations.
-- **State configuration (`states/{jurisdiction}.yaml`)**: Inherits from base and specifies state court naming conventions, document checklists, filing type mappings, and court contact directories.
+- **State configuration (`states/{jurisdiction}.yaml`)**: Inherits from base and specifies state court naming conventions, document checklists, filing code mappings, and court contact directories.
 
 ---
 

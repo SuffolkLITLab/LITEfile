@@ -249,7 +249,7 @@ URL names the local submission UUID; it does not grant access. Help comes from
 court contact settings with jurisdiction fallback. Waiver wording appears only
 for a selected waiver account or a document whose filing-type name identifies
 a waiver, indigency or in-forma-pauperis request. A configured generic fallback
-filing type additionally needs explicit waiver provenance (the waiver checklist
+filing code additionally needs explicit waiver provenance (the waiver checklist
 item or an explicit-purpose upload). Include a waiver-named document with no
 waiver account in the review packet, as well as a generic fallback with and
 without that provenance. The line asks the filer to check the court’s decision;

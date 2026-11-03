@@ -81,7 +81,7 @@ Record representative searches in the asset's register entry, for example:
 | --- | --- | --- |
 | Illinois, new, name change | `change my name` | Current court choices; distinguish adult/child options without asserting eligibility |
 | Massachusetts, existing, housing | `summary process answer` | Existing-case context and appropriate local explanation; keep ambiguous results visible |
-| Vermont, new, civil | `complaint` | Inspect offered provider labels and unresolved #296 wording; do not invent an “authoritative” filing type |
+| Vermont, new, civil | `complaint` | Inspect offered provider labels and unresolved #296 wording; do not invent an “authoritative” filing code |
 | Any supported state | Nonsense query, unknown ZIP, then clear ZIP | Recoverable no-match/location state; statewide results return when filter cleared |
 
 The [ZIP rebuild script](https://github.com/SuffolkLITLab/LITEFile/blob/main/efile_app/scripts/build_zip_counties.py)

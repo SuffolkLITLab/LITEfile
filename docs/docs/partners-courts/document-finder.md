@@ -137,7 +137,7 @@ substantive approval scope/date separate from `links_checked_on`.
 
 ## 5. What the finder does not do
 
-- It does not choose a court, case type, or filing type. Signing in from a guide
+- It does not choose a court, case type, or filing code. Signing in from a guide
   returns to that selected guide (the #323 behavior), then "Start this filing"
   or "File into my case" starts an ordinary filing carrying only new/existing.
   Filer side, checklist selections and provider codes are not copied into the

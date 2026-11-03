@@ -78,7 +78,7 @@ does not itself correct a PDF or send another filing.
 1. Use the section **Edit** links to make the requested changes. They return to
    the same correction draft's Review screen.
 2. To replace a PDF, choose the saved document on Upload and upload one replacement.
-   Check the new filing PDF, its filing type and any other affected choices.
+   Check the new filing PDF, its filing code and any other affected choices.
    Use an available interview return link if the document must be changed there.
 3. Reconfirm payment or a waiver, check the current fees, and read and accept the
    court requirements before submitting again. Review explains any items that
