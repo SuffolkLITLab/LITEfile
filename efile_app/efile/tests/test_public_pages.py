@@ -71,7 +71,8 @@ def test_jurisdiction_about_page_shows_brand_title(client):
 
     assert response.status_code == 200
     content = response.content.decode()
-    assert "Illinois e-Filing" in content
+    assert '<span class="brand-title">Illinois</span>' in content
+    assert "Illinois e-Filing" not in content
     assert "Illinois Legal Aid Online (ILAO)" in content
     assert "logo-ilao.png" in content
     assert "logo-lsc.svg" in content
@@ -87,7 +88,8 @@ def test_vermont_about_shows_lsv_partner_logo(client):
 
     assert response.status_code == 200
     content = response.content.decode()
-    assert "Vermont e-Filing" in content
+    assert '<span class="brand-title">Vermont</span>' in content
+    assert "Vermont e-Filing" not in content
     assert "Legal Services Vermont (LSV)" in content
     assert "logo-lsv.png" in content
     assert "logo-lsc.svg" in content
@@ -154,7 +156,8 @@ def test_about_page_carries_filing_menu_when_signed_in(client, django_user_model
     content = response.content.decode()
     assert "Start filing" in content
     assert "My draft e-filings" in content
-    assert "Illinois e-Filing" in content
+    assert '<span class="brand-title">Illinois</span>' in content
+    assert "Illinois e-Filing" not in content
 
 
 @pytest.mark.django_db(False)

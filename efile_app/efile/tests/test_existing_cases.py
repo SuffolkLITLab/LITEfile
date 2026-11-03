@@ -731,3 +731,26 @@ def test_blocked_confirmation_still_shows_the_court_roster(imported, client, mon
     assert response.status_code == 422
     assert b"unrecognized court role" in response.content
     assert b"Already on the court case" in response.content
+
+
+@pytest.mark.django_db
+def test_claiming_a_court_party_hides_only_the_account_roster_row(imported, client, monkeypatch):
+    monkeypatch.setattr("efile.views.parties.get_party_types", lambda draft: [])
+    url = reverse("parties", kwargs={"jurisdiction": "illinois"})
+    filer = imported.parties.get(role="filer")
+    before = client.get(url)
+    assert filer.pk in [item["party"].pk for item in before.context["roster"]]
+    party = imported.parties.filter(source="court").first()
+    original_identity = (party.pk, party.first_name, party.external_party_id)
+    response = client.post(url, {"action": "claim_party", "party_id": party.pk}, follow=True)
+    assert response.status_code == 200
+    shown = [item["party"].pk for item in response.context["roster"]]
+    assert filer.pk not in shown
+    assert response.context["has_linked_party"]
+    assert not next(item for item in response.context["roster"] if item["party"].pk == party.pk)["claimable"]
+    assert set(shown) == set(imported.parties.exclude(role="filer").values_list("pk", flat=True))
+    party.refresh_from_db()
+    assert (party.pk, party.first_name, party.external_party_id) == original_identity
+    assert party.is_self and party.is_filing_party
+    filer.refresh_from_db()
+    assert filer.email == "contact@example.com"

@@ -310,6 +310,17 @@ def intent_detail(jurisdiction: str, intent_id: str) -> dict[str, Any] | None:
             }
         )
 
+    resources = _clean_resources(intent.get("resources"), f"{jurisdiction}.document_finder.{intent_id}")
+    if not config_loader.document_checklists_enabled(jurisdiction):
+        # Keep individual form links available without presenting them as a checklist.
+        seen = {resource["url"] for resource in resources}
+        for items in groups.values():
+            for item in items:
+                for resource in item["resources"]:
+                    if resource["url"] not in seen:
+                        resources.append(resource)
+                        seen.add(resource["url"])
+
     return {
         **_summary(jurisdiction, intent_id, intent),
         "groups": [
@@ -318,7 +329,7 @@ def intent_detail(jurisdiction: str, intent_id: str) -> dict[str, Any] | None:
             if items
         ],
         "guidance": guidance_for_entry(entry, filer_role),
-        "resources": _clean_resources(intent.get("resources"), f"{jurisdiction}.document_finder.{intent_id}"),
+        "resources": resources,
         "court_variants": _court_variants(jurisdiction, intent, checklist),
     }
 

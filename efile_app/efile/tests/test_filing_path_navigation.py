@@ -174,6 +174,7 @@ def test_an_older_draft_that_does_not_say_how_it_started_keeps_the_question(sign
 
 
 @pytest.mark.django_db
+@pytest.mark.usefixtures("enabled_document_checklists")
 def test_a_plan_start_goes_back_to_the_start_page(signed_in, user, monkeypatch):
     plan = FilingPlan.objects.create(user=user, jurisdiction="illinois", title="Small claims")
     created = FilingDraft.objects.create(

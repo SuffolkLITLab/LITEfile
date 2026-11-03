@@ -396,6 +396,7 @@ def test_unknown_intent_is_not_found(client):
 
 
 @pytest.mark.django_db
+@pytest.mark.usefixtures("enabled_document_checklists")
 def test_intent_page_shows_checklist_and_labelled_external_links(client):
     content = client.get(_intent_url("respond_to_an_eviction")).content.decode()
 
@@ -441,6 +442,7 @@ def test_sign_in_returns_to_selected_guide(client, user):
 
 
 @pytest.mark.django_db
+@pytest.mark.usefixtures("enabled_document_checklists")
 def test_intent_page_lists_what_particular_courts_add(client):
     content = client.get(_intent_url("evict_a_tenant")).content.decode()
 

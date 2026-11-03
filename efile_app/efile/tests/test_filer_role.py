@@ -15,6 +15,8 @@ from efile.services.people import guess_filer_party_type
 from efile.tests.helpers import reviewed_document
 from efile.workflow import ExistingCase, WorkflowStepKey
 
+pytestmark = pytest.mark.usefixtures("enabled_document_checklists")
+
 CHECKLIST_URL = reverse("document_checklist", kwargs={"jurisdiction": "illinois"})
 EXTRACTION_URL = reverse("extraction_review", kwargs={"jurisdiction": "illinois"})
 ROLES_URL = reverse("api:filer_roles")

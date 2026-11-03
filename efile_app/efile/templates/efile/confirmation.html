@@ -71,7 +71,7 @@
                class="btn btn-primary">
                 <i class="fas fa-list-check me-2" aria-hidden="true"></i>{% translate "View filing status" %}
             </a>
-            {% if draft.plan_id %}
+            {% if draft.plan_id and document_checklists_enabled %}
                 <form method="post"
                       action="{% url 'start_filing_from_plan' jurisdiction draft.plan_id %}">
                     {% csrf_token %}

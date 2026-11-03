@@ -218,14 +218,14 @@ const PaymentPage = {
             const addHelp = bankUnavailable ? gettext("Add a credit card to continue.") : gettext("Add a credit or bank account to continue.");
             const noAccountHelp = accounts.length ? "" : `<p>${addHelp}</p>`;
             container.innerHTML = `${noAccountHelp}<div class="compact-choice-list">${rows}</div>
-                <button type="button" class="btn btn-outline-primary mt-2" id="add-payment-method">${addLabel}</button>`;
+                <button type="button" class="btn btn-outline-primary mt-2" id="add-payment-method" aria-haspopup="dialog">${addLabel}</button>`;
             container.querySelectorAll('input[name="paymentMethod"]').forEach((input) => {
                 input.addEventListener("change", () => this.selectAndQuote());
             });
             container.querySelectorAll(".remove-payment-method").forEach((button) => {
                 button.addEventListener("click", () => this.removeAccount(button));
             });
-            document.getElementById("add-payment-method").addEventListener("click", () => this.addAccount());
+            document.getElementById("add-payment-method").addEventListener("click", () => document.getElementById("payment-gateway-dialog").showModal());
             if (accounts.length) await this.selectAndQuote();
         } catch {
             if (requestId === this.quoteRequestId) {
@@ -372,6 +372,27 @@ const PaymentPage = {
     },
 
     async init() {
+        const gatewayDialog = document.getElementById("payment-gateway-dialog");
+        document.getElementById("cancel-payment-gateway").addEventListener("click", () => gatewayDialog.close());
+        document.getElementById("confirm-payment-gateway").addEventListener("click", async () => {
+            if (this.addingAccount) return;
+            this.addingAccount = true;
+            gatewayDialog.close();
+            const button = document.getElementById("add-payment-method");
+            const label = button.textContent;
+            button.disabled = true;
+            button.textContent = gettext("Opening payment provider…");
+            try {
+                await this.addAccount();
+            } catch {
+                paymentMessages.showError(gettext("We could not open the payment provider’s website. Please try again."));
+            } finally {
+                this.addingAccount = false;
+                button.disabled = false;
+                button.textContent = label;
+                button.focus();
+            }
+        });
         const status = new URLSearchParams(window.location.search).get("payment_status");
         if (status === "failure") paymentMessages.showError(gettext("The payment method was not added."));
         if (status === "success") paymentMessages.showSuccess(gettext("Payment method added."));

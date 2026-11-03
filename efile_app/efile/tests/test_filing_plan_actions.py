@@ -26,6 +26,8 @@ from efile.services.filing_plans import (
 from efile.tests.helpers import reviewed_document
 from efile.workflow import ExistingCase, WorkflowStepKey
 
+pytestmark = pytest.mark.usefixtures("enabled_document_checklists")
+
 CHECKLIST_URL = reverse("document_checklist", kwargs={"jurisdiction": "illinois"})
 PLANS_URL = reverse("filing_plans", kwargs={"jurisdiction": "illinois"})
 

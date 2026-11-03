@@ -1,6 +1,9 @@
 # Illinois-specific Case Type Configuration
 # This file extends the base configuration with Illinois-specific settings
 
+# Pause suggested-document checklists without deleting saved plans or guidance.
+document_checklists_enabled: false
+
 # High level metadata
 jurisdiction:
   name: "Illinois eFile"

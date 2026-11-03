@@ -19,6 +19,8 @@ from efile.services.filing_plans import (
 from efile.tests.helpers import reviewed_document
 from efile.workflow import ExistingCase, WorkflowStepKey
 
+pytestmark = pytest.mark.usefixtures("enabled_document_checklists")
+
 
 @pytest.fixture
 def user(django_user_model):

@@ -41,6 +41,7 @@ def confirm(client, draft, document):
     )
 
 
+@pytest.mark.usefixtures("enabled_document_checklists")
 def test_uploading_for_an_item_lands_on_its_check(client, signed_in):
     def upload(draft, files, jurisdiction, **kwargs):
         new_file(draft)

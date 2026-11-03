@@ -36,50 +36,55 @@
             {% include "efile/components/finder_resources.html" with resources=intent.resources %}
         </section>
     {% endif %}
-    <section class="document-plan finder-checklist"
-             aria-labelledby="finder-checklist-heading">
-        <h2 id="finder-checklist-heading">{% translate "Documents filings like this often include" %}</h2>
-        {% if intent.groups %}
-            <p class="document-plan__lede">{% translate "Your case may need more or fewer. Nothing here is required to start a filing." %}</p>
-            {% include "efile/components/plan_about.html" with guidance=intent.guidance panel_id="finder-about" %}
-            {% for group in intent.groups %}
-                <section class="document-plan__group"
-                         aria-labelledby="finder-level-{{ group.requirement }}">
-                    <h3 class="document-plan__level document-plan__level--{{ group.requirement }}"
-                        id="finder-level-{{ group.requirement }}">{{ group.label }}</h3>
-                    <ul class="finder-items">
-                        {% for item in group.items %}
-                            <li class="document-plan__item finder-item">
-                                <span>
+    {% if document_checklists_enabled %}
+        <section class="document-plan finder-checklist"
+                 aria-labelledby="finder-checklist-heading">
+            <h2 id="finder-checklist-heading">{% translate "Documents filings like this often include" %}</h2>
+            {% if intent.groups %}
+                <p class="document-plan__lede">{% translate "Your case may need more or fewer. Nothing here is required to start a filing." %}</p>
+                {% include "efile/components/plan_about.html" with guidance=intent.guidance panel_id="finder-about" %}
+                {% for group in intent.groups %}
+                    <section class="document-plan__group"
+                             aria-labelledby="finder-level-{{ group.requirement }}">
+                        <h3 class="document-plan__level document-plan__level--{{ group.requirement }}"
+                            id="finder-level-{{ group.requirement }}">{{ group.label }}</h3>
+                        <ul class="finder-items">
+                            {% for item in group.items %}
+                                <li class="document-plan__item finder-item">
+                                    <span>
+                                        <strong>{{ item.label }}</strong>
+                                        {% if item.description %}<small>{{ item.description }}</small>{% endif %}
+                                        {% if item.resources %}
+                                            {% include "efile/components/finder_resources.html" with resources=item.resources %}
+                                        {% endif %}
+                                    </span>
+                                </li>
+                            {% endfor %}
+                        </ul>
+                    </section>
+                {% endfor %}
+                {% if intent.court_variants %}
+                    <div class="finder-variants">
+                        <h3>{% translate "Some courts also ask for" %}</h3>
+                        <ul>
+                            {% for item in intent.court_variants %}
+                                <li>
                                     <strong>{{ item.label }}</strong>
                                     {% if item.description %}<small>{{ item.description }}</small>{% endif %}
-                                    {% if item.resources %}
-                                        {% include "efile/components/finder_resources.html" with resources=item.resources %}
-                                    {% endif %}
-                                </span>
-                            </li>
-                        {% endfor %}
-                    </ul>
-                </section>
-            {% endfor %}
-            {% if intent.court_variants %}
-                <div class="finder-variants">
-                    <h3>{% translate "Some courts also ask for" %}</h3>
-                    <ul>
-                        {% for item in intent.court_variants %}
-                            <li>
-                                <strong>{{ item.label }}</strong>
-                                {% if item.description %}<small>{{ item.description }}</small>{% endif %}
-                            </li>
-                        {% endfor %}
-                    </ul>
-                </div>
+                                </li>
+                            {% endfor %}
+                        </ul>
+                    </div>
+                {% endif %}
+            {% else %}
+                <p>{% translate "We do not have a document list for this yet." %}</p>
+                {% include "efile/components/finder_help.html" %}
             {% endif %}
-        {% else %}
-            <p>{% translate "We do not have a document list for this yet." %}</p>
-            {% include "efile/components/finder_help.html" %}
-        {% endif %}
-    </section>
+        </section>
+    {% endif %}
+    {% if not document_checklists_enabled %}
+        {% include "efile/components/finder_help.html" %}
+    {% endif %}
     <section class="finder-next" aria-labelledby="finder-next-heading">
         <h2 id="finder-next-heading">{% translate "Ready to file?" %}</h2>
         {% if return_url %}

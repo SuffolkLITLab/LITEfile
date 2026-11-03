@@ -94,6 +94,7 @@ def planned_draft(document_draft):
 
 
 @pytest.mark.django_db
+@pytest.mark.usefixtures("enabled_document_checklists")
 def test_document_checklist_shows_configured_guidance(client, planned_draft):
     response = client.get(reverse("document_checklist", kwargs={"jurisdiction": "illinois"}))
 
@@ -123,6 +124,7 @@ def test_document_checklist_hides_its_disclaimer_without_configured_guidance(cli
 
 
 @pytest.mark.django_db
+@pytest.mark.usefixtures("enabled_document_checklists")
 def test_document_checklist_saves_gathered_documents(client, planned_draft):
     response = client.post(
         reverse("document_checklist", kwargs={"jurisdiction": "illinois"}),
@@ -139,6 +141,7 @@ def test_document_checklist_saves_gathered_documents(client, planned_draft):
 
 
 @pytest.mark.django_db
+@pytest.mark.usefixtures("enabled_document_checklists")
 def test_document_checklist_saves_gathered_documents_when_continuing(client, planned_draft):
     response = client.post(
         reverse("document_checklist", kwargs={"jurisdiction": "illinois"}),
@@ -152,6 +155,7 @@ def test_document_checklist_saves_gathered_documents_when_continuing(client, pla
 
 
 @pytest.mark.django_db
+@pytest.mark.usefixtures("enabled_document_checklists")
 def test_document_checklist_continues_with_every_item_unticked(client, planned_draft):
     response = client.post(reverse("document_checklist", kwargs={"jurisdiction": "illinois"}), {})
 

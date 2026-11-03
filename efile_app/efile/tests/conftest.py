@@ -64,3 +64,16 @@ def payment_validation(monkeypatch):
     monkeypatch.setattr("efile.views.submission.validate_filing_payment", lambda *args: {})
     monkeypatch.setattr("efile.services.court_payments.bank_payment_policy", lambda *args: "allowed")
     monkeypatch.setattr("efile.api.auth_views.bank_payment_policy", lambda *args: "allowed")
+
+
+@pytest.fixture
+def enabled_document_checklists(monkeypatch):
+    """Exercise the optional checklist feature even while Illinois has it paused."""
+    from efile.utils.config_loader import config_loader
+
+    load = config_loader.load_jurisdiction_config
+
+    def enabled(jurisdiction):
+        return {**(load(jurisdiction) or {}), "document_checklists_enabled": True}
+
+    monkeypatch.setattr(config_loader, "load_jurisdiction_config", enabled)

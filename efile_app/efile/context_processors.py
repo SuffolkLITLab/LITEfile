@@ -31,4 +31,5 @@ def jurisdiction_context(request):
     return {
         "jurisdiction": current_jurisdiction,
         "config": config,
+        "document_checklists_enabled": config.get("document_checklists_enabled", True) is not False,
     }
