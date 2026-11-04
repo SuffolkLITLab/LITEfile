@@ -184,8 +184,8 @@ async function main() {
                     path: path.join(config.evidence, `${scenario.name}-confirm.png`),
                     fullPage: true
                 });
-                await page.locator("#reviewed_extraction").check();
-                await page.locator("#proposed-filing-type").fill(scenario.correction);
+                assert.equal(await page.locator("#filing-proposal input[type='text']").count(), 0);
+                if (scenario.rejectGuess) await page.locator("#reject-filing-proposal").check();
                 await page.getByRole("button", {
                     name: "Continue",
                     exact: true
@@ -220,6 +220,9 @@ async function main() {
                 if (scenario.name === "modern") {
                     assert.match(await page.locator(".filing-suggestion-message").innerText(), /not on the court’s list/);
                     assert.equal(await page.locator(".filing-type").inputValue(), "");
+                } else if (scenario.rejectGuess) {
+                    assert.equal(await page.locator(".filing-suggestion-message").isVisible(), false);
+                    assert.equal(await page.locator(".filing-type").inputValue(), "");
                 } else {
                     assert.equal(await page.locator(".filing-type").inputValue(), "motion");
                 }
@@ -252,8 +255,7 @@ async function main() {
                 assert.equal((await saved).status(), 200);
                 await page.waitForURL(/your-information/);
                 await page.goto(config.baseUrl + scenario.url);
-                assert.equal(await page.locator("#reviewed_extraction").count(), 0);
-                assert.equal(await page.locator("#proposed-filing-type").inputValue(), scenario.correction);
+                assert.equal(await page.locator("#reject-filing-proposal").isChecked(), scenario.rejectGuess);
                 assert.deepEqual(errors, []);
                 console.log(`${scenario.name} passed`);
             } catch (error) {

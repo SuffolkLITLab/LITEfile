@@ -142,7 +142,6 @@ def test_review_screen_saves_the_names_as_sides_not_court_codes(client, review_d
     response = client.post(
         reverse("extraction_review", kwargs={"jurisdiction": "illinois"}),
         {
-            "reviewed_extraction": "yes",
             "existing_case": ExistingCase.NEW,
             "court_code": "cook:cvd1",
             "case_category_code": "civil",
@@ -184,7 +183,6 @@ def test_review_screen_keeps_an_address_while_a_name_is_corrected(client, review
     client.post(
         reverse("extraction_review", kwargs={"jurisdiction": "illinois"}),
         {
-            "reviewed_extraction": "yes",
             "existing_case": ExistingCase.NEW,
             "court_code": "cook:cvd1",
             "case_category_code": "civil",
@@ -214,7 +212,6 @@ def test_review_screen_deletes_a_party_the_filer_removed(client, review_draft):
     client.post(
         reverse("extraction_review", kwargs={"jurisdiction": "illinois"}),
         {
-            "reviewed_extraction": "yes",
             "existing_case": ExistingCase.NEW,
             "court_code": "cook:cvd1",
             "case_category_code": "civil",
@@ -239,7 +236,6 @@ def test_review_screen_keeps_typed_names_when_the_case_answer_is_missing(client,
     response = client.post(
         reverse("extraction_review", kwargs={"jurisdiction": "illinois"}),
         {
-            "reviewed_extraction": "yes",
             "party_id": [""],
             "party_name": ["Alexis Rivera"],
             "party_side": [PartySide.INITIATING],
@@ -505,7 +501,6 @@ def test_the_review_screen_records_which_person_is_the_filer(client, review_draf
     client.post(
         reverse("extraction_review", kwargs={"jurisdiction": "illinois"}),
         {
-            "reviewed_extraction": "yes",
             "existing_case": ExistingCase.NEW,
             "court_code": "cook:cvd1",
             "case_category_code": "civil",
@@ -531,7 +526,6 @@ def test_only_one_person_can_be_the_filer(client, review_draft):
     client.post(
         reverse("extraction_review", kwargs={"jurisdiction": "illinois"}),
         {
-            "reviewed_extraction": "yes",
             "existing_case": ExistingCase.NEW,
             "court_code": "cook:cvd1",
             "case_category_code": "civil",
@@ -589,7 +583,6 @@ def test_a_company_ticked_as_you_is_not_recorded_as_you(client, review_draft):
     client.post(
         reverse("extraction_review", kwargs={"jurisdiction": "illinois"}),
         {
-            "reviewed_extraction": "yes",
             "existing_case": ExistingCase.NEW,
             "court_code": "cook:cvd1",
             "case_category_code": "civil",
@@ -616,7 +609,6 @@ def test_a_company_does_not_use_up_the_one_slot_for_you(client, review_draft):
     client.post(
         reverse("extraction_review", kwargs={"jurisdiction": "illinois"}),
         {
-            "reviewed_extraction": "yes",
             "existing_case": ExistingCase.NEW,
             "court_code": "cook:cvd1",
             "case_category_code": "civil",

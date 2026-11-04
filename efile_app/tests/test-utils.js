@@ -177,9 +177,6 @@ async function choosePayByAccount(page) {
  * by side, and it is populated asynchronously after the taxonomy choices.
  */
 async function continueFromExtractionReview(page, nextUrl = /\/(document-checklist|case-lookup)\//) {
-    const reviewed = page.locator('input[name="reviewed_extraction"]');
-    if (await reviewed.count()) await reviewed.check();
-
     const roleField = page.locator('#filer-role-field');
     if (await roleField.count()) {
         await page.waitForLoadState('networkidle', {

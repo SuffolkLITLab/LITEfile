@@ -13,12 +13,17 @@ def current_proposal(draft):
     return {"name": str(name), "source": "ai"} if name else None
 
 
-def save_proposal(draft, name):
-    previous = current_proposal(draft) or {}
-    name = str(name or "").strip()[:255]
+def set_proposal_rejected(draft, rejected):
+    """Record whether the filer set the suggestion aside to choose on their own.
+
+    The suggestion is kept rather than cleared so the filer can change their mind.
+    """
+    proposal = current_proposal(draft)
+    if not proposal or not proposal.get("name") or bool(proposal.get("rejected")) == rejected:
+        return
     draft.filing_type_proposal = {
-        "name": name,
-        "source": previous.get("source", "ai") if name == previous.get("name", "") else "user",
+        **proposal,
+        "rejected": rejected,
         "source_fingerprint": extraction_review_fingerprint(draft),
     }
     draft.save(update_fields=["filing_type_proposal", "updated_at"])
@@ -26,7 +31,7 @@ def save_proposal(draft, name):
 
 def resolve_proposal(draft, choices):
     proposal = current_proposal(draft)
-    if not proposal or not proposal.get("name"):
+    if not proposal or not proposal.get("name") or proposal.get("rejected"):
         return {"status": "none"}
     name = " ".join(proposal["name"].split()).casefold()
     matches = [choice for choice in choices if " ".join(choice["text"].split()).casefold() == name]

@@ -1677,7 +1677,6 @@ test.describe('guided court questions (Vermont-shaped)', () => {
     }) => {
         await mockCourtLists(page);
         await openSavedDraft(page);
-        await page.locator('#reviewed_extraction').check();
 
         await page.locator('[data-change="unit"]').click();
         await page.locator('#court-step-unit').selectOption('vt:orange');
