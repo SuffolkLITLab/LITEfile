@@ -105,7 +105,6 @@ def small_claims(draft, **values):
 
 def confirm(client, **overrides):
     data = {
-        "reviewed_extraction": "yes",
         "court_code": "vt:washington",
         "court_name": "Washington Unit",
         "case_category_code": "small",
@@ -342,21 +341,21 @@ def test_an_unchanged_answer_from_review_still_returns_to_review(signed_in):
 
 @pytest.mark.django_db
 def test_a_different_answer_sent_back_with_an_error_keeps_the_question_open(signed_in):
-    draft = start_from_menu(signed_in, ExistingCase.NEW)
-    lead_with_evidence(draft, phase="subsequent")
+    draft = start_from_menu(signed_in, ExistingCase.EXISTING)
+    lead_with_evidence(draft, phase="initial")
 
-    response = signed_in.post(CONFIRM_URL, {"existing_case": ExistingCase.EXISTING})  # no acknowledgement
+    response = signed_in.post(CONFIRM_URL, {"existing_case": ExistingCase.NEW})  # no court or case type
 
     content = response.content.decode()
     assert response.status_code == 200
     assert re.search(r'<fieldset class="path-confirmation"\s+id="path-question"\s*>', content)
-    assert re.search(r'name="existing_case"\s+value="existing"\s+checked', content)
-    # Existing is what the document suggests, so there is nothing to point out;
+    assert re.search(r'name="existing_case"\s+value="new"\s+checked', content)
+    # New is what the document suggests, so there is nothing to point out;
     # the note must not describe the saved answer the filer just replaced.
     assert 'id="path-conflict"' not in content
-    assert "You chose to start a new case" not in content
+    assert "You chose to file in an existing case" not in content
     draft.refresh_from_db()
-    assert draft.existing_case == ExistingCase.NEW
+    assert draft.existing_case == ExistingCase.EXISTING
 
 
 @pytest.mark.django_db

@@ -138,64 +138,6 @@ test.describe('authenticated dialog behavior', () => {
     });
 });
 
-test.describe('confirm-filing acknowledgement error', () => {
-    test.use({
-        storageState: process.env.A11Y_STORAGE_STATE
-    });
-
-    const url = '/jurisdiction/illinois/extraction-review/';
-
-    async function continueFromBottom(page, activate) {
-        await page.goto(url, {
-            waitUntil: 'networkidle'
-        });
-        const checkbox = page.locator('#reviewed_extraction');
-        await expect(checkbox).not.toBeChecked();
-        // Where a filer actually is when they press Continue: past the checkbox.
-        await page.evaluate(() => window.scrollTo(0, document.body.scrollHeight));
-        const submit = page.locator('#extraction-review-form button[type="submit"]');
-        await activate(submit);
-        return checkbox;
-    }
-
-    async function expectErrorShownAndFocused(page, checkbox) {
-        const error = page.locator('#reviewed-extraction-error');
-        await expect(error).toBeVisible();
-        await expect(error).toHaveText('Check these details against your document, then check the box.');
-        await expect(checkbox).toBeFocused();
-        await expect(checkbox).toHaveAttribute('aria-invalid', 'true');
-        await expect(checkbox).toHaveAttribute('aria-describedby', 'reviewed-extraction-error');
-        await expect(checkbox).toBeInViewport();
-        await expect(page).toHaveURL(routePattern(url));
-    }
-
-    test('mouse: Continue from the bottom shows and focuses the error', async ({
-        page
-    }) => {
-        const checkbox = await continueFromBottom(page, submit => submit.click());
-        await expectErrorShownAndFocused(page, checkbox);
-        await audit(page, 'confirm filing acknowledgement error', '#extraction-acknowledgment');
-
-        await checkbox.check();
-        await expect(page.locator('#reviewed-extraction-error')).toBeHidden();
-        await expect(checkbox).not.toHaveAttribute('aria-invalid', /.*/);
-        await expect(checkbox).not.toHaveAttribute('aria-describedby', /.*/);
-    });
-
-    test('keyboard: Enter on Continue shows and focuses the error', async ({
-        page
-    }) => {
-        const checkbox = await continueFromBottom(page, async submit => {
-            await submit.focus();
-            await page.keyboard.press('Enter');
-        });
-        await expectErrorShownAndFocused(page, checkbox);
-        await page.keyboard.press('Space');
-        await expect(checkbox).toBeChecked();
-        await expect(page.locator('#reviewed-extraction-error')).toBeHidden();
-    });
-});
-
 test.afterAll(() => {
     const report = {
         findings

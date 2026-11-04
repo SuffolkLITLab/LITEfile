@@ -243,7 +243,6 @@ def test_complete_new_filing_flow_by_jurisdiction(
     ext_post = client.post(
         reverse("extraction_review", kwargs={"jurisdiction": jurisdiction}),
         {
-            "reviewed_extraction": "yes",
             "preview_fingerprint": review_page.context["preview_fingerprint"],
             "existing_case": ExistingCase.NEW,
             "court_code": court_code,

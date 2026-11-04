@@ -29,16 +29,6 @@ def test_deleted_extracted_names_do_not_reappear(review_draft):
     assert review_rows(review_draft) == []
 
 
-def test_confirmed_findings_do_not_ask_for_another_acknowledgement(client, review_draft):
-    authorize(client, review_draft)
-    review_draft.extraction_review_fingerprint = extraction_review_fingerprint(review_draft)
-    review_draft.save()
-    response = client.get(reverse("extraction_review", kwargs={"jurisdiction": "illinois"}))
-    assert response.status_code == 200
-    assert not response.context["needs_acknowledgement"]
-    assert b'name="reviewed_extraction"' not in response.content
-
-
 def test_no_names_means_no_party_editor(client, review_draft):
     authorize(client, review_draft)
     review_draft.extracted_guesses = {"document title": "Motion"}

@@ -84,33 +84,6 @@
         {% for document in documents %}
             {% include "efile/components/document_preview.html" %}
         {% endfor %}
-        {% if needs_acknowledgement %}
-            <div class="extraction-acknowledgment{% if acknowledgement_error %} extraction-acknowledgment--invalid{% endif %}"
-                 id="extraction-acknowledgment">
-                <label>
-                    <input type="checkbox"
-                           class="form-check-input"
-                           name="reviewed_extraction"
-                           id="reviewed_extraction"
-                           value="yes"
-                           form="extraction-review-form"
-                           {% if acknowledgement_error %}aria-invalid="true" aria-describedby="reviewed-extraction-error"{% endif %}
-                           {% if reviewed_extraction %}checked{% endif %}
-                           required />
-                    <span>{% translate "I checked these details against my document." %}</span>
-                </label>
-                {% comment %}
-                    The checkbox only points at this while it is showing: a hidden
-                    element named by aria-describedby is still read out. Focusing
-                    the checkbox is what announces it.
-                {% endcomment %}
-                <p class="field-error"
-                   id="reviewed-extraction-error"
-                   {% if not acknowledgement_error %}hidden{% endif %}>
-                    {% translate "Check these details against your document, then check the box." %}
-                </p>
-            </div>
-        {% endif %}
         <form method="post" id="extraction-review-form">
             {% csrf_token %}
             <input type="hidden"
@@ -249,19 +222,24 @@
                     </button>
                 </fieldset>
             {% endif %}
-            {% if filing_type_proposal %}
-                <fieldset class="form-field"
+            {% if filing_type_proposal.name %}
+                <fieldset class="form-field filing-proposal"
                           id="filing-proposal"
                           {% if chosen_existing_case != "existing" %}hidden disabled{% endif %}>
-                    <legend class="visually-hidden">{% translate "Suggested filing code" %}</legend>
-                    <label for="proposed-filing-type">{% translate "Suggested filing code" %}</label>
-                    <input class="form-control"
-                           id="proposed-filing-type"
-                           name="proposed_filing_type"
-                           value="{{ filing_type_proposal.name }}"
-                           maxlength="255"
-                           aria-describedby="proposed-filing-type-help" />
-                    <p id="proposed-filing-type-help" class="form-help">{% translate "Edit if needed. We still need to check whether your court allows this filing code." %}</p>
+                    <legend>{% translate "Suggested filing code" %}</legend>
+                    <p class="filing-proposal__name">{{ filing_type_proposal.name }}</p>
+                    <p class="form-help">{% translate "This is our best guess from your document. We still need to check whether your court allows this filing code." %}</p>
+                    <div class="form-check">
+                        <input class="form-check-input"
+                               type="checkbox"
+                               id="reject-filing-proposal"
+                               name="reject_filing_proposal"
+                               value="yes"
+                               {% if filing_type_proposal.rejected %}checked{% endif %} />
+                        <label class="form-check-label" for="reject-filing-proposal">
+                            {% translate "This doesn't look right. I will choose on my own later." %}
+                        </label>
+                    </div>
                 </fieldset>
             {% endif %}
             {% comment %}

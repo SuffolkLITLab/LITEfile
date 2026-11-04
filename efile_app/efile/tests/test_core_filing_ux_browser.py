@@ -20,10 +20,10 @@ from efile.tests.test_document_extractions import authorize
 @pytest.mark.skipif(not os.getenv("CORE_FILING_UX_BROWSER_TESTS"), reason="Opt-in: requires Chromium")
 def test_existing_case_browser_matrix(live_server, django_user_model, tmp_path):
     scenarios = []
-    for name, jurisdiction, number, correction in [
-        ("modern", "massachusetts", "1448CV001026", "Complaint"),
-        ("legacy", "massachusetts", "98-1234", "Motion"),
-        ("vermont", "vermont", "24-CV-00123", "Motion"),
+    for name, jurisdiction, number, filing_guess, reject_guess in [
+        ("modern", "massachusetts", "1448CV001026", "Complaint", False),
+        ("legacy", "massachusetts", "98-1234", "Motion", False),
+        ("vermont", "vermont", "24-CV-00123", "Motion", True),
     ]:
         user = django_user_model.objects.create_user(username=f"browser-{name}", tyler_jurisdiction=jurisdiction)
         draft = FilingDraft.objects.create(
@@ -31,7 +31,7 @@ def test_existing_case_browser_matrix(live_server, django_user_model, tmp_path):
             jurisdiction=jurisdiction,
             existing_case="existing",
             workflow_version=2,
-            extracted_guesses={"document title": "Motion", "filing type": "Complaint", "docket number": number},
+            extracted_guesses={"document title": "Motion", "filing type": filing_guess, "docket number": number},
         )
         reviewed_document(draft=draft, role="lead", name="motion.pdf", s3_key=f"{name}.pdf")
         client = Client()
@@ -41,7 +41,7 @@ def test_existing_case_browser_matrix(live_server, django_user_model, tmp_path):
                 "name": name,
                 "jurisdiction": jurisdiction,
                 "number": number,
-                "correction": correction,
+                "rejectGuess": reject_guess,
                 "court": "vt:chittenden" if jurisdiction == "vermont" else "336",
                 "courtName": "Chittenden Superior Court" if jurisdiction == "vermont" else "Ayer District Court",
                 "cookie": client.cookies[settings.SESSION_COOKIE_NAME].value,

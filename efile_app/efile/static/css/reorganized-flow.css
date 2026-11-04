@@ -634,38 +634,20 @@
     }
 }
 
-.extraction-acknowledgment {
-    align-items: flex-start;
-    background: #fff;
-    border: 1px solid var(--border-strong);
-    border-radius: 8px;
-    display: flex;
-    flex-direction: column;
-    gap: 0.7rem;
-    margin-top: 1rem;
-    padding: 0.9rem;
+.filing-proposal {
+    margin-bottom: 1.5rem;
 }
 
-.extraction-acknowledgment label {
-    align-items: flex-start;
-    display: flex;
-    gap: 0.7rem;
-}
-
-.extraction-acknowledgment input {
-    flex-shrink: 0;
-    margin-top: 0.2rem;
-}
-
-.extraction-acknowledgment--invalid {
-    border-color: var(--danger-icon);
-    border-width: 2px;
-}
-
-.extraction-acknowledgment .field-error {
-    color: var(--danger-icon);
+.filing-proposal legend {
+    color: var(--text-heading);
+    float: none;
+    font-size: 1rem;
     font-weight: 700;
-    margin: 0;
+    margin-bottom: 0.35rem;
+}
+
+.filing-proposal__name {
+    margin-bottom: 0.25rem;
 }
 
 .form-field>span {

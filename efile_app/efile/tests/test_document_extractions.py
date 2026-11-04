@@ -20,6 +20,7 @@ from efile.services.document_extractions import (
     process_document_extraction,
     queue_document_extraction,
 )
+from efile.services.extraction_confirmation import extraction_is_confirmed
 from efile.services.extraction_fields import normalize_document_evidence, normalize_extracted_fields
 from efile.services.fee_quotes import fee_fingerprint
 from efile.services.taxonomy_classification import ClassificationRun, HierarchicalDocumentClassifier
@@ -278,19 +279,7 @@ def test_review_shows_only_the_document_summary_and_fields_the_filer_can_edit(cl
     assert "Washington County" not in summary
     # The names are asked for by the party editor, not printed as evidence.
     assert re.search(r'name="party_name"\s+value="Alex Rivera"', content)
-    assert 'name="reviewed_extraction"' in content
-
-    response = client.post(
-        reverse("extraction_review", kwargs={"jurisdiction": "illinois"}),
-        {
-            "existing_case": ExistingCase.NEW,
-            "court_code": "washington",
-            "case_category_code": "civil",
-            "case_type_code": "small-claims",
-        },
-    )
-    assert response.status_code == 200
-    assert "Check these details against your document, then check the box." in response.content.decode()
+    assert 'name="reviewed_extraction"' not in content
 
 
 def _post_review(client, jurisdiction="illinois", **fields):
@@ -313,45 +302,39 @@ def _post_review(client, jurisdiction="illinois", **fields):
 
 
 @pytest.mark.django_db
-def test_missing_acknowledgement_shows_an_error_beside_the_checkbox_and_keeps_edits(client, extraction_draft):
+def test_refused_review_keeps_the_filers_edits(client, extraction_draft):
     authorize(client, extraction_draft)
     reviewed_document(draft=extraction_draft, role=FilingDocument.Role.LEAD, name="petition.pdf")
     extraction_draft.extracted_guesses = {"document title": "Complaint", "case title": "Old title"}
     extraction_draft.save(update_fields=["extracted_guesses", "updated_at"])
 
-    response = _post_review(client, case_title="Rivera v. Example")
+    response = _post_review(client, case_title="Rivera v. Example", case_type_code="")
 
     assert response.status_code == 200
     content = response.content.decode()
-    checkbox = re.search(r'<input[^>]*name="reviewed_extraction"[^>]*>', content, re.S)
-    assert checkbox is not None
-    assert 'aria-invalid="true"' in checkbox.group(0)
-    assert 'aria-describedby="reviewed-extraction-error"' in checkbox.group(0)
-    error = re.search(r'<p class="field-error"\s+id="reviewed-extraction-error"\s*>', content)
-    assert error is not None, "the error must be rendered visible, not hidden"
     # What the filer submitted comes back, not what was saved or guessed.
     # A new case has no case title field to refill (#196).
     assert 'name="case_title"' not in content
     assert re.search(r'value="new"\s+checked', content)
     assert '"court_code": "washington"' in content
-    assert '"case_type_code": "small-claims"' in content
+    assert '"case_category_code": "civil"' in content
     assert re.search(r'name="party_name"\s+value="Alex Rivera"', content)
     extraction_draft.refresh_from_db()
     assert extraction_draft.case_title == ""
 
 
 @pytest.mark.django_db
-def test_acknowledging_after_the_error_lets_the_filer_continue(client, extraction_draft):
+def test_review_continues_and_records_the_findings_as_reviewed(client, extraction_draft):
     authorize(client, extraction_draft)
     reviewed_document(draft=extraction_draft, role=FilingDocument.Role.LEAD, name="petition.pdf")
     extraction_draft.extracted_guesses = {"document title": "Complaint"}
     extraction_draft.save(update_fields=["extracted_guesses", "updated_at"])
 
-    assert _post_review(client).status_code == 200
-    response = _post_review(client, reviewed_extraction="yes")
+    response = _post_review(client)
 
     assert response.status_code == 302
     extraction_draft.refresh_from_db()
+    assert extraction_is_confirmed(extraction_draft)
     assert extraction_draft.court_code == "washington"
     # A new case has no court title yet, so none is saved (#196).
     assert extraction_draft.case_title == ""
@@ -362,18 +345,15 @@ def test_acknowledging_after_the_error_lets_the_filer_continue(client, extractio
     "extracted_guesses",
     [
         {},
-        # Found, but nothing worth showing: no checkbox is rendered, so none may be demanded.
+        # Found, but nothing worth showing.
         {"document title": "", "case title": None},
     ],
 )
-def test_no_acknowledgement_is_demanded_when_none_is_shown(client, extraction_draft, extracted_guesses):
+def test_review_continues_when_nothing_was_extracted(client, extraction_draft, extracted_guesses):
     authorize(client, extraction_draft)
     reviewed_document(draft=extraction_draft, role=FilingDocument.Role.LEAD, name="petition.pdf")
     extraction_draft.extracted_guesses = extracted_guesses
     extraction_draft.save(update_fields=["extracted_guesses", "updated_at"])
-
-    page = client.get(reverse("extraction_review", kwargs={"jurisdiction": "illinois"})).content.decode()
-    assert 'name="reviewed_extraction"' not in page
 
     response = _post_review(client)
     assert response.status_code == 302

@@ -22,7 +22,7 @@ from efile.services.document_previews import (
 )
 from efile.services.drafts import draft_snapshot, write_case_data
 from efile.services.extracted_parties import extracted_party_suggestions, review_rows, save_reviewed_parties
-from efile.services.extraction_confirmation import extraction_is_confirmed, extraction_review_fingerprint
+from efile.services.extraction_confirmation import extraction_review_fingerprint
 from efile.services.extraction_fields import display_extracted_fields, document_summary_details
 from efile.services.filing_availability import filing_unavailable_message
 from efile.services.filing_path import (
@@ -32,7 +32,7 @@ from efile.services.filing_path import (
     filing_path_conflict,
 )
 from efile.services.filing_plans import needs_filer_role
-from efile.services.filing_type_proposals import current_proposal, save_proposal
+from efile.services.filing_type_proposals import current_proposal, set_proposal_rejected
 from efile.utils.s3_upload_handler import S3UploadHandler
 from efile.workflow import (
     ExistingCase,
@@ -215,14 +215,10 @@ def extraction_review(request, jurisdiction):
     # otherwise what is saved (falling back to what the document named).
     party_rows = _submitted_party_rows(request) if request.method == "POST" else review_rows(draft)
 
-    # The acknowledgement is only asked for when the page shows something to
-    # acknowledge, so the check below and the template both key off this.
     guesses = display_extracted_fields(draft.extracted_guesses or {})
-    needs_acknowledgement = bool(guesses) and not extraction_is_confirmed(draft)
     show_party_editor = bool(extracted_party_suggestions(draft.extracted_guesses)) or (
         request.method == "POST" and bool(party_rows)
     )
-    acknowledgement_error = False
     availability_message = ""
 
     if request.method == "POST":
@@ -252,10 +248,6 @@ def extraction_review(request, jurisdiction):
 
         if availability_message:
             pass  # Show the persistent notice alongside the editable choices.
-        elif needs_acknowledgement and request.POST.get("reviewed_extraction") != "yes":
-            # Shown beside the checkbox rather than as a toast, so it stays put
-            # and is tied to the control that needs attention.
-            acknowledgement_error = True
         elif existing_case not in {ExistingCase.NEW, ExistingCase.EXISTING}:
             messages.error(request, "Choose whether this is a new or existing court case to continue.")
         elif existing_case == ExistingCase.NEW and not (court_code and case_category_code and case_type_code):
@@ -320,8 +312,8 @@ def extraction_review(request, jurisdiction):
             # depends on has been saved just above.
             if show_party_editor and existing_case == ExistingCase.NEW:
                 save_reviewed_parties(draft, party_rows)
-            if not draft.ai_assistance_opted_out and "proposed_filing_type" in request.POST:
-                save_proposal(draft, request.POST.get("proposed_filing_type"))
+            if existing_case == ExistingCase.EXISTING:
+                set_proposal_rejected(draft, request.POST.get("reject_filing_proposal") == "yes")
             draft.extraction_review_fingerprint = extraction_review_fingerprint(draft)
             draft.save(update_fields=["extraction_review_fingerprint", "updated_at"])
             # A different kind of filing is not an edit Review can take back
@@ -450,13 +442,14 @@ def extraction_review(request, jurisdiction):
         # sent back with a different answer than the saved one.
         "path_question_open": not saved_path or chosen_existing_case != saved_path,
         "docket_number": docket_number,
-        "needs_acknowledgement": needs_acknowledgement,
-        "acknowledgement_error": acknowledgement_error,
-        "reviewed_extraction": request.method == "POST" and request.POST.get("reviewed_extraction") == "yes",
         "extraction_context": extraction_context,
         "return_to": return_target(request),
     }
-    if request.method == "POST" and "proposed_filing_type" in request.POST and not draft.ai_assistance_opted_out:
-        context["filing_type_proposal"] = {"name": request.POST.get("proposed_filing_type", "")}
+    if request.method == "POST" and chosen_existing_case == ExistingCase.EXISTING and context["filing_type_proposal"]:
+        # Sent back to fix something: keep the filer's answer, which is not saved yet.
+        context["filing_type_proposal"] = {
+            **context["filing_type_proposal"],
+            "rejected": request.POST.get("reject_filing_proposal") == "yes",
+        }
     context.update(get_workflow_context(WorkflowStepKey.EXTRACTION_REVIEW, jurisdiction, draft))
     return render(request, "efile/extraction_review.html", context, status=status)

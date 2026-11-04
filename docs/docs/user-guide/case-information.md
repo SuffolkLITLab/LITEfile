@@ -17,9 +17,8 @@ This step is called **Confirm information**. First, answer **Is this for a new
 or existing court case?** Choose **Help me decide** if you are not sure.
 
 If LITEfile read your document, some answers are already filled in. Check each
-one against your form. Then check **I checked these details against my
-document.** If you see **We could not read the details**, type the answers
-yourself.
+one against your form and fix any mistakes. If you see **We could not read the
+details**, type the answers yourself.
 
 Some cases also ask **Which side of this case are you on?** Pick your side.
 
@@ -42,15 +41,22 @@ questions and fills these in for you.
 
 ## File in an existing case
 
+<img src="/img/user-guide/confirm-existing-case.png" alt="Confirm information page for an existing case. It shows a suggested filing code of Appearance and a checkbox that says This doesn't look right. I will choose on my own later." className="doc-screenshot" width="700" loading="lazy" />
+<p className="screenshot-caption">If LITEfile read your document, it may suggest a filing code. You can't edit it here.</p>
+
 <img src="/img/user-guide/find-your-case.png" alt="Find your court case page with Circuit Court and Sangamon County chosen and a case number typed in, and a Find my case button." className="doc-screenshot" width="700" loading="lazy" />
 
-1. Choose **Existing case**, then **Continue**.
-2. On **Find your court case**, pick the court. Answer the court level and
+1. Choose **Existing case**. If you see a **Suggested filing code**, it is our
+   best guess from your document. If it looks wrong, check **This doesn't look
+   right. I will choose on my own later.** You pick the filing code in
+   [Step 7](./organize-documents.md).
+2. Choose **Continue**.
+3. On **Find your court case**, pick the court. Answer the court level and
    county questions.
-3. Type the **Case number** from your papers. Spaces and dashes are okay.
-4. Choose **Find my case**.
-5. Check the case name, number and people on **Is this your court case?**
-6. If it's right, choose **Yes, this is my case**. If not, choose **No, search
+4. Type the **Case number** from your papers. Spaces and dashes are okay.
+5. Choose **Find my case**.
+6. Check the case name, number and people on **Is this your court case?**
+7. If it's right, choose **Yes, this is my case**. If not, choose **No, search
    again**.
 
 <img src="/img/user-guide/is-this-your-case.png" alt="Is this your court case page showing case name Sam Parker vs. Jordan Rivera, the case number, court, category, type and the people already on the case." className="doc-screenshot" width="700" loading="lazy" />

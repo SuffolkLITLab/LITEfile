@@ -158,7 +158,6 @@ def test_legacy_main_documents_recover_through_preparation(client, draft, page, 
             "court_code": draft.court_code,
             "case_category_code": draft.case_category_code,
             "case_type_code": draft.case_type_code,
-            "reviewed_extraction": "yes",
         },
     )
     assert approved.status_code == 302

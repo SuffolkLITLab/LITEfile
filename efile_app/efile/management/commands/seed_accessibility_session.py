@@ -93,7 +93,7 @@ class Command(BaseCommand):
             filing_type_name=filing_type_name,
             document_checklist_acknowledged=True,
             # Something for the confirm-filing screen to show, so its
-            # "I checked this" acknowledgement is rendered and audited too.
+            # document summary is rendered and audited too.
             extracted_guesses={"document title": "Complaint", "case title": "Checker v. Example"},
             selected_payment_account_id="a11y-payment-account",
             selected_payment_account_name="Accessibility payment account",
