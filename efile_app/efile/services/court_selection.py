@@ -152,24 +152,31 @@ def heading_court_codes(jurisdiction: str, codes: list[str] | None = None) -> fr
 
     The court picker, the dropdown API and code search all leave these out, so
     a filer is never offered a court the e-filing service will refuse. Cached
-    briefly; if either list cannot be read, nothing is dropped, and that answer
-    is cached for a shorter time so search never waits on the service.
+    briefly; if either list cannot be read, only the courts a jurisdiction names
+    as headings are dropped, and that answer is cached for a shorter time so
+    search never waits on the service.
+
+    ``court_selector.heading_courts`` names headings the shape of the list cannot
+    reveal. Vermont's "Superior Courts" (``vermont:sc``) repeats every county
+    unit's case types under its own code, but its units are coded ``sc:addison``,
+    so nothing hangs off it.
     """
 
+    configured = frozenset(str(code) for code in (selector_config(jurisdiction) or {}).get("heading_courts") or [])
     cache_key = f"court-selector:heading-courts:{jurisdiction}"
     cached = cache.get(cache_key)
     if cached is not None:
-        return cached
+        return cached | configured
     if codes is None:
         codes = _court_codes(jurisdiction, fileable_only=False)
     fileable = None if codes is None else _court_codes(jurisdiction, fileable_only=True)
     if codes is None or fileable is None:
         cache.set(cache_key, frozenset(), HEADING_COURTS_RETRY_SECONDS)
-        return frozenset()
+        return configured
     fileable_codes = set(fileable)
     headings = frozenset(code for code in codes if _is_heading_only(code, codes, fileable_codes))
     cache.set(cache_key, headings, COURT_LIST_TTL_SECONDS)
-    return headings
+    return headings | configured
 
 
 def _court_codes(jurisdiction: str, *, fileable_only: bool) -> list[str] | None:

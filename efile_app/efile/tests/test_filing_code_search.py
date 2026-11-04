@@ -1271,6 +1271,62 @@ def test_unreadable_court_lists_drop_nothing_and_are_not_refetched_per_search():
     cache.clear()
 
 
+def test_configured_heading_is_dropped_even_when_court_lists_cannot_be_read():
+    cache.clear()
+    with patch("efile.services.court_selection.requests.get", side_effect=requests.Timeout()) as get:
+        assert court_selection.heading_court_codes("vermont") == {"vermont:sc"}
+        assert court_selection.heading_court_codes("vermont") == {"vermont:sc"}
+    assert get.call_count == 1
+    cache.clear()
+
+
+def test_vermont_superior_courts_row_does_not_repeat_each_units_case_types(catalog, monkeypatch):
+    """Issue 364: "Superior Courts" lists every unit's case types under its own codes."""
+    from efile.services import court_location
+    from efile.services.filing_code_search import indexed_path
+
+    units = [("sc:washington", "Washington Unit"), ("sc:orange", "Orange Unit")]
+    entries = []
+    for number, (code, name) in enumerate(units):
+        for court, type_code in (
+            (option(code, name), "13864"),
+            (option("vermont:sc", "Superior Courts"), f"1386{number}"),
+        ):
+            entries.append(
+                indexed_path(
+                    "vermont",
+                    {
+                        "court": court,
+                        "case_category": option("7", "Civil"),
+                        "case_type": option(type_code, "Small Claims $1,000 or less"),
+                        "filing_type": option("9563", "Initial Filing"),
+                    },
+                    True,
+                )
+            )
+    with patch("efile.services.filing_code_search.catalog_entries", return_value=iter(entries)):
+        refresh_index("vermont")
+    index = current_index("vermont")
+    monkeypatch.setattr("efile.services.filing_code_search.heading_court_codes", court_selection.heading_court_codes)
+    finder = Mock()
+    finder.find_units.return_value = [Mock(unit="Washington")]
+    cache.clear()
+    with (
+        patch("efile.services.court_selection.requests.get", side_effect=requests.Timeout()),
+        patch.object(court_location, "_vermont_finder", return_value=finder),
+    ):
+        group = search_grouped_paths(index, "small claims complaint")["groups"][0]
+        assert group["path_count"] == 2
+        courts = search_grouped_paths(index, "small claims complaint", group_key=group["key"])["courts"]
+        assert [court["code"] for court in courts] == ["sc:orange", "sc:washington"]
+        zip_courts = search_grouped_paths(index, "small claims complaint", group_key=group["key"], postal_code="05602")[
+            "courts"
+        ]
+        assert [court["code"] for court in zip_courts] == ["sc:washington"]
+        assert search_paths(index, "small claims complaint", court="vermont:sc")["total"] == 0
+    cache.clear()
+
+
 def test_labels_find_what_paths_find(catalog):
     catalog.courts.return_value = [option(f"court-{i}", f"County {i}") for i in range(12)]
     catalog.filings.side_effect = lambda court, category, case_type, initial: [

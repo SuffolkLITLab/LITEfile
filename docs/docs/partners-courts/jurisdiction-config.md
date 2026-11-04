@@ -237,6 +237,22 @@ Each rule is a regular expression with named captures, and `name` is the rewrite
 
 The rewrite happens once, when the court list is read, so everything downstream — the questions, the court finally chosen, and what is saved on the filing — uses the readable name. That includes the `courts:` queries below, so write them against the names as they read, not as the service lists them.
 
+### Courts that are only headings
+
+Some rows in a court list only sit above the courts that take filings. LITEfile drops these from every court list and from filing code search. It finds most of them from their codes: `cook:cvd` sits above `cook:cvd1`.
+
+When the codes do not show this, name the court under `heading_courts`:
+
+```yaml
+court_selector:
+  heading_courts:
+    - vermont:sc
+```
+
+Vermont's `Superior Courts` row needs this because its units have unrelated codes, such as `sc:addison`. It lists each unit's case types under separate codes, so filers would see the same case type 14 times with no county named.
+
+Only add a court here if the courts under it offer all of its filings. A court named here stays out of the lists even when the e-filing service cannot be reached.
+
 ### Court queries
 
 A `courts:` query says which courts an answer leads to. Every rule is optional and they combine with "and":

@@ -127,6 +127,11 @@ court_selector:
   title: "Choose the Vermont court for this filing"
   lede: >-
     Start with the court shown on your paperwork.
+  # "Superior Courts" lists each county unit's case types under its own code, so
+  # a filer would see each one 14 times with no county named. Every filing it
+  # lists is offered by a unit, and no question here leads to it.
+  heading_courts:
+    - vermont:sc
   steps:
     - id: level
       type: choice
