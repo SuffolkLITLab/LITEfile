@@ -37,6 +37,10 @@ from efile.workflow import (
 JS_TEXT_KEYS = [
     "organize_documents.choose_filing_type_first",
     "organize_documents.loading_choices",
+    "organize_documents.choices_load_error",
+    "organize_documents.retry_choices",
+    "organize_documents.choices_still_loading",
+    "organize_documents.choices_load_failed",
     "organize_documents.no_document_types",
     "organize_documents.no_filing_components",
     "organize_documents.filing_component_fixed_note",

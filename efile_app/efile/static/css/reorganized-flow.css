@@ -1233,6 +1233,23 @@
     padding: 0.6rem 0.75rem;
 }
 
+.filing-type-status {
+    grid-column: 1 / -1;
+}
+
+.filing-type-status:empty {
+    display: none;
+}
+
+.choices-load-error {
+    color: var(--danger-icon);
+}
+
+.choices-retry {
+    justify-self: start;
+    padding: 0;
+}
+
 .compact-choice-list--horizontal {
     grid-template-columns: repeat(2, minmax(0, 1fr));
 }

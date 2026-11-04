@@ -112,6 +112,7 @@
                             {% if filing_type_help %}
                                 <small class="form-help" id="filing-type-help-{{ document.pk }}">{{ filing_type_help }}</small>
                             {% endif %}
+                            <div class="compact-choice-list filing-type-status"></div>
                             {% if organize_context.existing_case == "yes" %}
                                 <details class="filing-type-finder">
                                     <summary>{% translate "Find my filing code" %}</summary>

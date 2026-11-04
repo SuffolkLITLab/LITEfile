@@ -7,6 +7,7 @@ globalThis.document = {
 };
 
 const {
+    lookupTracker,
     preferredConfidentialityValue
 } = require("../efile/static/js/organize-documents.js");
 
@@ -28,4 +29,21 @@ test("a saved filer choice takes precedence over the jurisdiction default", () =
 
 test("two choices stay unselected when a jurisdiction configures no default", () => {
     assert.strictEqual(preferredConfidentialityValue(choices, "", ""), "");
+});
+
+test("only the newest lookup for a list may apply its answer", () => {
+    const startLookup = lookupTracker();
+    const section = {};
+    const earlier = startLookup(section);
+    assert.strictEqual(earlier(), true);
+    const later = startLookup(section);
+    assert.strictEqual(earlier(), false);
+    assert.strictEqual(later(), true);
+});
+
+test("a lookup for one list does not cancel another list's lookup", () => {
+    const startLookup = lookupTracker();
+    const confidentiality = startLookup({});
+    startLookup({});
+    assert.strictEqual(confidentiality(), true);
 });
