@@ -212,6 +212,18 @@ UI_STRINGS: dict[str, UIString] = {
     "organize_documents.loading_choices": UIString(
         default="Loading choices…",
     ),
+    "organize_documents.choices_load_error": UIString(
+        default="These choices did not load.",
+    ),
+    "organize_documents.retry_choices": UIString(
+        default="Try again",
+    ),
+    "organize_documents.choices_still_loading": UIString(
+        default="The court's choices are still loading. Wait a moment, then save again.",
+    ),
+    "organize_documents.choices_load_failed": UIString(
+        default="Some of the court's choices did not load. Select Try again next to each one, then save.",
+    ),
     "organize_documents.no_document_types": UIString(
         default="No confidentiality choices are available",
     ),

@@ -12,8 +12,22 @@
         return "";
     }
 
+    // Filers can change a filing code while the court is still answering for the
+    // previous one, and the answers can arrive in any order. Starting a lookup
+    // returns a check that stays true only until the next lookup for that same
+    // list starts, so an answer for an abandoned selection is dropped.
+    function lookupTracker() {
+        const latest = new WeakMap();
+        return function startLookup(section) {
+            const lookup = {};
+            latest.set(section, lookup);
+            return () => latest.get(section) === lookup;
+        };
+    }
+
     if (typeof module !== "undefined" && module.exports) {
         module.exports = {
+            lookupTracker,
             preferredConfidentialityValue
         };
     }
@@ -31,7 +45,8 @@
     // string literals here so a state can reword it and a translator can reach
     // it -- see efile/utils/ui_text.py.
     const text = context.text || {};
-    let filingTypes = null;
+    const startLookup = lookupTracker();
+    let filingTypesRequest = null;
     let filingSuggestion = null;
     const availability = window.filingAvailability.mount({
         form,
@@ -166,6 +181,54 @@
         setPlaceholder(container, text.loading_choices);
     }
 
+    // A list that failed says so where the filer is looking, and retrying it
+    // leaves every other answer on the page alone.
+    function showLoadFailure(section, retry) {
+        section.dataset.choicesState = "failed";
+        section.innerHTML = "";
+        const message = document.createElement("small");
+        message.className = "choices-load-error";
+        message.setAttribute("role", "alert");
+        message.textContent = text.choices_load_error;
+        const button = document.createElement("button");
+        button.type = "button";
+        button.className = "btn btn-link choices-retry";
+        button.textContent = text.retry_choices;
+        button.addEventListener("click", () => {
+            // The button is about to go away; keep keyboard focus nearby.
+            section.tabIndex = -1;
+            section.focus();
+            retry();
+        });
+        section.append(message, button);
+        // Optional services sit in a collapsed section.
+        const details = section.closest("details");
+        if (details) details.open = true;
+    }
+
+    function settleSection(section) {
+        startLookup(section);
+        delete section.dataset.choicesState;
+    }
+
+    async function loadSection(section, fetchChoices, render, retry) {
+        const isCurrent = startLookup(section);
+        section.dataset.choicesState = "loading";
+        setLoading(section);
+        let choices;
+        try {
+            choices = await fetchChoices();
+        } catch {
+            if (isCurrent()) {
+                showLoadFailure(section, retry || (() => loadSection(section, fetchChoices, render)));
+            }
+            return;
+        }
+        if (!isCurrent()) return;
+        delete section.dataset.choicesState;
+        await render(choices);
+    }
+
     async function getJson(url) {
         const response = await fetch(url, {
             headers: {
@@ -173,7 +236,8 @@
                 "X-CSRFToken": apiUtils.getCSRFToken(),
             },
         });
-        const result = await response.json();
+        // A proxy's error page is not JSON, and is the same failure to the filer.
+        const result = await response.json().catch(() => ({}));
         if (!response.ok || !result.success) {
             throw new Error(result.error || "The court's document choices could not be loaded.");
         }
@@ -181,12 +245,8 @@
         return result.data || [];
     }
 
-    async function loadFilingTypes() {
-        if (filingTypes) return filingTypes;
-        if (context.existing_case === "yes") {
-            filingTypes = await getJson(context.filing_types_url);
-            return filingTypes;
-        }
+    function fetchFilingTypes() {
+        if (context.existing_case === "yes") return getJson(context.filing_types_url);
         const params = new URLSearchParams({
             jurisdiction: context.jurisdiction,
             court: context.court,
@@ -195,49 +255,51 @@
             existing_case: context.existing_case,
             guessed_filing_type: context.guessed_filing_type || "",
         });
-        filingTypes = await getJson(`/api/dropdowns/filing-types/?${params}`);
-        return filingTypes;
+        return getJson(`/api/dropdowns/filing-types/?${params}`);
     }
 
-    async function loadDependentOptions(card, filingType) {
-        const documentType = card.querySelector(".document-type-options");
-        const documentTypeField = documentType.closest("fieldset");
-        const component = card.querySelector(".filing-component-options");
-        const documentId = card.dataset.documentId;
-        if (!filingType) {
-            documentTypeField.hidden = false;
-            setRadioOptions(documentType, [], "", `document-type-${documentId}`, text.choose_filing_type_first);
-            setRadioOptions(component, [], "", `filing-component-${documentId}`, text.choose_filing_type_first);
-            return;
-        }
+    // Every document shares one list, so they share one request. A failure is
+    // forgotten so that retrying asks the court again.
+    function loadFilingTypes() {
+        filingTypesRequest ||= fetchFilingTypes().catch((error) => {
+            filingTypesRequest = null;
+            throw error;
+        });
+        return filingTypesRequest;
+    }
 
-        setLoading(documentType);
-        setLoading(component);
-        const documentParams = new URLSearchParams({
+    function loadDocumentTypes(card, filingType) {
+        const section = card.querySelector(".document-type-options");
+        const field = section.closest("fieldset");
+        const fieldName = `document-type-${card.dataset.documentId}`;
+        // The last filing code may have hidden this; a lookup has to be visible.
+        field.hidden = false;
+        if (!filingType) {
+            settleSection(section);
+            setRadioOptions(section, [], "", fieldName, text.choose_filing_type_first);
+            return undefined;
+        }
+        const params = new URLSearchParams({
             jurisdiction: context.jurisdiction,
             court: context.court,
             parent: filingType,
         });
-        const componentParams = new URLSearchParams({
-            jurisdiction: context.jurisdiction,
-            court: context.court,
-            filing_type: filingType,
+        return loadSection(section, () => getJson(`/api/dropdowns/document-types/?${params}`), (documentTypes) => {
+            field.hidden = documentTypes.length === 0;
+            setRadioOptions(
+                section,
+                documentTypes,
+                card.dataset.documentType,
+                fieldName,
+                text.no_document_types,
+                undefined,
+                context.default_confidentiality,
+            );
         });
-        const [documentTypes, components] = await Promise.all([
-            getJson(`/api/dropdowns/document-types/?${documentParams}`),
-            getJson(`/api/get-filing-components/?${componentParams}`),
-        ]);
-        documentTypeField.hidden = documentTypes.length === 0;
-        setRadioOptions(
-            documentType,
-            documentTypes,
-            card.dataset.documentType,
-            `document-type-${documentId}`,
-            text.no_document_types,
-            undefined,
-            context.default_confidentiality,
-        );
+    }
 
+    function showFilingComponents(card, section, components) {
+        const fieldName = `filing-component-${card.dataset.documentId}`;
         let savedComponent = card.dataset.filingComponent;
         if (!savedComponent && components.length) {
             // Each document goes to the court as its own filing, under its own
@@ -251,17 +313,44 @@
             savedComponent = optionValue(preferred || components[0]);
         }
         if (components.length === 1) {
-            setFixedOption(component, components[0], `filing-component-${documentId}`);
+            setFixedOption(section, components[0], fieldName);
             return;
         }
         setRadioOptions(
-            component,
+            section,
             components,
             savedComponent,
-            `filing-component-${documentId}`,
+            fieldName,
             text.no_filing_components,
             text.filing_component_required_note,
         );
+    }
+
+    function loadFilingComponents(card, filingType) {
+        const section = card.querySelector(".filing-component-options");
+        if (!filingType) {
+            settleSection(section);
+            setRadioOptions(section, [], "", `filing-component-${card.dataset.documentId}`, text.choose_filing_type_first);
+            return undefined;
+        }
+        const params = new URLSearchParams({
+            jurisdiction: context.jurisdiction,
+            court: context.court,
+            filing_type: filingType,
+        });
+        return loadSection(
+            section,
+            () => getJson(`/api/get-filing-components/?${params}`),
+            (components) => showFilingComponents(card, section, components),
+        );
+    }
+
+    function loadDependentOptions(card, filingType) {
+        return Promise.all([
+            loadDocumentTypes(card, filingType),
+            loadFilingComponents(card, filingType),
+            loadOptionalServices(card, filingType),
+        ]);
     }
 
     // Keywords for the optional services filers actually look for. Courts can
@@ -322,30 +411,10 @@
         }
     }
 
-    async function loadOptionalServices(card, filingType) {
-        const container = card.querySelector(".optional-services-list");
-        if (!filingType) {
-            setPlaceholder(container, text.choose_filing_type_first);
-            return;
-        }
-        setLoading(container);
-        const params = new URLSearchParams({
-            jurisdiction: context.jurisdiction,
-            court: context.court,
-            filing_type_id: filingType,
-        });
-        let services;
-        try {
-            services = await getJson(`/api/dropdowns/optional-services/?${params}`);
-        } catch {
-            container.innerHTML = "";
-            return;
-        }
-        services = services.filter((service) => service.code ?? service.id);
-        if (!services.length) {
-            container.innerHTML = "";
-            return;
-        }
+    function showOptionalServices(card, container, choices) {
+        const services = choices.filter((service) => service.code ?? service.id);
+        container.innerHTML = "";
+        if (!services.length) return;
 
         const saved = new Set((card.dataset.optionalServices || "").split(",").filter(Boolean));
         let primary = services.filter((service) => service.required || isCommonOptionalService(service.name));
@@ -355,7 +424,6 @@
             rest = services.slice(4);
         }
 
-        container.innerHTML = "";
         primary.forEach((service) => appendOptionalService(container, service, saved));
 
         if (rest.length) {
@@ -380,9 +448,28 @@
         }
     }
 
-    async function initializeCard(card) {
+    function loadOptionalServices(card, filingType) {
+        const container = card.querySelector(".optional-services-list");
+        if (!filingType) {
+            settleSection(container);
+            setPlaceholder(container, text.choose_filing_type_first);
+            return undefined;
+        }
+        const params = new URLSearchParams({
+            jurisdiction: context.jurisdiction,
+            court: context.court,
+            filing_type_id: filingType,
+        });
+        return loadSection(
+            container,
+            () => getJson(`/api/dropdowns/optional-services/?${params}`),
+            (services) => showOptionalServices(card, container, services),
+        );
+    }
+
+    function showFilingTypes(card, options) {
         const filingType = card.querySelector(".filing-type");
-        const options = await loadFilingTypes();
+        card.querySelector(".filing-type-status").innerHTML = "";
         let selected = card.dataset.filingType;
         const suggestionMessage = card.querySelector(".filing-suggestion-message");
         if (suggestionMessage && !selected && filingSuggestion && filingSuggestion.status !== "none") {
@@ -407,26 +494,36 @@
         window.filingCodeSearch?.mountFilingTypeOnly({
             container: card.querySelector(".filing-type-finder"),
             select: filingType,
-            choices: filingTypes
+            choices: options
         });
-        filingType.addEventListener("change", async () => {
+        return loadDependentOptions(card, filingType.value);
+    }
+
+    function loadCardFilingTypes(card) {
+        return loadSection(
+            card.querySelector(".filing-type-status"),
+            loadFilingTypes,
+            (options) => showFilingTypes(card, options),
+            retryFilingTypes,
+        );
+    }
+
+    // The list is shared, so one retry serves every document waiting on it.
+    async function retryFilingTypes() {
+        await Promise.all(cards().filter((card) => !card.dataset.filingTypesLoaded).map(loadCardFilingTypes));
+        availability.check();
+    }
+
+    function wireCard(card) {
+        const filingType = card.querySelector(".filing-type");
+        const suggestionMessage = card.querySelector(".filing-suggestion-message");
+        filingType.addEventListener("change", () => {
             if (suggestionMessage && filingType.value) suggestionMessage.hidden = true;
             availability.check(filingType.closest(".form-field") || filingType.parentElement);
             card.dataset.documentType = "";
             card.dataset.filingComponent = "";
-            try {
-                await Promise.all([
-                    loadDependentOptions(card, filingType.value),
-                    loadOptionalServices(card, filingType.value),
-                ]);
-            } catch (error) {
-                showError(error.message);
-            }
+            loadDependentOptions(card, filingType.value);
         });
-        await Promise.all([
-            loadDependentOptions(card, filingType.value),
-            loadOptionalServices(card, filingType.value),
-        ]);
 
         const checkbox = card.querySelector(".courtesy-copy-toggle");
         const emailWrap = card.querySelector(".courtesy-email-wrap");
@@ -477,10 +574,29 @@
         });
     }
 
+    // A list that has not arrived has no inputs, so the browser's required check
+    // passes it and the save would send a blank answer -- dropping a required
+    // court component or a saved optional service without a word.
+    function blockedByPendingChoices() {
+        const failed = form.querySelector('[data-choices-state="failed"]');
+        if (failed) {
+            showError(text.choices_load_failed);
+            failed.querySelector(".choices-retry").focus({
+                preventScroll: true
+            });
+            return true;
+        }
+        if (form.querySelector('[data-choices-state="loading"]')) {
+            showError(text.choices_still_loading);
+            return true;
+        }
+        return false;
+    }
+
     form.addEventListener("submit", async (event) => {
         event.preventDefault();
         errorBox.hidden = true;
-        if (!form.reportValidity()) return;
+        if (blockedByPendingChoices() || !form.reportValidity()) return;
         const button = document.getElementById("save-document-details");
         button.disabled = true;
         const documents = cards().map((card) => {
@@ -537,10 +653,9 @@
         }
     });
 
-    Promise.all(cards().map(initializeCard))
-        .then(() => {
-            updatePositions();
-            availability.check();
-        })
+    cards().forEach(wireCard);
+    updatePositions();
+    Promise.all(cards().map(loadCardFilingTypes))
+        .then(() => availability.check())
         .catch((error) => showError(error.message));
 })();
