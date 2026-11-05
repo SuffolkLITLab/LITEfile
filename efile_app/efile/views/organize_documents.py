@@ -15,6 +15,8 @@ from efile.api.suffolk_api_views import get_tyler_token
 from efile.models import FilingDocument, FilingDraft
 from efile.services.case_filing_types import case_fingerprint, permitted_filing_types
 from efile.services.current_drafts import ensure_current_draft
+from efile.services.document_choices import validate_document_types, validate_services
+from efile.services.document_extractions import queue_document_extraction
 from efile.services.drafts import draft_snapshot
 from efile.services.existing_cases import import_ready
 from efile.services.filing_availability import draft_unavailable_message
@@ -82,7 +84,7 @@ def _court_document_types(draft, filing_type):
 
 def _check_case_unchanged(draft, confirmed_case_fingerprint):
     if confirmed_case_fingerprint != case_fingerprint(draft):
-        raise ValueError("Your court case changed. Reload the filing codes before continuing.")
+        raise ValueError("Your court case changed. Reload this page before continuing.")
 
 
 def _save_document_details(draft, document_details, main_document_id, *, confirmed_case_fingerprint=None):
@@ -90,9 +92,14 @@ def _save_document_details(draft, document_details, main_document_id, *, confirm
     # locked, so a slow response never holds the lock. The same check runs
     # again under the lock, so the list still belongs to the case being saved.
     permitted = None
+    if confirmed_case_fingerprint is not None:
+        _check_case_unchanged(draft, confirmed_case_fingerprint)
     if draft.existing_case == ExistingCase.EXISTING:
         _check_case_unchanged(draft, confirmed_case_fingerprint)
         permitted = {option["value"]: option for option in permitted_filing_types(draft)}
+    if draft.existing_case != ExistingCase.EXISTING:
+        document_details = validate_document_types(draft, document_details, list(draft.documents.all()))
+        confirmed_case_fingerprint = case_fingerprint(draft)
     _save_locked_document_details(draft, document_details, main_document_id, permitted, confirmed_case_fingerprint)
 
 
@@ -101,15 +108,16 @@ def _save_locked_document_details(draft, document_details, main_document_id, per
     draft = FilingDraft.objects.select_for_update().get(pk=draft.pk)
     if draft.existing_case == ExistingCase.EXISTING:
         if permitted is None:
-            raise ValueError("Your court case changed. Reload the filing codes before continuing.")
+            raise ValueError("Your court case changed. Reload this page before continuing.")
         _check_case_unchanged(draft, confirmed_case_fingerprint)
     else:
+        _check_case_unchanged(draft, confirmed_case_fingerprint)
         permitted = None
     documents = {document.pk: document for document in FilingDocument.objects.select_for_update().filter(draft=draft)}
-    if {item.get("id") for item in document_details} != set(documents):
+    if len(document_details) != len(documents) or {item.get("id") for item in document_details} != set(documents):
         raise ValueError("The document list changed. Refresh the page and try again.")
     if main_document_id not in documents:
-        raise ValueError("Choose the main document for this filing.")
+        raise ValueError("Choose the document we should read for case suggestions.")
 
     # Move every document out of the final ranges before changing the main
     # document or order, so role/order swaps cannot trip the uniqueness rule.
@@ -119,6 +127,7 @@ def _save_locked_document_details(draft, document_details, main_document_id, per
     for document in documents.values():
         document.role = FilingDocument.Role.LEAD if document.pk == main_document_id else FilingDocument.Role.SUPPORTING
 
+    previous_source = draft.documents.filter(role=FilingDocument.Role.LEAD).values_list("pk", flat=True).first()
     supporting_order = 0
     document_types_by_filing_type = {}
     for item in document_details:
@@ -126,11 +135,11 @@ def _save_locked_document_details(draft, document_details, main_document_id, per
         filing_type = str(item.get("filing_type") or "").strip()
         document_type = str(item.get("document_type") or "").strip()
         if not filing_type:
-            raise ValueError(f"Choose a filing code for {document.name}.")
+            raise ValueError(f"Choose a type of document (filing code) for {document.name}.")
         if permitted is not None:
             if filing_type not in permitted:
                 raise ValueError(
-                    "This filing code is not available for your confirmed case. Choose another filing code."
+                    "This type of document is not available for your confirmed case. Choose another type of document."
                 )
             item = {**item, "filing_type_name": permitted[filing_type]["text"]}
         if not document_type:
@@ -155,9 +164,7 @@ def _save_locked_document_details(draft, document_details, main_document_id, per
                 raise ValueError(f"Enter a valid courtesy copy email address for {document.name}.") from error
         document.courtesy_copy_email = courtesy_copy_email
         optional_services = item.get("requested_optional_services")
-        document.requested_optional_services = (
-            [str(code)[:100] for code in optional_services if code] if isinstance(optional_services, list) else []
-        )
+        document.requested_optional_services = validate_services(draft, filing_type, optional_services or [])
         document.filing_requires_amount_in_controversy = bool(item.get("requires_amount_in_controversy"))
         if document.pk == main_document_id:
             document.sort_order = 0
@@ -165,6 +172,11 @@ def _save_locked_document_details(draft, document_details, main_document_id, per
             document.sort_order = supporting_order
             supporting_order += 1
         document.save()
+    if previous_source != main_document_id:
+        draft.extracted_guesses = {}
+        draft.supplemental_fields = {**draft.supplemental_fields, "_suggestion_source_changed": True}
+        draft.save(update_fields=["extracted_guesses", "supplemental_fields", "updated_at"])
+        transaction.on_commit(lambda: queue_document_extraction(documents[main_document_id]))
 
 
 @require_http_methods(["GET", "POST"])
@@ -199,6 +211,7 @@ def organize_documents(request, jurisdiction):
         return redirect(with_return_to(get_step_url(fix_step, jurisdiction), return_target(request)))
 
     if request.method == "POST":
+        previous_source_id = documents.filter(role=FilingDocument.Role.LEAD).values_list("pk", flat=True).first()
         try:
             data = json.loads(request.body)
             details = data.get("documents")
@@ -212,7 +225,7 @@ def organize_documents(request, jurisdiction):
                 # same, because the draft already knows which document leads.
                 lead_doc = documents.filter(role=FilingDocument.Role.LEAD).first() or documents.first()
                 if lead_doc is None:
-                    raise ValueError("Choose the main document for this filing.")
+                    raise ValueError("Choose the document we should read for case suggestions.")
                 main_document_id = lead_doc.id
             _save_document_details(
                 draft, details, main_document_id, confirmed_case_fingerprint=data.get("case_fingerprint")
@@ -224,6 +237,19 @@ def organize_documents(request, jurisdiction):
             return JsonResponse({"success": False, "error": message}, status=403)
 
         return_to = clean_return_to(data.get("return_to"))
+        if previous_source_id != main_document_id:
+            messages.info(
+                request,
+                "We are reading the document you chose. Check the new suggestions below. We kept the answers you already saved.",
+            )
+            return JsonResponse(
+                {
+                    "success": True,
+                    "redirect_url": with_return_to(
+                        get_step_url(WorkflowStepKey.EXTRACTION_REVIEW, jurisdiction), return_to
+                    ),
+                }
+            )
         draft.current_step = continue_step(draft, return_to, WorkflowStepKey.YOUR_INFORMATION)
         draft.save(update_fields=["current_step", "updated_at"])
         return JsonResponse(
@@ -233,6 +259,8 @@ def organize_documents(request, jurisdiction):
             }
         )
 
+    for document in documents:
+        document.optional_services_json = json.dumps(document.requested_optional_services or [])
     jurisdiction_config = config_loader.load_jurisdiction_config(jurisdiction) or {}
     confidentiality_config = jurisdiction_config.get("document_confidentiality") or {}
     context = {

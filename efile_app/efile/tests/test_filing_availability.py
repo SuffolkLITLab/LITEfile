@@ -242,7 +242,11 @@ def test_existing_case_confirmation_is_blocked_but_search_again_works(configure,
 
 
 @pytest.mark.django_db
-def test_organize_blocks_supporting_type_but_allows_correction(configure, client, submission_draft):
+def test_organize_blocks_supporting_type_but_allows_correction(configure, client, submission_draft, monkeypatch):
+    monkeypatch.setattr(
+        "efile.services.document_choices.filing_choices",
+        lambda draft: [{"value": "123", "text": "Motion"}, {"value": "petition", "text": "Petition"}],
+    )
     configure({"rules": [{"filing_types": ["Motion"], "message": "Scheduling is unavailable."}]})
     document = submission_draft.documents.first()
     url = reverse("organize_documents", kwargs={"jurisdiction": "illinois"})

@@ -23,7 +23,7 @@ EXTRACTION_LABELS = {
     "form revision": "Form revision",
     "form purpose": "What the form asks the court to do",
     "court": "Court or county",
-    "filing type": "Filing code",
+    "filing type": "Type of document (filing code)",
     "case category": "Case category",
     "case type": "Case type",
     "docket number": "Case number",

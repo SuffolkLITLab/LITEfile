@@ -261,7 +261,7 @@
             const result = await response.json();
             if (!response.ok || !result.success) throw new Error(result.error || "Upload failed.");
             stateTitle.textContent = result.extraction_pending ? "Your documents are uploaded" : "Your documents are ready";
-            let pendingDetail = "Please wait while we read your first file. You can continue when it is ready.";
+            let pendingDetail = "Please wait while we read your document to suggest answers. You can continue when it is ready.";
             if (aiIsOff()) pendingDetail = "AI is off. We are looking for form and case numbers.";
             stateDetail.textContent = result.extraction_pending ?
                 pendingDetail :

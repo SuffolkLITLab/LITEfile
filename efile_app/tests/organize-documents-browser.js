@@ -156,6 +156,65 @@ const retryButton = (section) => section.getByRole("button", {
 });
 
 const scenarios = {
+    async "choices stay hidden until a type is selected and quantities survive saving"(browser, config) {
+        const view = await openPage(browser, config, {
+            services: async (value, route) => {
+                await route.fulfill({
+                    json: {
+                        success: true,
+                        data: [{
+                            code: "copies",
+                            name: "Certified copies",
+                            multiplier: true,
+                            fee: 5
+                        }]
+                    }
+                });
+                return "handled";
+            }
+        });
+        assert.equal(await view.lead.locator(".document-type-options").isVisible(), false);
+        assert.equal(await view.lead.locator(".filing-component-options").isVisible(), false);
+        await chooseAndAnswer(view.lead, "initial");
+        await chooseAndAnswer(view.supporting, "affidavit");
+        await view.lead.locator(".certified-copy-details summary").click();
+        await view.lead.locator(".optional-service").check();
+        await view.lead.getByRole("spinbutton", {
+            name: "Quantity: Certified copies"
+        }).fill("3");
+        const documents = await savedDetails(view.page, view.posts);
+        assert.deepEqual(documents[0].requested_optional_services, [{
+            code: "copies",
+            multiplier: 3
+        }]);
+        return view;
+    },
+    async "fixed court settings are statements, not choices"(browser, config) {
+        const fixed = (data) => async (value, route) => {
+            await route.fulfill({
+                json: {
+                    success: true,
+                    data
+                }
+            });
+            return "handled";
+        };
+        const view = await openPage(browser, config, {
+            documentTypes: fixed([{
+                code: "public",
+                name: "Public"
+            }]),
+            components: fixed([{
+                code: "lead",
+                name: "Lead Document"
+            }]),
+        });
+        await choose(view.lead, "initial");
+        await view.lead.locator(".document-type-options .compact-choice-list__fixed").waitFor(WAIT);
+        assert.equal(await view.lead.locator(".document-type-options input").isVisible(), false);
+        assert.equal(await view.lead.locator(".filing-component-options input").isVisible(), false);
+        return view;
+    },
     async "a normal response saves the selected choices"(browser, config) {
         const view = await openPage(browser, config);
         await chooseAndAnswer(view.lead, "initial");

@@ -149,6 +149,20 @@ def party_details(request, jurisdiction):
         # the case rather than confirming who they are, and the two are not
         # offered under the same words.
         "replaces_a_name": claim_replaces_a_name(filer_row, party),
+        "primary_party_types": [
+            item
+            for item in party_types
+            if item.get("required", False)
+            or item["code"] == party.party_type
+            or not any(role.get("required", False) for role in party_types)
+        ],
+        "other_party_types": [
+            item
+            for item in party_types
+            if not item.get("required", False)
+            and item["code"] != party.party_type
+            and any(role.get("required", False) for role in party_types)
+        ],
         "party_types": party_types,
         "party_kind": "organization" if party.organization_name else "person",
         "return_to": return_target(request),

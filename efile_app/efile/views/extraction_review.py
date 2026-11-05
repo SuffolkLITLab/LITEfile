@@ -1,16 +1,22 @@
 import re
+from copy import copy
 
 from botocore.exceptions import BotoCoreError, ClientError
 from django.contrib import messages
+from django.db import transaction
 from django.shortcuts import redirect, render
+from django.urls import reverse
+from django.utils.translation import gettext as _
 from django.views.decorators.http import require_http_methods
 
 from efile.api.suffolk_api_views import get_tyler_token
-from efile.models import DocumentExtraction, FilingDocument
+from efile.models import DocumentExtraction, FilingDocument, FilingDraft
 from efile.party_sides import PARTY_SIDE_HELP, PARTY_SIDE_LABELS, PartySide
 from efile.services.account_profile import cached_account_profile
+from efile.services.case_filing_types import case_fingerprint
 from efile.services.current_drafts import ensure_current_draft
 from efile.services.document_checklists import resolve_filer_roles
+from efile.services.document_choices import save_document_type, validate_document_types
 from efile.services.document_extractions import extraction_for_document, extraction_is_waiting
 from efile.services.document_preparation import PreparationError, PreparationUnavailable
 from efile.services.document_previews import (
@@ -21,9 +27,10 @@ from efile.services.document_previews import (
     unreviewed_documents,
 )
 from efile.services.drafts import draft_snapshot, write_case_data
+from efile.services.existing_cases import import_ready
 from efile.services.extracted_parties import extracted_party_suggestions, review_rows, save_reviewed_parties
 from efile.services.extraction_confirmation import extraction_review_fingerprint
-from efile.services.extraction_fields import display_extracted_fields, document_summary_details
+from efile.services.extraction_fields import display_extracted_fields, extracted_details
 from efile.services.filing_availability import filing_unavailable_message
 from efile.services.filing_path import (
     change_filing_path,
@@ -172,6 +179,13 @@ def _document_approval_error(draft, request):
 
 @require_http_methods(["GET", "POST"])
 def extraction_review(request, jurisdiction):
+    if request.method == "POST":
+        with transaction.atomic():
+            return _extraction_review(request, jurisdiction)
+    return _extraction_review(request, jurisdiction)
+
+
+def _extraction_review(request, jurisdiction):
     if not request.user.is_authenticated or not get_tyler_token(request, jurisdiction):
         return redirect("efile_login", jurisdiction=jurisdiction)
 
@@ -181,6 +195,8 @@ def extraction_review(request, jurisdiction):
         current_step=WorkflowStepKey.EXTRACTION_REVIEW,
         workflow_version=2,
     )
+    if request.method == "POST":
+        draft = FilingDraft.objects.select_for_update().get(pk=draft.pk)
     from efile.services.document_preparation_queue import unfinished_preparation
 
     if unfinished_preparation(draft):
@@ -205,7 +221,9 @@ def extraction_review(request, jurisdiction):
     lead = FilingDocument.objects.filter(draft=draft, role=FilingDocument.Role.LEAD).first()
     extraction = extraction_for_document(lead) if lead else None
     if extraction_is_waiting(extraction):
-        messages.info(request, "Please wait while we read your first PDF. You can continue when it is ready.")
+        messages.info(
+            request, "Please wait while we read your document to suggest answers. You can continue when it is ready."
+        )
         return redirect(
             with_return_to(get_step_url(WorkflowStepKey.UPLOAD_DOCUMENTS, jurisdiction), return_target(request))
         )
@@ -246,7 +264,36 @@ def extraction_review(request, jurisdiction):
         role_confirmation_required = any(role["suggested"] for role in roles) or draft.filer_role in offered_roles
         filer_role = request.POST.get("filer_role", "")
 
-        if availability_message:
+        document_choices_error = ""
+        validated_types = None
+        if request.POST.getlist("document_id"):
+            try:
+                if request.POST.get("case_fingerprint") != case_fingerprint(draft):
+                    raise ValueError("Your case changed. Reload this page before continuing.")
+                candidate = copy(draft)
+                candidate.existing_case = existing_case
+                if existing_case == ExistingCase.NEW:
+                    candidate.court_code = court_code
+                    candidate.case_category_code = case_category_code
+                    candidate.case_type_code = case_type_code
+                if existing_case == ExistingCase.NEW or import_ready(draft):
+                    selections = [
+                        {"id": int(value), "filing_type": request.POST.get(f"document_type_{value}", "")}
+                        for value in request.POST.getlist("document_id")
+                    ]
+                    # The existing cascading selector remains the lead's editor for new cases.
+                    if existing_case == ExistingCase.NEW and lead:
+                        for item in selections:
+                            if item["id"] == lead.pk:
+                                item["filing_type"] = request.POST.get("filing_type_code", "")
+                    validated_types = validate_document_types(
+                        candidate, selections, list(FilingDocument.objects.filter(draft=draft)), allow_blank=True
+                    )
+            except (ValueError, TypeError) as exc:
+                document_choices_error = str(exc)
+        if document_choices_error:
+            messages.error(request, document_choices_error)
+        elif availability_message:
             pass  # Show the persistent notice alongside the editable choices.
         elif existing_case not in {ExistingCase.NEW, ExistingCase.EXISTING}:
             messages.error(request, "Choose whether this is a new or existing court case to continue.")
@@ -306,6 +353,15 @@ def extraction_review(request, jurisdiction):
                 if not draft.previous_case_id:
                     values["docket_number"] = request.POST.get("docket_number", draft.docket_number)
                 write_case_data(draft, values, current_step=WorkflowStepKey.EXTRACTION_REVIEW)
+            if validated_types is not None:
+                for item in validated_types:
+                    document = FilingDocument.objects.get(draft=draft, pk=item["id"])
+                    save_document_type(
+                        document,
+                        item["filing_type"],
+                        item["filing_type_name"],
+                        requires_amount=item.get("requires_amount_in_controversy", False),
+                    )
             # The people the document named, as the filer has now corrected
             # them. They are stored as sides here; the party screen turns each
             # side into this court's own party type once the case type it
@@ -315,7 +371,8 @@ def extraction_review(request, jurisdiction):
             if existing_case == ExistingCase.EXISTING:
                 set_proposal_rejected(draft, request.POST.get("reject_filing_proposal") == "yes")
             draft.extraction_review_fingerprint = extraction_review_fingerprint(draft)
-            draft.save(update_fields=["extraction_review_fingerprint", "updated_at"])
+            draft.supplemental_fields.pop("_suggestion_source_changed", None)
+            draft.save(update_fields=["extraction_review_fingerprint", "supplemental_fields", "updated_at"])
             # A different kind of filing is not an edit Review can take back
             # as-is: an existing case has to be found in the court's records,
             # and a switched path clears the documents' filing types. The
@@ -347,11 +404,37 @@ def extraction_review(request, jurisdiction):
         selection = classification.get(level, {}) if isinstance(classification, dict) else {}
         return selection.get(key, "") if selection.get("status") == "selected" else ""
 
-    # Only what identifies the document is shown as read-only text. Anything
-    # else the extraction found is either asked for by the form below, where
-    # the filer can correct it, or not used by the filing at all, so it is not
-    # shown.
-    summary_details = document_summary_details(guesses)
+    # Keep useful source evidence reviewable without exposing taxonomy diagnostics.
+    summary_details = [
+        detail
+        for detail in extracted_details(guesses)
+        if detail["key"] not in {"classification evidence", "docket code evidence"}
+    ]
+    summary_groups = [
+        {"label": _("Document details"), "details": []},
+        {"label": _("Court and case"), "details": []},
+        {"label": _("People named in the document"), "details": []},
+        {"label": _("Other details"), "details": []},
+    ]
+    for detail in summary_details:
+        key = detail["key"]
+        if key in {"plaintiff or petitioner names", "defendant or respondent names", "other party names"}:
+            group = 2
+        elif key in {"court", "case title", "case category", "case type", "docket number", "filing phase"}:
+            group = 1
+        elif key in {
+            "document title",
+            "form name",
+            "form identifier",
+            "form revision",
+            "form purpose",
+            "filing type",
+            "document date",
+        }:
+            group = 0
+        else:
+            group = 3
+        summary_groups[group]["details"].append(detail)
     party_side_options = [
         {"value": str(side), "label": PARTY_SIDE_LABELS[side], "help": PARTY_SIDE_HELP[side]} for side in PartySide
     ]
@@ -359,6 +442,7 @@ def extraction_review(request, jurisdiction):
         "jurisdiction": jurisdiction,
         "guesses": guesses,
         "existing_case": draft.existing_case,
+        "case_confirmed": import_ready(draft),
         "court_code": draft.court_code or classified("court", "route_key"),
         "court_name": draft.court_name or classified("court", "name"),
         "case_category_code": draft.case_category_code or classified("case category", "route_key"),
@@ -379,10 +463,14 @@ def extraction_review(request, jurisdiction):
         if not draft.existing_case and (extraction.evidence if extraction else {}).get("filing phase") == "subsequent"
         else ""
     )
+    if guesses.get("docket number"):
+        suggested_existing_case = "existing"
     chosen_existing_case = draft.existing_case or suggested_existing_case
     # The answer already given, shown as an answer with Change rather than
     # asked again. "Not sure" is not an answer to show, so it is still asked.
     saved_path = draft.existing_case if draft.existing_case in {ExistingCase.NEW, ExistingCase.EXISTING} else ""
+    if not saved_path and guesses.get("docket number") and not draft.existing_case:
+        saved_path = "existing"
     docket_number = draft.docket_number or guesses.get("docket number")
     if request.method == "POST":
         # Sent back to fix something: show what the filer submitted, not what
@@ -411,7 +499,18 @@ def extraction_review(request, jurisdiction):
         chosen=chosen_existing_case,
     )
     documents = list(FilingDocument.objects.filter(draft=draft).order_by("role", "sort_order", "pk"))
+    if request.method == "POST":
+        for document in documents:
+            submitted = request.POST.get(f"document_type_{document.pk}")
+            if submitted is not None:
+                document.filing_type_code = submitted
     context = {
+        "case_confirmed": import_ready(draft),
+        "case_fingerprint": case_fingerprint(draft),
+        "document_choices_url": reverse("case_filing_types", kwargs={"jurisdiction": jurisdiction})
+        + f"?draft={draft.pk}"
+        if import_ready(draft)
+        else "",
         "filing_type_proposal": current_proposal(draft),
         "documents": documents,
         "preview_fingerprint": preview_fingerprint(documents),
@@ -424,6 +523,7 @@ def extraction_review(request, jurisdiction):
         "has_guesses": bool(guesses),
         "show_party_editor": show_party_editor,
         "document_summary_details": summary_details,
+        "document_summary_groups": [group for group in summary_groups if group["details"]],
         "party_rows": party_rows,
         "party_side_options": party_side_options,
         "extraction_failed": extraction is not None and extraction.status == DocumentExtraction.Status.FAILED,

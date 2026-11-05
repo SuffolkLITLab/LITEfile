@@ -273,7 +273,7 @@
         const field = section.closest("fieldset");
         const fieldName = `document-type-${card.dataset.documentId}`;
         // The last filing code may have hidden this; a lookup has to be visible.
-        field.hidden = false;
+        field.hidden = !filingType;
         if (!filingType) {
             settleSection(section);
             setRadioOptions(section, [], "", fieldName, text.choose_filing_type_first);
@@ -286,6 +286,10 @@
         });
         return loadSection(section, () => getJson(`/api/dropdowns/document-types/?${params}`), (documentTypes) => {
             field.hidden = documentTypes.length === 0;
+            if (documentTypes.length === 1) {
+                setFixedOption(section, documentTypes[0], fieldName);
+                return;
+            }
             setRadioOptions(
                 section,
                 documentTypes,
@@ -299,6 +303,7 @@
     }
 
     function showFilingComponents(card, section, components) {
+        section.closest("fieldset").hidden = components.length === 0;
         const fieldName = `filing-component-${card.dataset.documentId}`;
         let savedComponent = card.dataset.filingComponent;
         if (!savedComponent && components.length) {
@@ -328,6 +333,7 @@
 
     function loadFilingComponents(card, filingType) {
         const section = card.querySelector(".filing-component-options");
+        section.closest("fieldset").hidden = !filingType;
         if (!filingType) {
             settleSection(section);
             setRadioOptions(section, [], "", `filing-component-${card.dataset.documentId}`, text.choose_filing_type_first);
@@ -375,8 +381,9 @@
 
     function buildOptionalServiceLabel(service, saved) {
         const code = String(service.code ?? service.id ?? "");
-        const label = document.createElement("label");
-        label.className = "form-check mb-2";
+        const label = document.createElement("div");
+        label.className = "form-check mb-2 optional-service-row";
+        const choiceLabel = document.createElement("label");
         const input = document.createElement("input");
         input.type = "checkbox";
         input.className = "form-check-input optional-service";
@@ -389,7 +396,28 @@
         const fee = parseFloat(service.fee);
         if (fee > 0) text += ` ($${fee.toFixed(2)})`;
         span.textContent = text;
-        label.append(input, span);
+        choiceLabel.append(input, span);
+        label.append(choiceLabel);
+        if (service.multiplier) {
+            const quantityLabel = document.createElement("label");
+            quantityLabel.textContent = gettext("Quantity");
+            const quantity = document.createElement("input");
+            quantity.type = "number";
+            quantity.className = "form-control service-quantity";
+            quantity.min = "1";
+            quantity.step = "1";
+            quantity.required = true;
+            quantity.value = String(saved.get(code)?.multiplier || 1);
+            quantity.setAttribute("aria-label", `${gettext("Quantity")}: ${service.name || code}`);
+            quantityLabel.append(quantity);
+            const update = () => {
+                quantityLabel.hidden = !input.checked;
+                quantity.disabled = !input.checked;
+            };
+            input.addEventListener("change", update);
+            update();
+            label.append(quantityLabel);
+        }
         return {
             code,
             label
@@ -416,8 +444,11 @@
         container.innerHTML = "";
         if (!services.length) return;
 
-        const saved = new Set((card.dataset.optionalServices || "").split(",").filter(Boolean));
-        let primary = services.filter((service) => service.required || isCommonOptionalService(service.name));
+        const saved = new Map(JSON.parse(card.dataset.optionalServices || "[]").map((item) =>
+            typeof item === "string" ? [item, {
+                code: item
+            }] : [item.code, item]));
+        let primary = services.filter((service) => service.required || saved.has(service.code) || isCommonOptionalService(service.name));
         let rest = services.filter((service) => !primary.includes(service));
         if (!primary.length) {
             primary = services.slice(0, 4);
@@ -476,16 +507,16 @@
             suggestionMessage.hidden = false;
             if (filingSuggestion.status === "matched") {
                 selected = filingSuggestion.value;
-                suggestionMessage.textContent = interpolate(gettext("Suggested filing code: %(name)s. Change it if needed."), {
+                suggestionMessage.textContent = interpolate(gettext("Suggested type of document (filing code): %(name)s. Change it if needed."), {
                     name: filingSuggestion.name
                 }, true);
             } else {
-                suggestionMessage.textContent = interpolate(gettext("“%(name)s” is not on the court’s list. Choose a type below or use Find my filing code."), {
+                suggestionMessage.textContent = interpolate(gettext("“%(name)s” is not on the court’s list. Choose a type below or use Find my document type."), {
                     name: filingSuggestion.name
                 }, true);
             }
         }
-        setOptions(filingType, options, selected, "Choose a filing code");
+        setOptions(filingType, options, selected, "Choose a type of document (filing code)");
         card.dataset.filingTypesLoaded = "true";
         if (new URLSearchParams(window.location.search).get("find_filing_type") === "1" && card === cards()[0]) {
             const finder = card.querySelector(".filing-type-finder");
@@ -606,7 +637,15 @@
             const courtesyEmail = card.querySelector(".courtesy-copy-toggle").checked ?
                 card.querySelector(".courtesy-email").value : "";
             const requestedOptionalServices = Array.from(card.querySelectorAll(".optional-service:checked"))
-                .map((input) => input.value);
+                .map((input) => {
+                    const quantity = input.closest(".optional-service-row").querySelector(".service-quantity");
+                    return quantity ? {
+                        code: input.value,
+                        multiplier: Number(quantity.value)
+                    } : {
+                        code: input.value
+                    };
+                });
             return {
                 id: Number(card.dataset.documentId),
                 name: card.querySelector(".document-name").value,

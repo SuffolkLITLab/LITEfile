@@ -131,7 +131,7 @@
                                         aria-controls="waiver-upload-panel"
                                         data-url="{{ waiver_upload_url }}">{% translate "Add fee waiver document" %}</button>
                                 <div id="waiver-upload-panel" hidden class="mt-3">
-                                    <label for="waiver-filing-type">{% translate "Filing code" %}</label>
+                                    <label for="waiver-filing-type">{% translate "Type of document (filing code)" %}</label>
                                     <select id="waiver-filing-type" class="form-select mb-2"></select>
                                     <label for="waiver-document-type">{% translate "Who can see this document?" %}</label>
                                     <select id="waiver-document-type" class="form-select mb-2"></select>
@@ -155,7 +155,7 @@
                      data-document-checks
                      data-url="{{ document_checks_url }}">
                     {% for check in document_checks %}
-                        {% include "efile/components/document_check.html" with document=check.document fingerprint=check.fingerprint removable=check.removable %}
+                        {% include "efile/components/document_check.html" with document=check.document fingerprint=check.fingerprint removable=check.removable document_choices_url=check.document_choices_url upload_disclaimers=check.upload_disclaimers %}
                     {% endfor %}
                 </div>
                 <p id="freeFilingHelp" hidden>{% translate "The court requires an account even for a free filing. If the confirmed total is $0, you will not be charged. No fee waiver is needed." %}</p>

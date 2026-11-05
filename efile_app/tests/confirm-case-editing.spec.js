@@ -435,7 +435,7 @@ test.describe('filing code search', () => {
         await openSavedDraft(page);
         const dialog = await openSearch(page);
         await expect(dialog.getByRole('heading', {
-            name: 'Common filing codes'
+            name: 'Common document types (filing codes)'
         })).toBeVisible();
         await expect(dialog).toContainText('Step 1 of 3');
         expect(queries).toEqual([]);
@@ -448,7 +448,7 @@ test.describe('filing code search', () => {
         await expect(button(page, 'Next: check and use')).toBeEnabled();
         await searchbox(page).fill('');
         await expect(dialog.getByRole('heading', {
-            name: 'Common filing codes'
+            name: 'Common document types (filing codes)'
         })).toBeVisible();
         await expect(dialog.getByRole('radio')).toHaveCount(0);
         await expect(button(page, 'Next: court and case type')).toBeDisabled();
@@ -1085,7 +1085,7 @@ test.describe('filing code search', () => {
         const dialog = await openSearch(page);
         await searchbox(page).fill('small claims');
         await expect(dialog.locator('.code-search__group')).toHaveCount(3);
-        await expect(page.locator('#code-search-status')).toHaveText('3 filing codes match “small claims”');
+        await expect(page.locator('#code-search-status')).toHaveText('3 document types (filing codes) match “small claims”');
         expect(queries.at(-1).strong).toBe('true');
         const question = dialog.getByRole('group', {
             name: 'What do you want to do?'
@@ -1095,7 +1095,7 @@ test.describe('filing code search', () => {
         })).toBeVisible();
         await auditCodeSearch(page, 'action-question');
         await dialog.getByRole('button', {
-            name: 'Show 9 more filing codes used in these case types'
+            name: 'Show 9 more document types (filing codes) used in these case types'
         }).click();
         await expect(dialog.locator('.code-search__group')).toHaveCount(12);
         expect(queries.at(-1)).toMatchObject({
@@ -1289,7 +1289,7 @@ test.describe('filing code search', () => {
         await openSavedDraft(page);
         const dialog = await openSearch(page);
         await searchbox(page).fill('seal eviction');
-        await expect(page.locator('#code-search-status')).toContainText('No matching filing codes');
+        await expect(page.locator('#code-search-status')).toContainText('No matching document types (filing codes)');
         const link = button(page, '10 results in “existing case” filings');
         await expect(link).toBeVisible();
         await auditCodeSearch(page, 'other-stage-link');

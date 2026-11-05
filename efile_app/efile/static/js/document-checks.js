@@ -16,6 +16,7 @@ const DocumentChecks = {
         const check = template.content.firstElementChild;
         container.appendChild(check);
         check.querySelectorAll("[data-pdf-preview]").forEach((details) => window.attachPdfPreview?.(details));
+        check.querySelectorAll("[data-document-type-picker]").forEach(picker => window.DocumentTypePicker?.attach(picker));
         return check;
     },
 
@@ -25,7 +26,14 @@ const DocumentChecks = {
         const action = button.hasAttribute("data-document-remove") ? "remove" : "confirm";
         const status = check.querySelector("[data-document-check-status]");
         const buttons = check.querySelectorAll("button");
+        const type = check.querySelector("[data-document-type-select]");
+        if (action === "confirm" && type && (type.disabled || !type.value)) {
+            status.textContent = gettext("Choose a type of document before continuing.");
+            if (!type.disabled) type.focus();
+            return;
+        }
         const body = new FormData();
+        if (type && action === "confirm") body.append("filing_type", type.value);
         body.append("action", action);
         body.append("document_id", check.dataset.documentId);
         body.append("preview_fingerprint", check.dataset.fingerprint);

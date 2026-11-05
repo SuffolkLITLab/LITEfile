@@ -308,7 +308,7 @@ def handoff_review(request, draft_id):
         },
         **{
             f"documents.{document.pk}.filing_type_code": (
-                f"Filing code for {document.name}",
+                f"Type of document (filing code) for {document.name}",
                 document.interview_filing_hint,
             )
             for document in documents

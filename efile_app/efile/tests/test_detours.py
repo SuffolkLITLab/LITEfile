@@ -74,7 +74,13 @@ def test_an_empty_document_type_is_a_finished_answer(draft):
     assert documents_need_organizing(draft)
     lead = draft.documents.get()
 
-    with patch("efile.views.organize_documents._court_document_types", return_value=[]):
+    with (
+        patch("efile.views.organize_documents._court_document_types", return_value=[]),
+        patch(
+            "efile.services.document_choices.filing_choices",
+            return_value=[{"value": lead.filing_type_code, "text": lead.filing_type_name}],
+        ),
+    ):
         _save_document_details(
             draft,
             [{"id": lead.pk, "filing_type": lead.filing_type_code, "document_type": ""}],
@@ -199,6 +205,6 @@ def test_pages_never_echo_an_unknown_marker(client, draft, name):
         patch("efile.views.organize_documents.draft_unavailable_message", return_value=""),
         patch("efile.views.document_checklist.draft_unavailable_message", return_value=""),
     ):
-        response = client.get(step(name, draft, "evil%22%3E"))
+        response = client.get(step(name, draft, "evil%22%3E") + "&edit=1")
     assert response.status_code == 200
     assert b"evil" not in response.content

@@ -334,7 +334,7 @@ def test_review_uses_new_edit_routes_and_durable_summary(client, submission_draf
     assert response.status_code == 200
     assert b"Jordan" in response.content
     assert b"Petition.pdf" in response.content
-    assert b"Filing code:" in response.content
+    assert b"Type of document (filing code):" in response.content
     assert b"review-document-tag" in response.content
     assert reverse("organize_documents", kwargs={"jurisdiction": "illinois"}).encode() in response.content
     assert reverse("your_information", kwargs={"jurisdiction": "illinois"}).encode() in response.content

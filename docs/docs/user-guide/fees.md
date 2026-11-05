@@ -17,6 +17,9 @@ can't afford the fee, have your fee waiver form ready.
 At the top, you see **Estimated fees before a waiver**. The exact total shows
 after you choose a payment method. You are not charged on this screen.
 
+Extra services, like certified copies, can add to your fee. To change how many
+copies you asked for, go back to **Organize your documents**.
+
 ## Pay with a card or bank account
 
 1. Under **Payment method**, choose **Use a credit card or bank account**.
@@ -42,14 +45,14 @@ for a fee waiver?** to read your state's rules.
 
 1. Choose **I think I qualify for a fee waiver**.
 2. Choose **Add fee waiver document**.
-3. Pick the **Filing code** for your waiver form.
+3. Pick the **Type of document (filing code)** for your waiver form.
 4. Under **Who can see this document?**, follow your court's rules. Ask the
    clerk if you are not sure.
 5. Upload your filled-out, signed waiver form.
 6. Check the PDF. Choose **This copy looks right**.
 7. Choose **Review your filing**.
 
-<img src="/img/user-guide/fee-waiver-upload.png" alt="Fee waiver option selected, with a form to add a fee waiver document: filing code, who can see this document, and an upload box." className="doc-screenshot" width="700" loading="lazy" />
+<img src="/img/user-guide/fee-waiver-upload.png" alt="Fee waiver option selected, with a form to add a fee waiver document: type of document (filing code), who can see this document, and an upload box." className="doc-screenshot" width="700" loading="lazy" />
 
 **Asking is not the same as getting a waiver.** The judge decides. If the judge
 says no, the court may ask you to pay later.

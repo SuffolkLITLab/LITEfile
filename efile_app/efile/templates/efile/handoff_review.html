@@ -102,8 +102,9 @@
                 </table>
             {% endfor %}
             <a href="{{ parties_url }}">Edit people</a>
-            <h2>Filing codes</h2>
-            <table class="table handoff-details" aria-label="Document filing codes">
+            <h2>Document types (filing codes)</h2>
+            <table class="table handoff-details"
+                   aria-label="Document types (filing codes)">
                 <tbody>
                     {% for document in documents %}
                         <tr>
@@ -129,7 +130,7 @@
                     </tbody>
                 </table>
             {% endif %}
-            <a href="{{ documents_url }}">Edit documents and filing codes</a>
+            <a href="{{ documents_url }}">Edit documents and document types (filing codes)</a>
             <form method="post">
                 {% csrf_token %}
                 <button type="submit" name="action" value="resolve" class="btn btn-secondary">Retry matching court choices</button>

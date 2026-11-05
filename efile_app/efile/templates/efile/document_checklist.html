@@ -10,7 +10,7 @@
         {% include "efile/partials/filing_guidance.html" %}
         <p class="workflow-lede">{% translate "Add any other documents you want to file." %}</p>
         {% if filing_draft.existing_case == "existing" %}
-            <p><a href="{% url 'organize_documents' jurisdiction %}?find_filing_type=1{% if return_to %}&amp;return_to={{ return_to }}{% endif %}">{% translate "Find my filing type" %}</a></p>
+            <p><a href="{% url 'organize_documents' jurisdiction %}?find_filing_type=1{% if return_to %}&amp;return_to={{ return_to }}{% endif %}">{% translate "Find my document type" %}</a></p>
         {% endif %}
         {% if checklist_groups %}
             <div class="checklist-guidance" role="note">
@@ -187,7 +187,7 @@
              data-document-checks
              data-url="{{ document_checks_url }}">
             {% for check in document_checks %}
-                {% include "efile/components/document_check.html" with document=check.document fingerprint=check.fingerprint removable=check.removable %}
+                {% include "efile/components/document_check.html" with document=check.document fingerprint=check.fingerprint removable=check.removable document_choices_url=check.document_choices_url upload_disclaimers=check.upload_disclaimers %}
             {% endfor %}
         </div>
         <div class="checklist-files">

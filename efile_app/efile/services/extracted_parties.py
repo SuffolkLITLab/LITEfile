@@ -263,7 +263,7 @@ def review_rows(draft: FilingDraft) -> list[dict[str, Any]]:
             }
             for party in saved
         ]
-    if extraction_is_confirmed(draft):
+    if extraction_is_confirmed(draft) or draft.supplemental_fields.get("_suggestion_source_changed"):
         return []
     return [
         {

@@ -9,7 +9,7 @@ from efile.checks import configured_ui_text_keys_are_known
 from efile.models import FilingDocument, FilingDraft
 from efile.services.current_drafts import CURRENT_DRAFT_SESSION_KEY
 from efile.tests.helpers import reviewed_document
-from efile.utils.ui_text import UI_STRINGS, config_overrides, get_html, get_text, get_texts
+from efile.utils.ui_text import UI_STRINGS, UIString, config_overrides, get_html, get_text, get_texts
 from efile.workflow import ExistingCase, WorkflowStepKey
 
 
@@ -23,9 +23,14 @@ def test_a_state_can_reword_a_term():
     assert get_text("terms.starting_document_example", jurisdiction="vermont") == "complaint"
 
 
-def test_a_term_reaches_the_sentences_that_use_it():
+def test_a_term_reaches_the_sentences_that_use_it(monkeypatch):
     """A state rewords the noun once, and every sentence naming it follows."""
 
+    monkeypatch.setitem(
+        UI_STRINGS,
+        "organize_documents.main_document_help",
+        UIString(default="Choose a document, like a {starting_document_example}."),
+    )
     illinois = get_text("organize_documents.main_document_help", jurisdiction="illinois")
     vermont = get_text("organize_documents.main_document_help", jurisdiction="vermont")
 
@@ -73,11 +78,11 @@ def test_get_texts_keys_by_short_name_for_javascript():
 
 
 def test_the_template_tag_reads_the_jurisdiction_from_the_page():
-    template = Template('{% load ui_text %}{% ui_text "organize_documents.main_document_help" %}')
+    template = Template('{% load ui_text %}{% ui_text "terms.starting_document_example" %}')
 
     rendered = template.render(Context({"jurisdiction": "vermont"}))
 
-    assert "like a complaint" in rendered
+    assert rendered == "complaint"
 
 
 def test_every_configured_key_is_a_key_we_ship():
@@ -281,17 +286,15 @@ def organize_draft(client, django_user_model, jurisdiction):
 
 
 @pytest.mark.django_db
-@pytest.mark.parametrize(
-    ("jurisdiction", "example"),
-    [("illinois", "like a petition"), ("vermont", "like a complaint")],
-)
-def test_organize_documents_names_the_document_this_state_starts_with(client, django_user_model, jurisdiction, example):
+@pytest.mark.parametrize("jurisdiction", ["illinois", "vermont"])
+def test_organize_documents_explains_the_source_of_suggestions(client, django_user_model, jurisdiction):
     organize_draft(client, django_user_model, jurisdiction)
 
     response = client.get(reverse("organize_documents", kwargs={"jurisdiction": jurisdiction}))
 
     assert response.status_code == 200
-    assert example in response.content.decode()
+    assert "Document we read for case suggestions" in response.content.decode()
+    assert "We will not change answers you already saved" in response.content.decode()
 
 
 @pytest.mark.django_db
@@ -305,8 +308,8 @@ def test_organize_documents_separates_the_main_document_from_court_components(cl
     content = client.get(reverse("organize_documents", kwargs={"jurisdiction": "illinois"})).content.decode()
 
     assert "Document role" not in content
-    assert "Court filing component" in content
-    assert "This is separate from your main document" in content
+    assert "How this document is filed" in content
+    assert "This does not change which document we read for case suggestions" in content
     # The card header says the same thing the question above it said.
     assert "Lead document" not in content
 

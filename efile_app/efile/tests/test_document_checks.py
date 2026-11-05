@@ -181,3 +181,35 @@ def test_prepared_unchecked_files_stay_inline(client, draft, added, page):
         response = client.get(url)
     assert response.status_code == 200
     assert f'data-document-id="{added.pk}"' in response.content.decode()
+
+
+def test_new_file_type_is_saved_with_pdf_check(client, draft, added, monkeypatch):
+    monkeypatch.setattr(
+        "efile.views.document_checks.filing_choices", lambda draft: [{"value": "exhibit", "text": "Exhibit"}]
+    )
+    response = client.post(checks(draft), confirm(added, filing_type="exhibit"))
+    assert response.status_code == 200
+    added.refresh_from_db()
+    assert added.filing_type_code == "exhibit"
+    assert added.filing_type_name == "Exhibit"
+    assert added.preparation_reviewed_at is not None
+
+
+def test_unavailable_file_type_keeps_pdf_check_open(client, draft, added, monkeypatch):
+    monkeypatch.setattr("efile.views.document_checks.filing_choices", lambda draft: [])
+    response = client.post(checks(draft), confirm(added, filing_type="wrong"))
+    assert response.status_code == 400
+    added.refresh_from_db()
+    assert added.preparation_reviewed_at is None
+
+
+def test_later_file_has_same_court_notices_and_type_picker(draft, added, monkeypatch):
+    from efile.views.document_checks import document_check
+
+    notices = [{"text": "Example court filing notice"}]
+    monkeypatch.setattr(
+        "efile.views.document_checks.config_loader.get_upload_disclaimers", lambda jurisdiction: notices
+    )
+    context = document_check(added)
+    assert context["upload_disclaimers"] == notices
+    assert "filing-types" in context["document_choices_url"]

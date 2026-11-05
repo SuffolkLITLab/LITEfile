@@ -210,7 +210,7 @@ async function main() {
                 }).click();
                 await page.waitForURL(/document-checklist/);
                 await page.getByRole("link", {
-                    name: "Find my filing code",
+                    name: "Find my document type",
                     exact: true
                 }).click();
                 await page.waitForURL(/organize-documents/);
