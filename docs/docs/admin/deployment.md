@@ -25,8 +25,14 @@ public site. Deployments are serialized. The GitHub `production` environment
 records deployments. `FLY_PRODUCTION_API_TOKEN` is restricted to the production
 Fly app; renew it before October 29, 2027.
 
-The **Deploy staging** workflow can be run manually for a selected branch. It
-uses `fly.toml`, `efile.settings_staging`, and the existing `FLY_API_TOKEN`.
+The **Deploy staging** workflow also deploys automatically after CI passes on
+`main`, without a manual approval step. It deploys the exact tested commit, skips
+commits superseded on `main`, and checks the public About page after deployment.
+Staging deployments are serialized and recorded in the GitHub `staging`
+environment. The workflow uses `fly.toml`, `efile.settings_staging`, and the
+existing `FLY_API_TOKEN`. It can also be run manually on `main`; manual runs are
+an explicit deployment override and do not wait for CI. Both automatic deployment
+workflows ignore pull-request CI runs and unsuccessful CI runs.
 For a manual production deployment, run **Deploy production** on `main`, or:
 
 ```bash
