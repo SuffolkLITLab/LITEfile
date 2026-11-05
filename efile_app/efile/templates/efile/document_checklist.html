@@ -10,7 +10,7 @@
         {% include "efile/partials/filing_guidance.html" %}
         <p class="workflow-lede">{% translate "Add any other documents you want to file." %}</p>
         {% if filing_draft.existing_case == "existing" %}
-            <p><a href="{% url 'organize_documents' jurisdiction %}?find_filing_type=1{% if return_to %}&amp;return_to={{ return_to }}{% endif %}">{% translate "Find my filing type" %}</a></p>
+            <p><a href="{% url 'organize_documents' jurisdiction %}?find_filing_type=1{% if return_to %}&amp;return_to={{ return_to }}{% endif %}">{% translate "Find my document type" %}</a></p>
         {% endif %}
         {% if checklist_groups %}
             <div class="checklist-guidance" role="note">
