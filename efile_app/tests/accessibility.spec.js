@@ -29,7 +29,8 @@ const signedInScreens = [
     ['confirm filing', '/jurisdiction/illinois/extraction-review/'],
     ['check documents', '/jurisdiction/illinois/document-checklist/'],
     ['organize documents', '/jurisdiction/illinois/organize-documents/'],
-    ['your information', '/jurisdiction/illinois/your-information/'],
+    // Complete contact details skip to People; explicitly open the editable form.
+    ['your information', '/jurisdiction/illinois/your-information/?edit=1'],
     ['people', '/jurisdiction/illinois/parties/'],
     ['payment', '/jurisdiction/illinois/payment/'],
     ['review', '/jurisdiction/illinois/review/'],
@@ -60,6 +61,7 @@ async function audit(page, label, scope) {
 // (see static/js/draft-scope.js), so match the path and ignore any query or
 // fragment. This still catches a screen that redirects somewhere else.
 function routePattern(url) {
+    url = url.split(/[?#]/)[0];
     return new RegExp(`${url.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}/?(?:[?#].*)?$`);
 }
 
