@@ -17,6 +17,9 @@ SECRET_KEY = os.getenv("DJANGO_SECRET_KEY", "django-insecure-r1o&rohs_$%i1)u-8am
 # Override in env-specific settings
 DEBUG = True
 
+# Only development and staging expose commit details on the About page.
+SHOW_BUILD_COMMIT = False
+
 # Override in env-specific settings
 _configured_allowed_hosts = os.getenv("DJANGO_ALLOWED_HOSTS", "")
 ALLOWED_HOSTS: list[str] = [host.strip() for host in _configured_allowed_hosts.split(",") if host.strip()]

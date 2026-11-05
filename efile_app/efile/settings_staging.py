@@ -14,6 +14,7 @@ from efile.settings_base import MIDDLEWARE as BASE_MIDDLEWARE
 DATABASES = BASE_DATABASES
 
 DEBUG = False
+SHOW_BUILD_COMMIT = True
 ALLOWED_HOSTS = ["litefile-staging.fly.dev"]
 CSRF_TRUSTED_ORIGINS = ["https://litefile-staging.fly.dev"]
 

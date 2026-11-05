@@ -45,6 +45,7 @@ CROSSWALK_REVIEW_ENABLED = True
 DATABASES = BASE_DATABASES
 
 DEBUG = True
+SHOW_BUILD_COMMIT = True
 ALLOWED_HOSTS = BASE_ALLOWED_HOSTS or ["localhost", "127.0.0.1", ".localhost", "[::1]", "testserver"]
 
 # Static files: serve dev assets through WhiteNoise, as staging and production do.
