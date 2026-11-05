@@ -143,14 +143,14 @@
                     <div class="spinner-border spinner-border-sm" aria-hidden="true"></div>
                     <strong id="upload-state-title">
                         {% if extraction_pending %}
-                            {% translate "Reading your first file…" %}
+                            {% translate "Reading your document…" %}
                         {% else %}
                             {% translate "Uploading your documents…" %}
                         {% endif %}
                     </strong>
                     <span id="upload-state-detail">
                         {% if extraction_pending %}
-                            {% translate "Please wait while we read your first file. You can continue when it is ready." %}
+                            {% translate "Please wait while we read your document to suggest answers. You can continue when it is ready." %}
                         {% else %}
                             {% translate "Keep this page open while the files upload." %}
                         {% endif %}
@@ -238,7 +238,7 @@
                             <strong>{{ document.name|default:document.original_filename }}</strong>
                             <small>
                                 {% if document.role == "lead" %}
-                                    {% translate "Analyzed first" %}
+                                    {% translate "Document we read for case suggestions" %}
                                 {% else %}
                                     {% translate "Supporting document" %}
                                 {% endif %}

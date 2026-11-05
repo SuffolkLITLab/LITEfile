@@ -187,7 +187,7 @@
              data-document-checks
              data-url="{{ document_checks_url }}">
             {% for check in document_checks %}
-                {% include "efile/components/document_check.html" with document=check.document fingerprint=check.fingerprint removable=check.removable %}
+                {% include "efile/components/document_check.html" with document=check.document fingerprint=check.fingerprint removable=check.removable document_choices_url=check.document_choices_url upload_disclaimers=check.upload_disclaimers %}
             {% endfor %}
         </div>
         <div class="checklist-files">

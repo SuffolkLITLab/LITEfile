@@ -106,14 +106,18 @@
                                 <strong>{{ document.name|default:document.original_filename }}</strong>
                                 <small>
                                     {% if document.role == "lead" %}
-                                        {% translate "Main document" %}
+                                        {% translate "Document we read for case suggestions" %}
                                     {% else %}
                                         {% translate "Additional document" %}
                                     {% endif %}
                                     {% if document.document_type_name %}· {{ document.document_type_name }}{% endif %}
                                 </small>
                                 {% if document.filing_type_name %}
-                                    <span class="review-document-tag">{% translate "Filing code:" %} {{ document.filing_type_name }}{% if document.id in extracted_markers.document_ids %} *{% endif %}</span>
+                                    <span class="review-document-tag">{% translate "Type of document (filing code):" %} {{ document.filing_type_name }}{% if document.id in extracted_markers.document_ids %} *{% endif %}</span>
+                                {% endif %}
+                                {% if document.service_summary %}
+                                    <p>{% translate "Optional services" %}</p>
+                                    <ul>{% for service in document.service_summary %}<li>{{ service.name }} — {% translate "Quantity" %}: {{ service.quantity }}</li>{% endfor %}</ul>
                                 {% endif %}
                             </div>
                         </article>

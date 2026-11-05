@@ -388,6 +388,18 @@ def parties(request, jurisdiction):
         "return_to": return_to,
         "continue_previews": continue_previews,
         "continue_preview": continue_previews.get(selected_role, continue_previews[""]),
+        "primary_party_types": [
+            item
+            for item in party_types
+            if item["required"] or item["code"] == filer.party_type or not any(role["required"] for role in party_types)
+        ],
+        "other_party_types": [
+            item
+            for item in party_types
+            if not item["required"]
+            and item["code"] != filer.party_type
+            and any(role["required"] for role in party_types)
+        ],
         "party_types": party_types,
         "roster": roster,
         "guessed_party_type": guessed_party_type,

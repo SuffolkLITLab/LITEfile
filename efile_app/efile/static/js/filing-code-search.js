@@ -592,12 +592,12 @@
             strongTotal = data.strong_total || 0;
             const narrowed = !showAll && strongTotal && strongTotal < data.total;
             const shownTotal = narrowed ? strongTotal : data.total;
-            if (!data.total) status.textContent = gettext("No matching filing codes. Try fewer words or another term.");
-            else if (narrowed) status.textContent = interpolate(ngettext("%(count)s filing code matches “%(query)s”", "%(count)s filing codes match “%(query)s”", strongTotal), {
+            if (!data.total) status.textContent = gettext("No matching document types (filing codes). Try fewer words or another term.");
+            else if (narrowed) status.textContent = interpolate(ngettext("%(count)s document type (filing code) matches “%(query)s”", "%(count)s document types (filing codes) match “%(query)s”", strongTotal), {
                 count: strongTotal,
                 query: text
             }, true);
-            else status.textContent = interpolate(ngettext("%(total)s filing code", "%(total)s filing codes", data.total), {
+            else status.textContent = interpolate(ngettext("%(total)s document type (filing code)", "%(total)s document types (filing codes)", data.total), {
                 total: data.total
             }, true);
             if (data.corrected_terms.length) status.textContent += ". " + gettext("Similar spellings were included.");
@@ -606,7 +606,7 @@
             if (data.other_stage_total !== undefined && data.other_stage_total !== null) showOtherStage(data.other_stage_total);
             const remaining = data.total - offset;
             more.hidden = offset >= 10000 || remaining <= 0;
-            more.textContent = offset < shownTotal ? gettext("Show more") : interpolate(ngettext("Show %(count)s more filing code used in these case types", "Show %(count)s more filing codes used in these case types", remaining), {
+            more.textContent = offset < shownTotal ? gettext("Show more") : interpolate(ngettext("Show %(count)s more document type (filing code) used in these case types", "Show %(count)s more document types (filing codes) used in these case types", remaining), {
                 count: remaining
             }, true);
         }
@@ -629,7 +629,7 @@
             const token = generation;
             controller ||= new AbortController();
             more.hidden = true;
-            status.textContent = gettext("Searching filing codes…");
+            status.textContent = gettext("Searching document types (filing codes)…");
             try {
                 const data = await request({
                     q: text,
@@ -948,7 +948,7 @@
             row(gettext("Case category"), selected.case_category.name);
             row(gettext("Case type"), selected.case_type.name, selected.case_description, viaGroup && "path", gettext("case type"));
             const renamed = viaGroup && selected.filing_type.name.toLowerCase() !== chosen.group.name.toLowerCase();
-            row(gettext("Filing code"), selected.filing_type.name, renamed ? interpolate(gettext("This court's name for “%(name)s”"), {
+            row(gettext("Type of document (filing code)"), selected.filing_type.name, renamed ? interpolate(gettext("This court's name for “%(name)s”"), {
                 name: chosen.group.name
             }, true) : "", "filing", gettext("filing code"));
             explanation.replaceChildren();
@@ -977,7 +977,7 @@
             resetCaseFilters();
             invalidate();
             clearResults();
-            status.textContent = gettext("Searching filing codes…");
+            status.textContent = gettext("Searching document types (filing codes)…");
             if (!query.value.trim()) search();
             else timer = setTimeout(() => search(), 250);
         });
@@ -1139,9 +1139,9 @@
                 if (words.every(word => option.text.toLocaleLowerCase().includes(word))) matches.push(option);
             }
             results.replaceChildren();
-            status.textContent = matches.length ? interpolate(gettext("%(count)s matching filing codes"), {
+            status.textContent = matches.length ? interpolate(gettext("%(count)s matching document types (filing codes)"), {
                 count: matches.length
-            }, true) : gettext("No matching filing codes. Try another word or use the dropdown.");
+            }, true) : gettext("No matching document types (filing codes). Try another word or use the dropdown.");
             for (const option of matches) {
                 const row = document.createElement("li");
                 const button = document.createElement("button");

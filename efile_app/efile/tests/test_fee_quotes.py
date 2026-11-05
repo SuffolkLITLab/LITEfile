@@ -400,7 +400,10 @@ def test_a_fee_waiver_submits_without_a_quote(client, draft):
 
 
 @pytest.mark.django_db
-def test_removing_an_optional_service_is_requoted_from_review_without_visiting_payment(client, draft):
+def test_removing_an_optional_service_is_requoted_from_review_without_visiting_payment(client, draft, monkeypatch):
+    monkeypatch.setattr(
+        "efile.services.document_choices.filing_choices", lambda draft: [{"value": "complaint", "text": "Complaint"}]
+    )
     """The optional-services regression: no trip back to Payment is needed."""
 
     quote_fees(client, "128.00", ("Filing fee", "118.00"), ("Certified copy", "10.00"))

@@ -24,6 +24,9 @@ court rule or court order says so.
 **Confirmation number** or **envelope number** — The number for one
 submission. You get it after you submit. Use it when you call the clerk.
 
+**Document we read for case suggestions** — The file LITEfile reads to help
+fill in your case details. You can check and change those answers.
+
 **Draft** — A filing you started in LITEfile but did not send.
 
 **E-filing** — Sending papers to the court over the internet.
@@ -36,7 +39,7 @@ decides if you get it.
 **File-stamped copy** — The court's copy of your paper, marked with the date
 the court received it. Save it.
 
-**Filing code** — The court's name for a kind of paper, like *Complaint* or
+**Filing code (type of document)** — The court's name for a kind of paper, like *Complaint* or
 *Appearance*.
 
 **Hearing** — A meeting with a judge about your case. It may be in person or

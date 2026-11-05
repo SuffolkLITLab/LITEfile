@@ -25,7 +25,9 @@ make sure your proof of service is filled out. See
 6. Choose **Submit and pay** (or **Submit filing** if there is no charge).
 7. Wait. Don't close the page or press the button again.
 
-<img src="/img/user-guide/review.png" alt="Review your filing page listing case details, the document, the filer, other people, a payment total of $133.76, the court's requirements and a Submit and pay button." className="doc-screenshot" width="700" loading="lazy" />
+<img src="/img/user-guide/review.png" alt="Review your filing page listing case details, two documents, three certified copies, contact details, a sample total of $115.00, and a Submit and pay button." className="doc-screenshot" width="700" loading="lazy" />
+
+<p className="screenshot-caption">This example uses fictional details and sample fees. Your fees may be different.</p>
 
 <img src="/img/user-guide/sending.png" alt="A spinner with the message: We are sending your filing to the court. Do not close this page." className="doc-screenshot" width="600" loading="lazy" />
 <p className="screenshot-caption">Keep the page open while your filing is sent.</p>

@@ -30,11 +30,14 @@
                     {% translate "These answers are suggested from your document and may be wrong. Check them and fix any mistakes." %}
                 {% endif %}
             </p>
-            <section class="extracted-details" aria-labelledby="extracted-details-heading">
-                <div class="extraction-section-heading">
-                    <h2 id="extracted-details-heading">{% translate "The document we read" %}</h2>
-                    {% include "efile/components/extraction_marker_help.html" %}
-                </div>
+            <details class="extracted-details">
+                <summary>{% translate "Details read from your document" %}: {{ lead_document.name }}</summary>
+                <div class="extraction-section-heading">{% include "efile/components/extraction_marker_help.html" %}</div>
+                <p>{% translate "We read this file to suggest answers. Your answers below will not change unless you edit them. To fix a mistake inside the PDF, choose Change files and upload a corrected copy." %}</p>
+                <p>
+                    <a href="#path-section">{% translate "Edit case details" %}</a>
+                    · {% if show_party_editor %}<a href="#review-parties">{% translate "Edit people" %}</a>{% else %}<a href="{% url 'parties' jurisdiction %}{% if return_to %}?return_to={{ return_to }}{% endif %}">{% translate "Edit people" %}</a>{% endif %}
+                </p>
                 {% if document_summary_details %}
                     <dl>
                         {% for detail in document_summary_details %}
@@ -49,17 +52,17 @@
                 {% else %}
                     <p class="extracted-details__note">{% translate "We could not identify this document. Check the details below." %}</p>
                 {% endif %}
-                {% if extraction_total_pages > extraction_pages_analyzed %}
-                    <p class="extracted-details__note">
-                        {% blocktranslate %}This PDF has {{ extraction_total_pages }} pages. We analyzed only the first {{ extraction_pages_analyzed }} pages.{% endblocktranslate %}
-                    </p>
-                {% endif %}
-                {% if extraction_text_truncated %}
-                    <p class="extracted-details__note">
-                        {% translate "We read only part of this Word file. Add any missing details below." %}
-                    </p>
-                {% endif %}
-            </section>
+            </details>
+            {% if extraction_total_pages > extraction_pages_analyzed %}
+                <p class="extracted-details__note">
+                    {% blocktranslate %}This PDF has {{ extraction_total_pages }} pages. We analyzed only the first {{ extraction_pages_analyzed }} pages.{% endblocktranslate %}
+                </p>
+            {% endif %}
+            {% if extraction_text_truncated %}
+                <p class="extracted-details__note">
+                    {% translate "We read only part of this Word file. Add any missing details below." %}
+                </p>
+            {% endif %}
         {% else %}
             <h1>{% translate "Confirm information" %}</h1>
             {% if filing_guidance %}
@@ -86,11 +89,319 @@
         {% endfor %}
         <form method="post" id="extraction-review-form">
             {% csrf_token %}
+            <input type="hidden" name="case_fingerprint" value="{{ case_fingerprint }}" />
             <input type="hidden"
                    name="preview_fingerprint"
                    value="{{ preview_fingerprint }}" />
             {% include "efile/components/filing_availability_notice.html" %}
             <input type="hidden" name="return_to" value="{{ return_to }}" />
+            {% if filing_type_proposal.name %}
+                <fieldset class="form-field filing-proposal"
+                          id="filing-proposal"
+                          {% if chosen_existing_case != "existing" %}hidden disabled{% endif %}>
+                    <legend>{% translate "Suggested type of document (filing code)" %}</legend>
+                    <p class="filing-proposal__name">{{ filing_type_proposal.name }}</p>
+                    <p class="form-help">{% translate "This is our best guess from your document. We still need to check whether your court allows this document type (filing code)." %}</p>
+                    <div class="form-check">
+                        <input class="form-check-input"
+                               type="checkbox"
+                               id="reject-filing-proposal"
+                               name="reject_filing_proposal"
+                               value="yes"
+                               {% if filing_type_proposal.rejected %}checked{% endif %} />
+                        <label class="form-check-label" for="reject-filing-proposal">
+                            {% translate "This doesn't look right. I will choose on my own later." %}
+                        </label>
+                    </div>
+                </fieldset>
+            {% endif %}
+            {% comment %}
+            First, because the rest depends on it: the court lists different
+            filing types for new and existing cases, and only an existing case
+            has a case number to ask for.
+            {% endcomment %}
+            <h2>{% translate "Questions about your filing" %}</h2>
+            <div class="path-section" id="path-section">
+                {% comment %}
+                The new-or-existing answer, when the filer already gave one, is
+                shown as their answer with Change rather than asked again. The
+                radios below still carry it (a hidden fieldset still posts), and
+                open when Change is chosen, when there is no answer yet or it was
+                "not sure", or when the form came back with a different one.
+                {% endcomment %}
+                {% if saved_path %}
+                    <div class="path-summary" id="path-summary">
+                        <div>
+                            <span class="path-summary__label">{% translate "New or existing case" %}</span>
+                            <strong>
+                                {% if saved_path == "new" %}
+                                    {% translate "Start a new case" %}
+                                {% else %}
+                                    {% translate "File in an existing case" %}
+                                {% endif %}
+                            </strong>
+                        </div>
+                        <button class="btn btn-link path-summary__change"
+                                type="button"
+                                id="change-filing-path"
+                                aria-controls="path-question"
+                                aria-expanded="{{ path_question_open|yesno:'true,false' }}">
+                            {% translate "Change" %}
+                        </button>
+                    </div>
+                {% endif %}
+                {% if path_conflict %}
+                    {% comment %}
+                    The document's own reading disagrees with the answer. Said once,
+                    neutrally, with the way to correct it; the answer is the filer's
+                    and nothing here changes it for them.
+                    {% endcomment %}
+                    <div class="alert alert-warning path-conflict"
+                         id="path-conflict"
+                         role="note">
+                        <i class="fa-solid fa-triangle-exclamation" aria-hidden="true"></i>
+                        <div>
+                            <p>
+                                {% if path_conflict.suggested == "existing" %}
+                                    {% if path_conflict.document_title %}
+                                        {% blocktranslate with title=path_conflict.document_title %}Your document, "{{ title }}", reads like a filing in a case that is already open, such as an answer or a motion. You chose to start a new case.{% endblocktranslate %}
+                                    {% else %}
+                                        {% translate "Your document reads like a filing in a case that is already open, such as an answer or a motion. You chose to start a new case." %}
+                                    {% endif %}
+                                {% else %}
+                                    {% if path_conflict.document_title %}
+                                        {% blocktranslate with title=path_conflict.document_title %}Your document, "{{ title }}", reads like one that starts a new case, such as a complaint or a petition. You chose to file in an existing case.{% endblocktranslate %}
+                                    {% else %}
+                                        {% translate "Your document reads like one that starts a new case, such as a complaint or a petition. You chose to file in an existing case." %}
+                                    {% endif %}
+                                {% endif %}
+                            </p>
+                            <p>
+                                {% if path_conflict.suggested == "existing" %}
+                                    {% translate "Check your paperwork. If the case is already open, change your answer." %}
+                                {% else %}
+                                    {% translate "Check your paperwork. If this filing starts the case, change your answer." %}
+                                {% endif %}
+                            </p>
+                            <button class="btn btn-sm btn-outline-primary"
+                                    type="button"
+                                    id="apply-path-suggestion"
+                                    data-value="{{ path_conflict.suggested }}">
+                                {% if path_conflict.suggested == "existing" %}
+                                    {% translate "Change to an existing case" %}
+                                {% else %}
+                                    {% translate "Change to a new case" %}
+                                {% endif %}
+                            </button>
+                        </div>
+                    </div>
+                {% endif %}
+                <fieldset class="path-confirmation"
+                          id="path-question"
+                          {% if not path_question_open %}hidden{% endif %}>
+                    <legend>{% translate "Is this for a new or existing court case?" %}</legend>
+                    {% if saved_path %}
+                        <p class="path-confirmation__note">
+                            {% translate "Your files stay saved. You will need to check document types (filing codes) and fees again." %}
+                        </p>
+                    {% endif %}
+                    <label>
+                        <input type="radio"
+                               name="existing_case"
+                               value="new"
+                               {% if chosen_existing_case == "new" %}checked{% endif %} />
+                        <span><strong>{% translate "New case" %}</strong><small>{% translate "There is no case number yet." %}</small></span>
+                    </label>
+                    <label>
+                        <input type="radio"
+                               name="existing_case"
+                               value="existing"
+                               {% if chosen_existing_case == "existing" %}checked{% endif %} />
+                        <span><strong>{% translate "Existing case" %}</strong><small>{% translate "The case is already open with the court." %}</small></span>
+                    </label>
+                    <button class="help-toggle"
+                            type="button"
+                            data-bs-toggle="collapse"
+                            data-bs-target="#path-help">
+                        <i class="fa-regular fa-circle-question" aria-hidden="true"></i> {% translate "Help me decide" %}
+                    </button>
+                    <div class="collapse help-panel" id="path-help">
+                        <strong>{% translate "Look near the top of your document." %}</strong>
+                        <p>
+                            {% translate "A case number usually means the court already opened the case. If your document starts a case and has no case number, choose New case." %}
+                        </p>
+                    </div>
+                </fieldset>
+                {% comment %}
+                Only an existing case has a number, and it is only asked for here
+                to find the case in the court's records. The case title is not
+                asked for at all: a new case has none until the court opens it,
+                and an existing case's title comes from the court once it is found.
+                {% endcomment %}
+                <div class="form-field"
+                     id="docket-number-field"
+                     {% if chosen_existing_case != "existing" or case_confirmed %}hidden{% endif %}>
+                    <label for="docket_number">
+                        {% translate "Case number" %} <em>{% translate "if shown" %}</em>
+                    </label>
+                    <input class="form-control"
+                           type="text"
+                           name="docket_number"
+                           id="docket_number"
+                           value="{{ docket_number|default:'' }}"
+                           aria-describedby="docket-number-hint" />
+                    <small id="docket-number-hint">{% translate "Include any letters, numbers, and dashes." %}</small>
+                </div>
+            </div>
+            {% if case_confirmed %}
+                <section id="confirmed-case-summary">
+                    <h2>{% translate "Your court case" %}</h2>
+                    <p><strong>{{ filing_draft.docket_number }}</strong> {{ filing_draft.case_title }}</p>
+                    <p>{{ filing_draft.court_name }} · {{ filing_draft.case_category_name }} · {{ filing_draft.case_type_name }}</p>
+                    <a href="{% url 'case_lookup' jurisdiction %}{% if return_to %}?return_to={{ return_to }}{% endif %}">{% translate "Change case" %}</a>
+                </section>
+            {% endif %}
+            <p id="existing-case-next"
+               {% if chosen_existing_case != "existing" or case_confirmed %}hidden{% endif %}>{% translate "Next, find your case in the court's records." %}</p>
+            <fieldset id="new-case-details"
+                      class="new-case-details"
+                      {% if chosen_existing_case != "new" %}hidden disabled{% endif %}>
+                <legend class="new-case-details__heading">{% translate "Tell the court what you're filing" %}</legend>
+                <p class="new-case-details__lede">
+                    {% translate "The court sorts every filing by which court it goes to, what kind of case it is, and what kind of document you're filing." %}
+                </p>
+                {% include "efile/components/filing_code_search.html" %}
+                <p class="new-case-details__or">
+                    <span>{% translate "or choose them yourself" %}</span>
+                </p>
+                <div class="review-grid">
+                    <div class="review-field" data-field="court" data-guess-key="court">
+                        <span>{{ court_label }}</span>
+                        <div class="review-field__display" hidden>
+                            <div class="review-field__found">
+                                <i class="fa-solid fa-circle-check" aria-hidden="true"></i>
+                                <strong class="review-field__value"></strong>
+                            </div>
+                            <button class="btn btn-link review-field__edit"
+                                    type="button"
+                                    aria-label="{% blocktranslate %}Edit {{ court_label }}{% endblocktranslate %}">
+                                {% translate "Edit" %}
+                            </button>
+                        </div>
+                        <div class="review-field__input">
+                            {# Filled in by court-selector.js where the jurisdiction configures guided questions. The select below keeps carrying the answer either way. #}
+                            <div class="court-selector" id="court-selector"></div>
+                            <select class="form-select"
+                                    name="court_code"
+                                    id="court_code"
+                                    aria-describedby="court_code-hint"
+                                    disabled>
+                                <option value="">{% translate "Loading courts…" %}</option>
+                            </select>
+                            <input type="hidden" name="court_name" id="court_name" />
+                            <small class="review-field__hint" id="court_code-hint">{{ court_help }}</small>
+                        </div>
+                    </div>
+                    <div class="review-field"
+                         data-field="case_category"
+                         data-guess-key="case category">
+                        <label for="case_category_code">{{ case_category_label }}</label>
+                        <div class="review-field__display" hidden>
+                            <div class="review-field__found">
+                                <i class="fa-solid fa-circle-check" aria-hidden="true"></i>
+                                <strong class="review-field__value"></strong>
+                            </div>
+                            <button class="btn btn-link review-field__edit"
+                                    type="button"
+                                    aria-label="{% blocktranslate %}Edit {{ case_category_label }}{% endblocktranslate %}">
+                                {% translate "Edit" %}
+                            </button>
+                        </div>
+                        <div class="review-field__input">
+                            <select class="form-select"
+                                    name="case_category_code"
+                                    id="case_category_code"
+                                    aria-describedby="case_category_code-hint"
+                                    disabled>
+                                <option value="">{% translate "Choose a court first" %}</option>
+                            </select>
+                            <input type="hidden" name="case_category_name" id="case_category_name" />
+                            <small class="review-field__hint" id="case_category_code-hint">{{ case_category_help }}</small>
+                        </div>
+                    </div>
+                    <div class="review-field"
+                         data-field="case_type"
+                         data-guess-key="case type">
+                        <label for="case_type_code">{% translate "Case type" %}</label>
+                        <div class="review-field__display" hidden>
+                            <div class="review-field__found">
+                                <i class="fa-solid fa-circle-check" aria-hidden="true"></i>
+                                <strong class="review-field__value"></strong>
+                            </div>
+                            <button class="btn btn-link review-field__edit"
+                                    type="button"
+                                    aria-label="{% translate "Edit case type" %}">{% translate "Edit" %}</button>
+                        </div>
+                        <div class="review-field__input">
+                            <select class="form-select"
+                                    name="case_type_code"
+                                    id="case_type_code"
+                                    aria-describedby="case_type_code-hint"
+                                    disabled>
+                                <option value="">{% translate "Choose a case category first" %}</option>
+                            </select>
+                            <input type="hidden" name="case_type_name" id="case_type_name" />
+                            <small class="review-field__hint" id="case_type_code-hint"></small>
+                        </div>
+                    </div>
+                    <div class="review-field"
+                         data-field="filing_type"
+                         data-guess-key="filing type">
+                        <label for="filing_type_code">
+                            {{ lead_document.name }} — {% translate "Type of document (filing code)" %} <em>{% translate "if known" %}</em>
+                        </label>
+                        <div class="review-field__display" hidden>
+                            <div class="review-field__found">
+                                <i class="fa-solid fa-circle-check" aria-hidden="true"></i>
+                                <strong class="review-field__value"></strong>
+                            </div>
+                            <button class="btn btn-link review-field__edit"
+                                    type="button"
+                                    aria-label="{% translate "Edit type of document" %}">{% translate "Edit" %}</button>
+                        </div>
+                        <div class="review-field__input">
+                            <select class="form-select"
+                                    name="filing_type_code"
+                                    id="filing_type_code"
+                                    aria-describedby="filing_type_code-hint"
+                                    disabled>
+                                <option value="">{% translate "Choose a case type first" %}</option>
+                            </select>
+                            <input type="hidden" name="filing_type_name" id="filing_type_name" />
+                            <small class="review-field__hint" id="filing_type_code-hint">{% translate "Choose the type that describes your document." %}</small>
+                        </div>
+                    </div>
+                </div>
+                {% comment %}
+            Only case types that mean different jobs for different parties --
+            an eviction, say -- offer sides. The list depends on the case type
+            being chosen just above, so it is filled in by extraction-review.js
+            and stays hidden for every other case.
+                {% endcomment %}
+                <fieldset class="path-confirmation filer-role" id="filer-role-field" hidden>
+                    <legend>{% translate "Which side of this case are you on?" %}</legend>
+                    <div class="filer-role__options" id="filer-role-options"></div>
+                </fieldset>
+            </fieldset>
+            <section id="confirmation-document-types">
+                <h2>{% translate "Your documents" %}</h2>
+                <p>{% translate "Choose a type for each document if you know it. You can also choose or change this on Organize your documents." %}</p>
+                {% for document in documents %}
+                    <div data-confirmation-document data-is-source="{{ document.role }}">
+                        {% include "efile/components/document_type_picker.html" %}
+                    </div>
+                {% endfor %}
+            </section>
             {% comment %}
             The people the document named. They are collected here, where the
             filer can see them against the document they just uploaded, and
@@ -222,294 +533,6 @@
                     </button>
                 </fieldset>
             {% endif %}
-            {% if filing_type_proposal.name %}
-                <fieldset class="form-field filing-proposal"
-                          id="filing-proposal"
-                          {% if chosen_existing_case != "existing" %}hidden disabled{% endif %}>
-                    <legend>{% translate "Suggested filing code" %}</legend>
-                    <p class="filing-proposal__name">{{ filing_type_proposal.name }}</p>
-                    <p class="form-help">{% translate "This is our best guess from your document. We still need to check whether your court allows this filing code." %}</p>
-                    <div class="form-check">
-                        <input class="form-check-input"
-                               type="checkbox"
-                               id="reject-filing-proposal"
-                               name="reject_filing_proposal"
-                               value="yes"
-                               {% if filing_type_proposal.rejected %}checked{% endif %} />
-                        <label class="form-check-label" for="reject-filing-proposal">
-                            {% translate "This doesn't look right. I will choose on my own later." %}
-                        </label>
-                    </div>
-                </fieldset>
-            {% endif %}
-            {% comment %}
-            First, because the rest depends on it: the court lists different
-            filing types for new and existing cases, and only an existing case
-            has a case number to ask for.
-            {% endcomment %}
-            <h2>{% translate "Questions about your filing" %}</h2>
-            <div class="path-section" id="path-section">
-                {% comment %}
-                The new-or-existing answer, when the filer already gave one, is
-                shown as their answer with Change rather than asked again. The
-                radios below still carry it (a hidden fieldset still posts), and
-                open when Change is chosen, when there is no answer yet or it was
-                "not sure", or when the form came back with a different one.
-                {% endcomment %}
-                {% if saved_path %}
-                    <div class="path-summary" id="path-summary">
-                        <div>
-                            <span class="path-summary__label">{% translate "New or existing case" %}</span>
-                            <strong>
-                                {% if saved_path == "new" %}
-                                    {% translate "Start a new case" %}
-                                {% else %}
-                                    {% translate "File in an existing case" %}
-                                {% endif %}
-                            </strong>
-                        </div>
-                        <button class="btn btn-link path-summary__change"
-                                type="button"
-                                id="change-filing-path"
-                                aria-controls="path-question"
-                                aria-expanded="{{ path_question_open|yesno:'true,false' }}">
-                            {% translate "Change" %}
-                        </button>
-                    </div>
-                {% endif %}
-                {% if path_conflict %}
-                    {% comment %}
-                    The document's own reading disagrees with the answer. Said once,
-                    neutrally, with the way to correct it; the answer is the filer's
-                    and nothing here changes it for them.
-                    {% endcomment %}
-                    <div class="alert alert-warning path-conflict"
-                         id="path-conflict"
-                         role="note">
-                        <i class="fa-solid fa-triangle-exclamation" aria-hidden="true"></i>
-                        <div>
-                            <p>
-                                {% if path_conflict.suggested == "existing" %}
-                                    {% if path_conflict.document_title %}
-                                        {% blocktranslate with title=path_conflict.document_title %}Your document, "{{ title }}", reads like a filing in a case that is already open, such as an answer or a motion. You chose to start a new case.{% endblocktranslate %}
-                                    {% else %}
-                                        {% translate "Your document reads like a filing in a case that is already open, such as an answer or a motion. You chose to start a new case." %}
-                                    {% endif %}
-                                {% else %}
-                                    {% if path_conflict.document_title %}
-                                        {% blocktranslate with title=path_conflict.document_title %}Your document, "{{ title }}", reads like one that starts a new case, such as a complaint or a petition. You chose to file in an existing case.{% endblocktranslate %}
-                                    {% else %}
-                                        {% translate "Your document reads like one that starts a new case, such as a complaint or a petition. You chose to file in an existing case." %}
-                                    {% endif %}
-                                {% endif %}
-                            </p>
-                            <p>
-                                {% if path_conflict.suggested == "existing" %}
-                                    {% translate "Check your paperwork. If the case is already open, change your answer." %}
-                                {% else %}
-                                    {% translate "Check your paperwork. If this filing starts the case, change your answer." %}
-                                {% endif %}
-                            </p>
-                            <button class="btn btn-sm btn-outline-primary"
-                                    type="button"
-                                    id="apply-path-suggestion"
-                                    data-value="{{ path_conflict.suggested }}">
-                                {% if path_conflict.suggested == "existing" %}
-                                    {% translate "Change to an existing case" %}
-                                {% else %}
-                                    {% translate "Change to a new case" %}
-                                {% endif %}
-                            </button>
-                        </div>
-                    </div>
-                {% endif %}
-                <fieldset class="path-confirmation"
-                          id="path-question"
-                          {% if not path_question_open %}hidden{% endif %}>
-                    <legend>{% translate "Is this for a new or existing court case?" %}</legend>
-                    {% if saved_path %}
-                        <p class="path-confirmation__note">
-                            {% translate "Your files stay saved. You will need to check filing codes and fees again." %}
-                        </p>
-                    {% endif %}
-                    <label>
-                        <input type="radio"
-                               name="existing_case"
-                               value="new"
-                               {% if chosen_existing_case == "new" %}checked{% endif %} />
-                        <span><strong>{% translate "New case" %}</strong><small>{% translate "There is no case number yet." %}</small></span>
-                    </label>
-                    <label>
-                        <input type="radio"
-                               name="existing_case"
-                               value="existing"
-                               {% if chosen_existing_case == "existing" %}checked{% endif %} />
-                        <span><strong>{% translate "Existing case" %}</strong><small>{% translate "The case is already open with the court." %}</small></span>
-                    </label>
-                    <button class="help-toggle"
-                            type="button"
-                            data-bs-toggle="collapse"
-                            data-bs-target="#path-help">
-                        <i class="fa-regular fa-circle-question" aria-hidden="true"></i> {% translate "Help me decide" %}
-                    </button>
-                    <div class="collapse help-panel" id="path-help">
-                        <strong>{% translate "Look near the top of your document." %}</strong>
-                        <p>
-                            {% translate "A case number usually means the court already opened the case. If your document starts a case and has no case number, choose New case." %}
-                        </p>
-                    </div>
-                </fieldset>
-                {% comment %}
-                Only an existing case has a number, and it is only asked for here
-                to find the case in the court's records. The case title is not
-                asked for at all: a new case has none until the court opens it,
-                and an existing case's title comes from the court once it is found.
-                {% endcomment %}
-                <div class="form-field" id="docket-number-field" hidden>
-                    <label for="docket_number">
-                        {% translate "Case number" %} <em>{% translate "if shown" %}</em>
-                    </label>
-                    <input class="form-control"
-                           type="text"
-                           name="docket_number"
-                           id="docket_number"
-                           value="{{ docket_number|default:'' }}"
-                           aria-describedby="docket-number-hint" />
-                    <small id="docket-number-hint">{% translate "Include any letters, numbers, and dashes." %}</small>
-                </div>
-            </div>
-            <p id="existing-case-next"
-               {% if chosen_existing_case != "existing" %}hidden{% endif %}>{% translate "Next, find your case in the court's records." %}</p>
-            <fieldset id="new-case-details"
-                      class="new-case-details"
-                      {% if chosen_existing_case != "new" %}hidden disabled{% endif %}>
-                <legend class="new-case-details__heading">{% translate "Tell the court what you're filing" %}</legend>
-                <p class="new-case-details__lede">
-                    {% translate "The court sorts every filing by which court it goes to, what kind of case it is, and what kind of document you're filing." %}
-                </p>
-                {% include "efile/components/filing_code_search.html" %}
-                <p class="new-case-details__or">
-                    <span>{% translate "or choose them yourself" %}</span>
-                </p>
-                <div class="review-grid">
-                    <div class="review-field" data-field="court" data-guess-key="court">
-                        <span>{{ court_label }}</span>
-                        <div class="review-field__display" hidden>
-                            <div class="review-field__found">
-                                <i class="fa-solid fa-circle-check" aria-hidden="true"></i>
-                                <strong class="review-field__value"></strong>
-                            </div>
-                            <button class="btn btn-link review-field__edit"
-                                    type="button"
-                                    aria-label="{% blocktranslate %}Edit {{ court_label }}{% endblocktranslate %}">
-                                {% translate "Edit" %}
-                            </button>
-                        </div>
-                        <div class="review-field__input">
-                            {# Filled in by court-selector.js where the jurisdiction configures guided questions. The select below keeps carrying the answer either way. #}
-                            <div class="court-selector" id="court-selector"></div>
-                            <select class="form-select"
-                                    name="court_code"
-                                    id="court_code"
-                                    aria-describedby="court_code-hint"
-                                    disabled>
-                                <option value="">{% translate "Loading courts…" %}</option>
-                            </select>
-                            <input type="hidden" name="court_name" id="court_name" />
-                            <small class="review-field__hint" id="court_code-hint">{{ court_help }}</small>
-                        </div>
-                    </div>
-                    <div class="review-field"
-                         data-field="case_category"
-                         data-guess-key="case category">
-                        <label for="case_category_code">{{ case_category_label }}</label>
-                        <div class="review-field__display" hidden>
-                            <div class="review-field__found">
-                                <i class="fa-solid fa-circle-check" aria-hidden="true"></i>
-                                <strong class="review-field__value"></strong>
-                            </div>
-                            <button class="btn btn-link review-field__edit"
-                                    type="button"
-                                    aria-label="{% blocktranslate %}Edit {{ case_category_label }}{% endblocktranslate %}">
-                                {% translate "Edit" %}
-                            </button>
-                        </div>
-                        <div class="review-field__input">
-                            <select class="form-select"
-                                    name="case_category_code"
-                                    id="case_category_code"
-                                    aria-describedby="case_category_code-hint"
-                                    disabled>
-                                <option value="">{% translate "Choose a court first" %}</option>
-                            </select>
-                            <input type="hidden" name="case_category_name" id="case_category_name" />
-                            <small class="review-field__hint" id="case_category_code-hint">{{ case_category_help }}</small>
-                        </div>
-                    </div>
-                    <div class="review-field"
-                         data-field="case_type"
-                         data-guess-key="case type">
-                        <label for="case_type_code">{% translate "Case type" %}</label>
-                        <div class="review-field__display" hidden>
-                            <div class="review-field__found">
-                                <i class="fa-solid fa-circle-check" aria-hidden="true"></i>
-                                <strong class="review-field__value"></strong>
-                            </div>
-                            <button class="btn btn-link review-field__edit"
-                                    type="button"
-                                    aria-label="{% translate "Edit case type" %}">{% translate "Edit" %}</button>
-                        </div>
-                        <div class="review-field__input">
-                            <select class="form-select"
-                                    name="case_type_code"
-                                    id="case_type_code"
-                                    aria-describedby="case_type_code-hint"
-                                    disabled>
-                                <option value="">{% translate "Choose a case category first" %}</option>
-                            </select>
-                            <input type="hidden" name="case_type_name" id="case_type_name" />
-                            <small class="review-field__hint" id="case_type_code-hint"></small>
-                        </div>
-                    </div>
-                    <div class="review-field"
-                         data-field="filing_type"
-                         data-guess-key="filing type">
-                        <label for="filing_type_code">
-                            {% translate "Filing code" %} <em>{% translate "if known" %}</em>
-                        </label>
-                        <div class="review-field__display" hidden>
-                            <div class="review-field__found">
-                                <i class="fa-solid fa-circle-check" aria-hidden="true"></i>
-                                <strong class="review-field__value"></strong>
-                            </div>
-                            <button class="btn btn-link review-field__edit"
-                                    type="button"
-                                    aria-label="{% translate "Edit filing code" %}">{% translate "Edit" %}</button>
-                        </div>
-                        <div class="review-field__input">
-                            <select class="form-select"
-                                    name="filing_type_code"
-                                    id="filing_type_code"
-                                    aria-describedby="filing_type_code-hint"
-                                    disabled>
-                                <option value="">{% translate "Choose a case type first" %}</option>
-                            </select>
-                            <input type="hidden" name="filing_type_name" id="filing_type_name" />
-                            <small class="review-field__hint" id="filing_type_code-hint">{% translate "Choose the type that describes your document." %}</small>
-                        </div>
-                    </div>
-                </div>
-                {% comment %}
-            Only case types that mean different jobs for different parties --
-            an eviction, say -- offer sides. The list depends on the case type
-            being chosen just above, so it is filled in by extraction-review.js
-            and stays hidden for every other case.
-                {% endcomment %}
-                <fieldset class="path-confirmation filer-role" id="filer-role-field" hidden>
-                    <legend>{% translate "Which side of this case are you on?" %}</legend>
-                    <div class="filer-role__options" id="filer-role-options"></div>
-                </fieldset>
-            </fieldset>
             <div class="alert alert-danger"
                  id="extraction-review-error"
                  role="alert"
@@ -542,4 +565,5 @@
     <script src="{% static 'js/filing-availability.js' %}"></script>
     <script src="{% static 'js/court-selector.js' %}"></script>
     <script src="{% static 'js/extraction-review.js' %}"></script>
+    <script src="{% static 'js/confirmation-documents.js' %}"></script>
 {% endblock extra_js %}

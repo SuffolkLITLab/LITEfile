@@ -23,7 +23,7 @@ CHOICE_LABELS = (
     ("court", "Court"),
     ("case_category", "Case category"),
     ("case_type", "Case type"),
-    ("filing_type", "Filing code"),
+    ("filing_type", "Type of document (filing code)"),
 )
 
 

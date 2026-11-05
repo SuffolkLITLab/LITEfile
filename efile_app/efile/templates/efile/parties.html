@@ -9,6 +9,26 @@
     <section class="workflow-card">
         <h1>{% translate "Who is involved in this case?" %}</h1>
         {% include "efile/partials/filing_guidance.html" %}
+        <p>
+            {% if existing_court_case %}
+                {% translate "Check the court’s party list below against the names on your documents." %}
+            {% else %}
+                {% translate "Use the names and roles written on your documents." %}
+            {% endif %}
+        </p>
+        <details class="mb-3">
+            <summary>{% translate "Your contact information" %}</summary>
+            <p>
+                {{ filer.first_name }} {{ filer.last_name }}
+                <br>
+                {{ filer.address_line_1 }} {{ filer.address_line_2 }}
+                <br>
+                {{ filer.city }}, {{ filer.state }} {{ filer.zip_code }}
+                <br>
+                {{ filer.email }} {{ filer.phone }}
+            </p>
+            <a href="{% url 'your_information' jurisdiction %}?edit=1{% if return_to %}&amp;return_to={{ return_to }}{% endif %}">{% translate "Edit your contact information" %}</a>
+        </details>
         <p class="workflow-lede">
             {% if existing_court_case %}
                 {% translate "Choose who you are filing for." %}
@@ -74,7 +94,7 @@
                         </div>
                     {% endif %}
                     <div class="compact-choice-list">
-                        {% for party_type in party_types %}
+                        {% for party_type in primary_party_types %}
                             <label>
                                 <input class="form-check-input"
                                        type="radio"
@@ -89,6 +109,26 @@
                                 </span>
                             </label>
                         {% endfor %}
+                        {% if other_party_types %}
+                            <details>
+                                <summary>{% translate "More roles" %}</summary>
+                                {% for party_type in other_party_types %}
+                                    <label>
+                                        <input class="form-check-input"
+                                               type="radio"
+                                               name="filer_party_type"
+                                               value="{{ party_type.code }}"
+                                               {% if filer.party_type == party_type.code %}checked{% endif %}
+                                               required />
+                                        <span>{{ party_type.name }}
+                                            {% if party_type.required %}
+                                                — {% translate "required" %}
+                                            {% endif %}
+                                        </span>
+                                    </label>
+                                {% endfor %}
+                            </details>
+                        {% endif %}
                         {% if party_types %}
                             <label>
                                 <input class="form-check-input"

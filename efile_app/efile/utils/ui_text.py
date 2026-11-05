@@ -149,11 +149,11 @@ UI_STRINGS: dict[str, UIString] = {
     ),
     # -- Organize documents --------------------------------------------------
     "organize_documents.main_document_question": UIString(
-        default="Which PDF is the {main_document}?",
+        default="Document we read for case suggestions",
     ),
     "organize_documents.main_document_help": UIString(
-        default="Choose the document that starts this filing, like a {starting_document_example}.",
-        description="Names the kind of document that opens a case, which differs by state.",
+        default="We read this file to suggest case details. If you pick a different file, we will read it for new suggestions. We will not change answers you already saved.",
+        description="Explains the source of case suggestions and what changing it does.",
         links=True,
     ),
     "organize_documents.document_name_help": UIString(
@@ -167,14 +167,14 @@ UI_STRINGS: dict[str, UIString] = {
         links=True,
     ),
     "organize_documents.filing_component_label": UIString(
-        default="Court filing component",
+        default="How this document is filed",
         description=(
-            "Label for the court's own per-document category. This is the court's term, not "
-            "ours, so a state whose court calls it something else should say so here."
+            "Plain-language label for the court's per-document category. "
+            "Jurisdictions can provide more specific wording."
         ),
     ),
     "organize_documents.filing_component_help": UIString(
-        default="The court may call more than one PDF a “Lead Document”. This is separate from your {main_document}.",
+        default="The court uses these labels to group your files. More than one PDF can be a “Lead Document”. This does not change which document we read for case suggestions.",
         description=(
             "Explains why several PDFs can each say “Lead Document” here. Reword it if the "
             "court in this state names its components differently."
@@ -185,7 +185,7 @@ UI_STRINGS: dict[str, UIString] = {
         default="Required by the court.",
     ),
     "organize_documents.filing_component_required_note": UIString(
-        default="Required by the court for this filing code.",
+        default="Required by the court for this type of document.",
     ),
     "organize_documents.confidentiality_help": UIString(
         default="Choose confidential only when a court rule or court order requires it.",
@@ -207,7 +207,7 @@ UI_STRINGS: dict[str, UIString] = {
     # court's own choices have loaded. They are resolved here, and handed to the
     # script through the page, so they stay configurable and translatable.
     "organize_documents.choose_filing_type_first": UIString(
-        default="Select a filing code first",
+        default="Choose a type of document first",
     ),
     "organize_documents.loading_choices": UIString(
         default="Loading choices…",

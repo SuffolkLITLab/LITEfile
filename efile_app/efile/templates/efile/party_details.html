@@ -21,7 +21,7 @@
             <fieldset class="form-field compact-choice-field">
                 <legend>{% translate "Role in the case" %}</legend>
                 <div class="compact-choice-list compact-choice-list--horizontal">
-                    {% for party_type in party_types %}
+                    {% for party_type in primary_party_types %}
                         <label>
                             <input class="form-check-input"
                                    type="radio"
@@ -37,6 +37,26 @@
                             </span>
                         </label>
                     {% endfor %}
+                    {% if other_party_types %}
+                        <details>
+                            <summary>{% translate "More roles" %}</summary>
+                            {% for party_type in other_party_types %}
+                                <label>
+                                    <input class="form-check-input"
+                                           type="radio"
+                                           name="party_type"
+                                           value="{{ party_type.code }}"
+                                           {% if party.party_type == party_type.code %}checked{% endif %}
+                                           required />
+                                    <span>{{ party_type.name }}
+                                        {% if party_type.required %}
+                                            — {% translate "required" %}
+                                        {% endif %}
+                                    </span>
+                                </label>
+                            {% endfor %}
+                        </details>
+                    {% endif %}
                 </div>
             </fieldset>
             {% if filer_party_type %}

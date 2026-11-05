@@ -285,8 +285,8 @@
         },
         filing_type: {
             url: "/api/dropdowns/filing-types/",
-            loading: "Loading filing codes…",
-            placeholder: "Choose a filing code",
+            loading: "Loading document types (filing codes)…",
+            placeholder: "Choose a type of document (filing code)",
             params: () => ({
                 court: fields.court.select.value,
                 case_category: fields.case_category.select.value,
@@ -684,11 +684,13 @@
         const existing = isExisting();
         const proposal = document.getElementById("filing-proposal");
         if (proposal) {
-            proposal.hidden = !existing;
-            proposal.disabled = !existing;
+            proposal.hidden = !existing || context.case_confirmed;
+            proposal.disabled = !existing || context.case_confirmed;
         }
         const details = document.getElementById("new-case-details");
         const isNew = chosenPath() === "new";
+        const pathSummary = document.querySelector("#path-summary strong");
+        if (pathSummary && chosenPath()) pathSummary.textContent = isNew ? gettext("Start a new case") : gettext("File in an existing case");
         details.hidden = !isNew;
         details.disabled = !isNew;
         const parties = document.getElementById("review-parties");
@@ -696,7 +698,10 @@
             parties.hidden = existing;
             parties.disabled = existing;
         }
-        document.getElementById("existing-case-next").hidden = !existing;
+        document.getElementById("existing-case-next").hidden = !existing || context.case_confirmed;
+        document.getElementById("docket-number-field").hidden = !existing || context.case_confirmed;
+        const summary = document.getElementById("confirmed-case-summary");
+        if (summary) summary.hidden = !existing;
         availability.check();
     }
 

@@ -20,7 +20,7 @@ function harness(fetch, action = "confirm", feeToken = null) {
             documentId: "7",
             fingerprint: "abc"
         },
-        querySelector: () => status,
+        querySelector: (selector) => selector === "[data-document-check-status]" ? status : null,
         querySelectorAll: () => buttons,
         remove() {
             this.removed = true;

@@ -1,0 +1,21 @@
+{% load i18n %}
+<div data-document-type-picker
+     data-choices-url="{{ document_choices_url }}"
+     data-document-id="{{ document.pk }}"
+     class="form-field">
+    <input type="hidden" name="document_id" value="{{ document.pk }}" />
+    <label for="document-type-{{ document.pk }}">{{ document.name }} — {% translate "Type of document (filing code)" %}</label>
+    <select id="document-type-{{ document.pk }}"
+            name="document_type_{{ document.pk }}"
+            class="form-select"
+            data-document-type-select
+            data-saved="{{ document.filing_type_code }}"
+            aria-describedby="document-type-status-{{ document.pk }}"
+            disabled>
+        <option value="{{ document.filing_type_code }}">{{ document.filing_type_name|default:document.filing_type_code }}</option>
+    </select>
+    <p id="document-type-status-{{ document.pk }}"
+       data-document-type-status
+       role="status"></p>
+    <button type="button" class="btn btn-link" data-document-type-retry hidden>{% translate "Try again" %}</button>
+</div>

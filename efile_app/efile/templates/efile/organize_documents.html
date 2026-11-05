@@ -11,7 +11,7 @@
     <section class="workflow-card">
         <h1>{% translate "Organize your documents" %}</h1>
         {% include "efile/partials/filing_guidance.html" %}
-        <p class="workflow-lede">{% translate "Choose a filing code for each document." %}</p>
+        <p class="workflow-lede">{% translate "Choose a type of document (filing code) for each file." %}</p>
         {% if organize_context.guessed_filing_type %}
             <div class="extraction-page-help">
                 <span>{% translate "A * marks a choice suggested from your document." %}</span>
@@ -40,7 +40,7 @@
                                        required />
                                 <span><strong>{{ document.name|default:document.original_filename }}</strong><small>
                                     {% if document.role == "lead" %}
-                                        {% translate "Current main document" %}
+                                        {% translate "Document we read for case suggestions" %}
                                     {% else %}
                                         {% translate "Additional document" %}
                                     {% endif %}
@@ -59,13 +59,13 @@
                              data-filing-type-name="{{ document.filing_type_name }}"
                              data-document-type="{{ document.document_type_code }}"
                              data-filing-component="{{ document.filing_component_code }}"
-                             data-optional-services="{{ document.requested_optional_services|join:',' }}">
+                             data-optional-services="{{ document.optional_services_json }}">
                         <header class="organize-card__header">
                             <span class="organize-card__icon"><i class="fa-solid fa-file-pdf" aria-hidden="true"></i></span>
                             <strong>{{ document.name|default:document.original_filename }}</strong>
                             <div class="organize-card__meta">
                                 {% if document.role == "lead" %}
-                                    <span class="status-pill status-pill--lead organize-card__position">{% translate "Main document" %}</span>
+                                    <span class="status-pill status-pill--lead organize-card__position">{% translate "Document we read for case suggestions" %}</span>
                                 {% else %}
                                     <span class="status-pill status-pill--additional organize-card__position">
                                         {% blocktranslate with number=forloop.counter0 %}Additional document {{ number }}{% endblocktranslate %}
@@ -102,11 +102,11 @@
                             {% endif %}
                             {% if document.role == "lead" %}<p class="filing-suggestion-message" role="status" hidden></p>{% endif %}
                             <label class="form-field">
-                                <span>{% translate "Filing code" %}</span>
+                                <span>{% translate "Type of document (filing code)" %}</span>
                                 <select class="form-select filing-type"
                                         {% if filing_type_help %}aria-describedby="filing-type-help-{{ document.pk }}"{% endif %}
                                         required>
-                                    <option value="">{% translate "Loading filing codes…" %}</option>
+                                    <option value="">{% translate "Loading document types (filing codes)…" %}</option>
                                 </select>
                             </label>
                             {% if filing_type_help %}
@@ -115,8 +115,8 @@
                             <div class="compact-choice-list filing-type-status"></div>
                             {% if organize_context.existing_case == "yes" %}
                                 <details class="filing-type-finder">
-                                    <summary>{% translate "Find my filing code" %}</summary>
-                                    <label for="filing-search-{{ document.pk }}">{% translate "Search this case's filing codes" %}</label>
+                                    <summary>{% translate "Find my document type" %}</summary>
+                                    <label for="filing-search-{{ document.pk }}">{% translate "Search this case's document types (filing codes)" %}</label>
                                     <input type="search"
                                            class="form-control filing-search"
                                            id="filing-search-{{ document.pk }}"
@@ -126,14 +126,14 @@
                                     </ul>
                                 </details>
                             {% endif %}
-                            <fieldset class="form-field compact-choice-field">
+                            <fieldset class="form-field compact-choice-field" hidden>
                                 <legend>{% translate "Should this document be confidential?" %}</legend>
                                 <small class="form-help">{% ui_text "organize_documents.confidentiality_help" %}</small>
                                 <div class="compact-choice-list document-type-options">
                                     <small>{% ui_text "organize_documents.choose_filing_type_first" %}</small>
                                 </div>
                             </fieldset>
-                            <fieldset class="form-field compact-choice-field">
+                            <fieldset class="form-field compact-choice-field" hidden>
                                 <legend>{% ui_text "organize_documents.filing_component_label" %}</legend>
                                 <small class="form-help">{% ui_text "organize_documents.filing_component_help" %}</small>
                                 <div class="compact-choice-list filing-component-options">

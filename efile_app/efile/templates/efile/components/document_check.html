@@ -4,6 +4,16 @@
      data-document-id="{{ document.pk }}"
      data-fingerprint="{{ fingerprint }}"
      tabindex="-1">
+    {% if upload_disclaimers %}
+        <details>
+            <summary>{% translate "Information from the court about filing rules" %}</summary>
+            <p>{% translate "These rules apply to documents you file with the court." %}</p>
+            {% include "efile/partials/court_disclaimers.html" with court_disclaimers=upload_disclaimers only %}
+        </details>
+    {% endif %}
+    {% if document_choices_url %}
+        {% include "efile/components/document_type_picker.html" %}
+    {% endif %}
     <p>{% translate "The court will get this PDF. Check every page before you continue." %}</p>
     {% if not document.preparation %}
         <p>{% translate "Not ready. Remove this file and upload it again." %}</p>

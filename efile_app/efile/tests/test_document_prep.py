@@ -20,7 +20,20 @@ def authorize(client, draft):
 
 
 @pytest.fixture
-def document_draft(client, django_user_model):
+def document_draft(client, django_user_model, monkeypatch):
+    monkeypatch.setattr(
+        "efile.services.document_choices.filing_choices",
+        lambda draft: [
+            {"value": "petition", "text": "Petition", "amountincontroversy": "required"},
+            {"value": "exhibit", "text": "Exhibit"},
+        ],
+    )
+    monkeypatch.setattr(
+        "efile.services.document_choices.service_choices",
+        lambda *args: {
+            "certified": {"code": "certified", "required": False, "multiplier": False},
+        },
+    )
     user = django_user_model.objects.create_user(username="document-user", tyler_jurisdiction="illinois")
     draft = FilingDraft.objects.create(
         user=user,
@@ -316,13 +329,13 @@ def test_organize_saves_details_and_supporting_order(client, document_draft):
     lead.refresh_from_db()
     assert response.status_code == 200
     assert response.json()["redirect_url"].partition("?")[0] == reverse(
-        "your_information", kwargs={"jurisdiction": "illinois"}
+        "extraction_review", kwargs={"jurisdiction": "illinois"}
     )
-    assert document_draft.current_step == WorkflowStepKey.YOUR_INFORMATION
+    assert document_draft.current_step == WorkflowStepKey.ORGANIZE_DOCUMENTS
     assert lead.role == FilingDocument.Role.SUPPORTING
     assert lead.filing_type_code == "petition"
     assert lead.courtesy_copy_email == "filer@example.com"
-    assert lead.requested_optional_services == ["certified"]
+    assert lead.requested_optional_services == [{"code": "certified"}]
     assert lead.filing_requires_amount_in_controversy is True
     second.refresh_from_db()
     assert second.role == FilingDocument.Role.LEAD

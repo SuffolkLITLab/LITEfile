@@ -40,6 +40,17 @@ def _prefill_from_account(filer, profile, user):
     return True
 
 
+REQUIRED_CONTACT_FIELDS = {
+    "first_name": "First name",
+    "last_name": "Last name",
+    "address_line_1": "Street address",
+    "city": "City",
+    "state": "State",
+    "zip_code": "ZIP code",
+    "email": "Email",
+}
+
+
 @require_http_methods(["GET", "POST"])
 def your_information(request, jurisdiction):
     if not request.user.is_authenticated or not get_tyler_token(request, jurisdiction):
@@ -57,15 +68,7 @@ def your_information(request, jurisdiction):
     field_errors = {}
 
     if request.method == "POST":
-        required = {
-            "first_name": "First name",
-            "last_name": "Last name",
-            "address_line_1": "Street address",
-            "city": "City",
-            "state": "State",
-            "zip_code": "ZIP code",
-            "email": "Email",
-        }
+        required = REQUIRED_CONTACT_FIELDS
         values = {field: request.POST.get(field, "").strip() for field in required}
         values.update(
             {
@@ -92,7 +95,21 @@ def your_information(request, jurisdiction):
     # appear a second or two after the form does. Anything already saved on the
     # draft wins, so a filer who corrected an address keeps the correction.
     profile = cached_account_profile(request, jurisdiction) if request.method == "GET" else None
-    prefilled = _prefill_from_account(filer, profile, request.user) if profile else request.method == "POST"
+    if request.method == "GET":
+        _prefill_from_account(filer, profile or {}, request.user)
+    prefilled = bool(profile) or request.method == "POST"
+    if request.method == "GET" and request.GET.get("edit") != "1" and not return_target(request):
+        values = {
+            field: getattr(filer, field, "")
+            for field in (*REQUIRED_CONTACT_FIELDS, "phone", "middle_name", "suffix", "address_line_2")
+        }
+        if all(values[field] for field in REQUIRED_CONTACT_FIELDS) and not validate_party(
+            values, metadata, address_started=True
+        ):
+            filer.save()
+            draft.current_step = WorkflowStepKey.PARTIES
+            draft.save(update_fields=["current_step", "updated_at"])
+            return redirect(continue_url(draft, jurisdiction, "", WorkflowStepKey.PARTIES))
 
     context = {
         **metadata,
