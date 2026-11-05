@@ -218,7 +218,7 @@ def test_selected_optional_role_remains_visible(client, draft, monkeypatch):
 @pytest.mark.integration
 @pytest.mark.django_db(transaction=True)
 @pytest.mark.parametrize("inferred", [False, True])
-def test_confirmation_browser_on_desktop_and_mobile(client, draft, live_server, tmp_path, inferred):
+def test_confirmation_browser_on_desktop_and_mobile(client, draft, live_server, tmp_path, inferred, monkeypatch):
     import json
     import os
     import subprocess
@@ -227,15 +227,30 @@ def test_confirmation_browser_on_desktop_and_mobile(client, draft, live_server, 
 
     if not os.getenv("CORE_FILING_UX_BROWSER_TESTS"):
         pytest.skip("Opt-in: requires Chromium")
+    draft.extracted_guesses = {
+        "document title": "Complaint",
+        "plaintiff or petitioner names": "Jordan Rivera",
+        "defendant or respondent names": "Sam Parker",
+    }
     if inferred:
         draft.existing_case = ""
-        draft.extracted_guesses = {"docket number": "26-CV-123"}
-        draft.save()
+        draft.extracted_guesses["docket number"] = "26-CV-123"
+    draft.save()
+    monkeypatch.setattr(
+        "efile.views.parties.get_party_types",
+        lambda draft: [
+            {"code": "plaintiff", "name": "Plaintiff", "required": True},
+            {"code": "defendant", "name": "Defendant", "required": True},
+            {"code": "occupant", "name": "Unknown occupant", "required": False},
+        ],
+    )
+    FilingParty.objects.create(draft=draft, role="filer", first_name="Jamie", last_name="Rivera")
     config = tmp_path / "confirmation.json"
     config.write_text(
         json.dumps(
             {
                 "inferred": inferred,
+                "partiesUrl": reverse("parties", args=[draft.jurisdiction]) + f"?draft={draft.pk}",
                 "baseUrl": live_server.url,
                 "url": reverse("extraction_review", args=[draft.jurisdiction]) + f"?draft={draft.pk}",
                 "cookie": client.cookies[settings.SESSION_COOKIE_NAME].value,

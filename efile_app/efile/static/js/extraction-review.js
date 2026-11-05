@@ -693,6 +693,9 @@
         if (pathSummary && chosenPath()) pathSummary.textContent = isNew ? gettext("Start a new case") : gettext("File in an existing case");
         details.hidden = !isNew;
         details.disabled = !isNew;
+        const sourceDocument = document.getElementById("new-case-document");
+        sourceDocument.hidden = !isNew;
+        sourceDocument.disabled = !isNew;
         const parties = document.getElementById("review-parties");
         if (parties) {
             parties.hidden = existing;

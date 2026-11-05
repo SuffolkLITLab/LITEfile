@@ -460,10 +460,8 @@
     grid-template-columns: repeat(2, minmax(0, 1fr));
 }
 
-/* The guided court questions are taller than the dropdowns beside them, so the
-   court takes a row of its own rather than stretching its neighbour to match.
-   Only where the selector actually drew itself: a flat court list stays paired. */
-.review-field:has(.court-selector:not(:empty)) {
+/* Choose the court first, then the category and case type on one row. */
+.review-field[data-field="court"] {
     grid-column: 1 / -1;
 }
 
@@ -588,16 +586,17 @@
 }
 
 .review-party {
-    align-items: end;
+    align-items: start;
     display: grid;
     gap: 0.75rem;
     /* Name, side, "this is me", remove. */
     grid-template-columns: minmax(0, 2fr) minmax(0, 1.4fr) auto auto;
 }
 
-/* Sits on the baseline of the two fields beside it rather than above them. */
-.review-party__is-me {
-    padding-bottom: 0.15rem;
+/* Align actions with the inputs; help text below a name must not move its row. */
+.review-party__is-me,
+.review-party__remove {
+    margin-top: 1.4rem;
 }
 
 .review-party label {
@@ -674,7 +673,8 @@
     min-width: 0;
 }
 
-.review-field>span {
+.review-field>span,
+.review-field>label {
     color: var(--text-heading);
     display: block;
     font-weight: 700;
@@ -2112,4 +2112,49 @@
     content: "";
     inset: 0;
     position: absolute;
+}
+
+/* Document names and their choices have separate, consistent visual levels. */
+.confirmation-source {
+    border: 0;
+    margin: 0;
+    min-width: 0;
+    padding: 0;
+}
+
+.document-type-card {
+    background: var(--surface-subtle);
+    border: 1px solid var(--border-default);
+    border-radius: 12px;
+    margin-bottom: 1rem;
+    min-width: 0;
+    padding: 1.1rem 1.25rem;
+}
+
+.document-type-card h3 {
+    color: var(--text-heading);
+    font-size: 1.15rem;
+    font-weight: 750;
+    margin: 0 0 0.85rem;
+    overflow-wrap: anywhere;
+}
+
+.document-type-card>label {
+    display: block;
+    font-weight: 600;
+    margin-bottom: 0.35rem;
+}
+
+#confirmation-document-types {
+    margin-top: 1.5rem;
+}
+
+.extracted-details h2 {
+    margin-top: 1.25rem;
+}
+
+.extracted-details [data-extracted-detail="court"],
+.extracted-details [data-extracted-detail="case title"],
+.extracted-details [data-extracted-detail="other party names"] {
+    grid-column: 1 / -1;
 }

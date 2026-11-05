@@ -2,12 +2,21 @@
 <div data-document-type-picker
      data-choices-url="{{ document_choices_url }}"
      data-document-id="{{ document.pk }}"
-     class="form-field">
+     class="form-field document-type-card">
     <input type="hidden" name="document_id" value="{{ document.pk }}" />
-    <label for="document-type-{{ document.pk }}">{{ document.name }} — {% translate "Type of document (filing code)" %}</label>
+    <h3 id="document-name-{{ document.pk }}">{{ document.name }}</h3>
+    <label id="document-type-label-{{ document.pk }}"
+           for="document-type-{{ document.pk }}">
+        {% if short_label %}
+            {% translate "Type of document" %}
+        {% else %}
+            {% translate "Type of document (filing code)" %}
+        {% endif %}
+    </label>
     <select id="document-type-{{ document.pk }}"
             name="document_type_{{ document.pk }}"
             class="form-select"
+            aria-labelledby="document-name-{{ document.pk }} document-type-label-{{ document.pk }}"
             data-document-type-select
             data-saved="{{ document.filing_type_code }}"
             aria-describedby="document-type-status-{{ document.pk }}"

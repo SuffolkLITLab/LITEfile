@@ -109,6 +109,18 @@
                                 </span>
                             </label>
                         {% endfor %}
+                        {% if party_types %}
+                            <label>
+                                <input class="form-check-input"
+                                       type="radio"
+                                       name="filer_party_type"
+                                       id="filer-not-a-party"
+                                       value="{{ not_a_party_value }}"
+                                       {% if filing_for_someone_else %}checked{% endif %}
+                                       required />
+                                <span>{% translate "I am not one of the parties — I am filing for someone else" %}</span>
+                            </label>
+                        {% endif %}
                         {% if other_party_types %}
                             <details>
                                 <summary>{% translate "More roles" %}</summary>
@@ -128,18 +140,6 @@
                                     </label>
                                 {% endfor %}
                             </details>
-                        {% endif %}
-                        {% if party_types %}
-                            <label>
-                                <input class="form-check-input"
-                                       type="radio"
-                                       name="filer_party_type"
-                                       id="filer-not-a-party"
-                                       value="{{ not_a_party_value }}"
-                                       {% if filing_for_someone_else %}checked{% endif %}
-                                       required />
-                                <span>{% translate "I am not one of the parties — I am filing for someone else" %}</span>
-                            </label>
                         {% endif %}
                     </div>
                 </fieldset>

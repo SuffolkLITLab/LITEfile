@@ -39,16 +39,19 @@
                     · {% if show_party_editor %}<a href="#review-parties">{% translate "Edit people" %}</a>{% else %}<a href="{% url 'parties' jurisdiction %}{% if return_to %}?return_to={{ return_to }}{% endif %}">{% translate "Edit people" %}</a>{% endif %}
                 </p>
                 {% if document_summary_details %}
-                    <dl>
-                        {% for detail in document_summary_details %}
-                            <div>
-                                <dt>{{ detail.label }}</dt>
-                                <dd>
-                                    {{ detail.value }}
-                                </dd>
-                            </div>
-                        {% endfor %}
-                    </dl>
+                    {% for group in document_summary_groups %}
+                        <h2>{{ group.label }}</h2>
+                        <dl>
+                            {% for detail in group.details %}
+                                <div data-extracted-detail="{{ detail.key }}">
+                                    <dt>{% if detail.key == "filing type" %}{% translate "Type of document" %}{% else %}{{ detail.label }}{% endif %}</dt>
+                                    <dd>
+                                        {{ detail.value }}
+                                    </dd>
+                                </div>
+                            {% endfor %}
+                        </dl>
+                    {% endfor %}
                 {% else %}
                     <p class="extracted-details__note">{% translate "We could not identify this document. Check the details below." %}</p>
                 {% endif %}
@@ -95,26 +98,6 @@
                    value="{{ preview_fingerprint }}" />
             {% include "efile/components/filing_availability_notice.html" %}
             <input type="hidden" name="return_to" value="{{ return_to }}" />
-            {% if filing_type_proposal.name %}
-                <fieldset class="form-field filing-proposal"
-                          id="filing-proposal"
-                          {% if chosen_existing_case != "existing" %}hidden disabled{% endif %}>
-                    <legend>{% translate "Suggested type of document (filing code)" %}</legend>
-                    <p class="filing-proposal__name">{{ filing_type_proposal.name }}</p>
-                    <p class="form-help">{% translate "This is our best guess from your document. We still need to check whether your court allows this document type (filing code)." %}</p>
-                    <div class="form-check">
-                        <input class="form-check-input"
-                               type="checkbox"
-                               id="reject-filing-proposal"
-                               name="reject_filing_proposal"
-                               value="yes"
-                               {% if filing_type_proposal.rejected %}checked{% endif %} />
-                        <label class="form-check-label" for="reject-filing-proposal">
-                            {% translate "This doesn't look right. I will choose on my own later." %}
-                        </label>
-                    </div>
-                </fieldset>
-            {% endif %}
             {% comment %}
             First, because the rest depends on it: the court lists different
             filing types for new and existing cases, and only an existing case
@@ -266,7 +249,7 @@
             <fieldset id="new-case-details"
                       class="new-case-details"
                       {% if chosen_existing_case != "new" %}hidden disabled{% endif %}>
-                <legend class="new-case-details__heading">{% translate "Tell the court what you're filing" %}</legend>
+                <legend class="new-case-details__heading">{% translate "Court and case" %}</legend>
                 <p class="new-case-details__lede">
                     {% translate "The court sorts every filing by which court it goes to, what kind of case it is, and what kind of document you're filing." %}
                 </p>
@@ -354,33 +337,6 @@
                             <small class="review-field__hint" id="case_type_code-hint"></small>
                         </div>
                     </div>
-                    <div class="review-field"
-                         data-field="filing_type"
-                         data-guess-key="filing type">
-                        <label for="filing_type_code">
-                            {{ lead_document.name }} — {% translate "Type of document (filing code)" %} <em>{% translate "if known" %}</em>
-                        </label>
-                        <div class="review-field__display" hidden>
-                            <div class="review-field__found">
-                                <i class="fa-solid fa-circle-check" aria-hidden="true"></i>
-                                <strong class="review-field__value"></strong>
-                            </div>
-                            <button class="btn btn-link review-field__edit"
-                                    type="button"
-                                    aria-label="{% translate "Edit type of document" %}">{% translate "Edit" %}</button>
-                        </div>
-                        <div class="review-field__input">
-                            <select class="form-select"
-                                    name="filing_type_code"
-                                    id="filing_type_code"
-                                    aria-describedby="filing_type_code-hint"
-                                    disabled>
-                                <option value="">{% translate "Choose a case type first" %}</option>
-                            </select>
-                            <input type="hidden" name="filing_type_name" id="filing_type_name" />
-                            <small class="review-field__hint" id="filing_type_code-hint">{% translate "Choose the type that describes your document." %}</small>
-                        </div>
-                    </div>
                 </div>
                 {% comment %}
             Only case types that mean different jobs for different parties --
@@ -395,10 +351,62 @@
             </fieldset>
             <section id="confirmation-document-types">
                 <h2>{% translate "Your documents" %}</h2>
+                <p id="document-type-definition"><strong>{% translate "Type of document (filing code)" %}</strong>: {% translate "The court’s name for a kind of paper, like Complaint or Appearance." %}</p>
                 <p>{% translate "Choose a type for each document if you know it. You can also choose or change this on Organize your documents." %}</p>
+                {% if filing_type_proposal.name %}
+                    <fieldset class="form-field filing-proposal"
+                              id="filing-proposal"
+                              {% if chosen_existing_case != "existing" %}hidden disabled{% endif %}>
+                        <legend>{% translate "Suggested document type" %}</legend>
+                        <p class="filing-proposal__name">{{ filing_type_proposal.name }}</p>
+                        <p class="form-help">{% translate "This is our best guess from your document. We still need to check whether your court allows this document type." %}</p>
+                        <div class="form-check">
+                            <input class="form-check-input"
+                                   type="checkbox"
+                                   id="reject-filing-proposal"
+                                   name="reject_filing_proposal"
+                                   value="yes"
+                                   {% if filing_type_proposal.rejected %}checked{% endif %} />
+                            <label class="form-check-label" for="reject-filing-proposal">
+                                {% translate "This doesn't look right. I will choose on my own later." %}
+                            </label>
+                        </div>
+                    </fieldset>
+                {% endif %}
+                <fieldset id="new-case-document"
+                          class="confirmation-source"
+                          {% if chosen_existing_case != "new" %}hidden disabled{% endif %}>
+                    <div class="review-field document-type-card"
+                         data-field="filing_type"
+                         data-guess-key="filing type">
+                        <h3 id="source-document-name">{{ lead_document.name }}</h3>
+                        <label id="source-document-type-label" for="filing_type_code">{% translate "Type of document" %} <em>{% translate "if known" %}</em></label>
+                        <div class="review-field__display" hidden>
+                            <div class="review-field__found">
+                                <i class="fa-solid fa-circle-check" aria-hidden="true"></i>
+                                <strong class="review-field__value"></strong>
+                            </div>
+                            <button class="btn btn-link review-field__edit"
+                                    type="button"
+                                    aria-label="{% translate "Edit type of document" %}">{% translate "Edit" %}</button>
+                        </div>
+                        <div class="review-field__input">
+                            <select class="form-select"
+                                    name="filing_type_code"
+                                    id="filing_type_code"
+                                    aria-labelledby="source-document-name source-document-type-label"
+                                    aria-describedby="filing_type_code-hint"
+                                    disabled>
+                                <option value="">{% translate "Choose a case type first" %}</option>
+                            </select>
+                            <input type="hidden" name="filing_type_name" id="filing_type_name" />
+                            <small class="review-field__hint" id="filing_type_code-hint">{% translate "Choose the type that describes your document." %}</small>
+                        </div>
+                    </div>
+                </fieldset>
                 {% for document in documents %}
                     <div data-confirmation-document data-is-source="{{ document.role }}">
-                        {% include "efile/components/document_type_picker.html" %}
+                        {% include "efile/components/document_type_picker.html" with short_label=True %}
                     </div>
                 {% endfor %}
             </section>

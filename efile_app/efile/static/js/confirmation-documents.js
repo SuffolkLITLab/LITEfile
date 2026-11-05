@@ -34,8 +34,7 @@
                     gettext("You can choose this after you find your court case on the next screen.") : gettext("Choose a court and case type first.");
             }
         });
-        document.getElementById("confirmation-document-types").hidden =
-            Array.from(form.querySelectorAll("[data-confirmation-document]")).every(wrapper => wrapper.hidden);
+
     }
     form.querySelectorAll("[data-document-type-picker]").forEach(picker => {
         picker.dataset.caseUrl = picker.dataset.choicesUrl;

@@ -6,6 +6,7 @@ from django.contrib import messages
 from django.db import transaction
 from django.shortcuts import redirect, render
 from django.urls import reverse
+from django.utils.translation import gettext as _
 from django.views.decorators.http import require_http_methods
 
 from efile.api.suffolk_api_views import get_tyler_token
@@ -409,6 +410,31 @@ def _extraction_review(request, jurisdiction):
         for detail in extracted_details(guesses)
         if detail["key"] not in {"classification evidence", "docket code evidence"}
     ]
+    summary_groups = [
+        {"label": _("Document details"), "details": []},
+        {"label": _("Court and case"), "details": []},
+        {"label": _("People named in the document"), "details": []},
+        {"label": _("Other details"), "details": []},
+    ]
+    for detail in summary_details:
+        key = detail["key"]
+        if key in {"plaintiff or petitioner names", "defendant or respondent names", "other party names"}:
+            group = 2
+        elif key in {"court", "case title", "case category", "case type", "docket number", "filing phase"}:
+            group = 1
+        elif key in {
+            "document title",
+            "form name",
+            "form identifier",
+            "form revision",
+            "form purpose",
+            "filing type",
+            "document date",
+        }:
+            group = 0
+        else:
+            group = 3
+        summary_groups[group]["details"].append(detail)
     party_side_options = [
         {"value": str(side), "label": PARTY_SIDE_LABELS[side], "help": PARTY_SIDE_HELP[side]} for side in PartySide
     ]
@@ -497,6 +523,7 @@ def _extraction_review(request, jurisdiction):
         "has_guesses": bool(guesses),
         "show_party_editor": show_party_editor,
         "document_summary_details": summary_details,
+        "document_summary_groups": [group for group in summary_groups if group["details"]],
         "party_rows": party_rows,
         "party_side_options": party_side_options,
         "extraction_failed": extraction is not None and extraction.status == DocumentExtraction.Status.FAILED,

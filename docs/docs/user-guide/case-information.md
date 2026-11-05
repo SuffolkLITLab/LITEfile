@@ -37,14 +37,16 @@ Some cases also ask **Which side of this case are you on?** Pick your side.
 <img src="/img/user-guide/confirm-new-case.png" alt="Confirm information page with New case selected, shared court and case choices, and a separate document type for each PDF." className="doc-screenshot" width="700" loading="lazy" />
 
 1. Choose **New case**.
-2. Under **Tell the court what you're filing**, pick:
+2. Under **Court and case**, pick:
    - **Court or county:** Answer the questions about the court. Use what's
      printed at the top of your form. (In Vermont: **Court unit or county**.)
    - **Case category:** The big group, like *Small Claims* or *Family*. (In
      Vermont: **Court division**.)
    - **Case type:** The more exact kind of case.
-   - **Type of document (filing code) if known:** The name of your document, like *Complaint*.
-3. Choose **Continue**.
+3. Under **Your documents**, choose a **Type of document** for each file if you
+   know it. This is the court's filing code, like *Complaint*. Each file has its
+   own heading and choice.
+4. Choose **Continue**.
 
 **Not sure what to pick?** Choose **Help me choose**. LITEfile asks a few easy
 questions and fills these in for you.
@@ -56,7 +58,7 @@ questions and fills these in for you.
 
 <img src="/img/user-guide/find-your-case.png" alt="Find your court case page with Circuit Court and Sangamon County chosen and a case number typed in, and a Find my case button." className="doc-screenshot" width="700" loading="lazy" />
 
-1. Choose **Existing case**. If you see a **Suggested type of document (filing code)**, it is our
+1. Choose **Existing case**. If you see a **Suggested document type**, it is our
    best guess from your document. If it looks wrong, check **This doesn't look
    right. I will choose on my own later.** You can pick the document type (filing code) after you confirm your case or in
    [Step 7](./organize-documents.md).

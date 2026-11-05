@@ -24,7 +24,7 @@ The court uses these details to contact you. Choose **Continue to parties**.
 
 ## New case
 
-<img src="/img/user-guide/choose-role.png" alt="Who is involved in this case page showing saved contact details with an Edit link, common roles, an expanded More roles list, and a Save role button." className="doc-screenshot" width="700" loading="lazy" />
+<img src="/img/user-guide/choose-role.png" alt="Who is involved in this case page showing saved contact details with an Edit link, common roles, a filing-for-someone-else choice before More roles, and a Save role button." className="doc-screenshot" width="700" loading="lazy" />
 
 1. Under **What is your role in this case?**, pick your role. Look for it next
    to your name on your forms. For example, the person who sues is usually the
@@ -57,7 +57,8 @@ names here.
 ## Filing for someone else
 
 If you are not a party, choose **I am not one of the parties — I am filing for
-someone else**. Then pick who you are filing for.
+someone else**. This choice is shown above **More roles**. Then pick who you
+are filing for.
 
 You can do this if the person asked you to help, like a parent who wants a
 family member to send their papers. The papers must be theirs, and they must
