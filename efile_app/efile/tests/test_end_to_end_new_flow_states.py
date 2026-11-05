@@ -123,8 +123,14 @@ def test_complete_new_filing_flow_by_jurisdiction(
     filer_party_name,
     other_party_code,
     other_party_name,
+    monkeypatch,
 ):
     """Walk step-by-step through the entire new flow for each state."""
+
+    monkeypatch.setattr(
+        "efile.services.document_choices.filing_choices",
+        lambda draft: [{"value": filing_type_code, "text": filing_type_name}],
+    )
 
     # 0. Create user and draft
     user = django_user_model.objects.create_user(

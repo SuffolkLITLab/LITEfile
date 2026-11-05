@@ -217,6 +217,9 @@ def test_primary_type_tracks_edits_clearing_and_lead_deletion(draft):
 
 
 def test_organization_and_submission_preserve_primary_type_and_confirmation_identity(draft, monkeypatch):
+    monkeypatch.setattr(
+        "efile.services.document_choices.filing_choices", lambda draft: [{"value": "27959", "text": "Complaint"}]
+    )
     from efile.tests.test_durable_drafts import FakeApiResponse, _prepare_submission
 
     client = signed_in(draft.user)

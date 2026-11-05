@@ -238,7 +238,7 @@ def test_extraction_review_does_not_offer_case_number_or_title_for_a_new_case(cl
 
 
 @pytest.mark.django_db
-def test_extraction_review_defers_existing_case_number_to_lookup(client, reorganized_draft):
+def test_extraction_review_shows_existing_case_number_before_lookup(client, reorganized_draft):
     reorganized_draft.existing_case = ExistingCase.EXISTING
     reorganized_draft.save(update_fields=["existing_case"])
     reviewed_document(draft=reorganized_draft, role=FilingDocument.Role.LEAD, name="motion.pdf")
@@ -247,7 +247,7 @@ def test_extraction_review_defers_existing_case_number_to_lookup(client, reorgan
 
     docket_field = re.search(r'<div class="form-field"\s+id="docket-number-field"[^>]*>', content)
     assert docket_field is not None
-    assert "hidden" in docket_field.group()
+    assert "hidden" not in docket_field.group()
     assert 'name="case_title"' not in content
 
 

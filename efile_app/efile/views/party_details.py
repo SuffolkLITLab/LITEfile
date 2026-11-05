@@ -152,14 +152,16 @@ def party_details(request, jurisdiction):
         "primary_party_types": [
             item
             for item in party_types
-            if item["required"] or item["code"] == party.party_type or not any(role["required"] for role in party_types)
+            if item.get("required", False)
+            or item["code"] == party.party_type
+            or not any(role.get("required", False) for role in party_types)
         ],
         "other_party_types": [
             item
             for item in party_types
-            if not item["required"]
+            if not item.get("required", False)
             and item["code"] != party.party_type
-            and any(role["required"] for role in party_types)
+            and any(role.get("required", False) for role in party_types)
         ],
         "party_types": party_types,
         "party_kind": "organization" if party.organization_name else "person",

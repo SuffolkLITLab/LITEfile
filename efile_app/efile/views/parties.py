@@ -128,7 +128,7 @@ def _continue_previews(draft, filer, party_types, return_to):
         missing = [
             item["name"]
             for item in party_types
-            if item["required"] and item["code"] not in held_by_others and item["code"] != role_code
+            if item.get("required", False) and item["code"] not in held_by_others and item["code"] != role_code
         ]
         hints = [gettext("The court also needs a %(name)s in this case.") % {"name": name} for name in missing]
         if missing and draft.existing_case == ExistingCase.EXISTING:
@@ -391,14 +391,16 @@ def parties(request, jurisdiction):
         "primary_party_types": [
             item
             for item in party_types
-            if item["required"] or item["code"] == filer.party_type or not any(role["required"] for role in party_types)
+            if item.get("required", False)
+            or item["code"] == filer.party_type
+            or not any(role.get("required", False) for role in party_types)
         ],
         "other_party_types": [
             item
             for item in party_types
-            if not item["required"]
+            if not item.get("required", False)
             and item["code"] != filer.party_type
-            and any(role["required"] for role in party_types)
+            and any(role.get("required", False) for role in party_types)
         ],
         "party_types": party_types,
         "roster": roster,

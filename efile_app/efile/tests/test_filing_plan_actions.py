@@ -427,7 +427,12 @@ def test_a_complete_filing_returns_straight_to_review(client, signed_in):
 
 
 @pytest.mark.django_db
-def test_checklist_upload_with_an_automatic_filing_type_requires_confidentiality(client, signed_in):
+def test_checklist_upload_with_an_automatic_filing_type_requires_confidentiality(client, signed_in, monkeypatch):
+    monkeypatch.setattr(
+        "efile.services.document_choices.filing_choices",
+        lambda draft: [{"value": "78690", "text": "Petition for Name Change"}, {"value": "6529", "text": "Fee waiver"}],
+    )
+
     def upload(draft, *_args, **_kwargs):
         FilingDocument.objects.create(
             draft=draft,

@@ -248,10 +248,8 @@ def test_status_endpoint_reports_when_review_is_ready(client, extraction_draft):
 
 
 @pytest.mark.django_db
-def test_review_shows_only_the_document_summary_and_fields_the_filer_can_edit(client, extraction_draft):
-    """Read-only text is limited to what identifies the document. Values the
-    filing uses are shown in the form below, where they can be corrected, and
-    values it does not use (like amounts) are not shown at all."""
+def test_review_separates_detected_details_from_editable_answers(client, extraction_draft):
+    """Detected facts stay in a disclosure; answers remain editable below it."""
 
     authorize(client, extraction_draft)
     reviewed_document(
@@ -270,14 +268,14 @@ def test_review_shows_only_the_document_summary_and_fields_the_filer_can_edit(cl
 
     page = client.get(reverse("extraction_review", kwargs={"jurisdiction": "illinois"}))
     content = page.content.decode()
-    summary = content.partition('class="extracted-details"')[2].partition("</section>")[0]
+    summary = content.partition('<details class="extracted-details"')[2].partition("</details>")[0]
     assert "Document title" in summary
     assert "See everything else" not in content
-    assert "Shown on page two" not in summary
-    assert "$1,200" not in summary
-    # The court is asked for by the form's own court picker further down.
-    assert "Washington County" not in summary
-    # The names are asked for by the party editor, not printed as evidence.
+    assert "Shown on page two" in summary
+    assert "$1,200" in summary
+    # Detected court details remain available alongside the editable answers.
+    assert "Washington County" in summary
+    # Names can still be corrected in the party editor.
     assert re.search(r'name="party_name"\s+value="Alex Rivera"', content)
     assert 'name="reviewed_extraction"' not in content
 
