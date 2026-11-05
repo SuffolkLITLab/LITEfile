@@ -30,7 +30,9 @@ uses `fly.toml`, `efile.settings_staging`, and the existing `FLY_API_TOKEN`.
 For a manual production deployment, run **Deploy production** on `main`, or:
 
 ```bash
-fly deploy --config fly.production.toml --remote-only
+fly deploy --config fly.production.toml --remote-only \
+  --build-arg LITEFILE_COMMIT_SHA="$(git rev-parse HEAD)" \
+  --build-arg LITEFILE_COMMIT_DATE="$(git show -s --format=%cI HEAD)"
 ```
 
 Production initially reuses the existing OpenAI, S3, Gotenberg, handoff, and
@@ -46,6 +48,43 @@ Before accepting real filings, update `SUFFOLK_EFILE_API_KEY`, `EFSP_URL`, and
 EFSP. Change `FILING_CODE_SYNC_TIME` in `fly.production.toml` from `21:30` to
 `04:30`, then rebuild the filing-code index for the new EFSP source. Verify the
 production login and filing flow after that switch.
+
+## Release versions and commit details
+
+The `[project].version` field in `efile_app/pyproject.toml` is the source of
+truth for the version shown on every About page. The current release is
+`0.9-rc1`. To release another candidate, change it to `0.9-rc2`; when ready,
+use `0.9` for the stable release. Use `0.9.1` for a subsequent patch release
+or `0.10` for the next minor release.
+
+After editing the version, update the lockfile:
+
+```bash
+cd efile_app
+uv lock
+```
+
+Commit both `pyproject.toml` and `uv.lock` in the release PR. Python tooling
+normalizes `0.9-rc1` to `0.9rc1` in the lockfile; the About page preserves the
+spelling in `pyproject.toml`. Optionally tag the release commit `v0.9-rc1`
+(or the corresponding new version). Versions change deliberately for releases,
+not automatically on every deployment.
+
+Production shows only the release version. Development and staging also show
+the first 12 characters of the source commit SHA and its committer timestamp in
+UTC. This identifies the committed source, not the deployment time or any local
+uncommitted edits. `SHOW_BUILD_COMMIT` controls visibility independently of
+Django's `DEBUG` setting and defaults to false outside development and staging.
+
+The deployment workflows pass `LITEFILE_COMMIT_SHA` and `LITEFILE_COMMIT_DATE`
+as Docker build arguments from the checked-out commit. Use those same arguments
+for manual staging deploys or Docker builds (see the manual deployment command
+above). Git history is not included in images. If metadata is omitted, development
+and staging show “Commit: Unavailable” alongside the version.
+
+Local source checkouts read Git directly when image metadata is absent. Version
+and commit metadata are cached per process; restart the development server after
+changing commits or versions to refresh the About page.
 
 ## 1. Docker build & image optimization
 

@@ -1,6 +1,7 @@
 {% extends "efile/site_base.html" %}
 {% load static %}
 {% load i18n %}
+{% load tz %}
 {% load ui_text %}
 {% block title %}
     {% translate "About LITEfile" %}
@@ -289,4 +290,21 @@
             </p>
         {% endif %}
     </section>
+    <p class="text-muted small mt-4">
+        {% translate "Version" %} {{ build_info.version }}
+        {% if build_info.show_commit %}
+            <br />
+            {% translate "Commit" %}:
+            {% if build_info.commit_sha %}
+                <code>{{ build_info.commit_sha }}</code>
+                {% if build_info.commit_date %}
+                    {% localtime off %}
+                        · <time datetime="{{ build_info.commit_date|date:'c' }}">{{ build_info.commit_date|date:"Y-m-d H:i:s" }} UTC</time>
+                    {% endlocaltime %}
+                {% endif %}
+            {% else %}
+                {% translate "Unavailable" %}
+            {% endif %}
+        {% endif %}
+    </p>
 {% endblock public_content %}

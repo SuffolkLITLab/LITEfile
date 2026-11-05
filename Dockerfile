@@ -43,6 +43,12 @@ RUN DJANGO_SETTINGS_MODULE=efile.settings_staging \
     DATABASE_URL=sqlite:////tmp/build-collectstatic.sqlite3 \
     uv run python manage.py collectstatic --noinput
 
+# Supplied from the checked-out source by the deployment workflows.
+ARG LITEFILE_COMMIT_SHA=""
+ARG LITEFILE_COMMIT_DATE=""
+ENV LITEFILE_COMMIT_SHA=${LITEFILE_COMMIT_SHA} \
+    LITEFILE_COMMIT_DATE=${LITEFILE_COMMIT_DATE}
+
 EXPOSE 8000
 
 # Use Gunicorn with Uvicorn workers (ASGI) and log to stdout/stderr (debug level)
