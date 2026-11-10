@@ -1,0 +1,35 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="description" content="Explore two ways to choose the document LITEfile reads for case suggestions. Interactive prototypes with fictional sample documents.">
+  <title>Main document exploration · LITEfile</title>
+  <link rel="icon" href="data:,">
+  <link rel="stylesheet" href="styles.css">
+  <script src="app.js" defer></script>
+</head>
+<body>
+  <a class="skip-link" href="#main">Skip to document selection</a>
+  <header class="site-header">
+    <div class="header-inner">
+      <img src="assets/litefile-logo.svg" width="143" height="36" alt="LITEfile">
+      <div class="header-right"><span class="demo-badge"><span></span>Interactive prototype</span><a href="https://github.com/SuffolkLITLab/LITEfile/issues/419" target="_blank" rel="noopener noreferrer">Issue #419 <span aria-hidden="true">↗</span></a></div>
+    </div>
+  </header>
+  <section class="exploration" aria-label="Prototype controls">
+    <div class="exploration-top"><span class="eyebrow">Design exploration</span><span class="demo-note">Fictional files · Simulated AI and scan results · Nothing is uploaded or filed</span></div>
+    <div class="exploration-controls">
+      <nav class="concept-switch" aria-label="Compare concepts">
+        <a id="concept-assisted" href="?concept=assisted" data-action="concept" data-value="assisted"><span class="concept-letter">A</span><span>Suggest, then confirm</span></a>
+        <a id="concept-manual" href="?concept=manual" data-action="concept" data-value="manual"><span class="concept-letter">B</span><span>Choose and organize</span></a>
+      </nav>
+      <div class="scenario-controls"><label for="scenario">Try a scenario</label><select id="scenario"><option value="mixed">Exhibit uploaded first</option><option value="combined">One PDF, nested exhibits</option><option value="ambiguous">Two possible main documents</option><option value="unreadable">Unreadable scan</option></select><button class="reset-button" data-action="reset" aria-label="Reset this prototype scenario"><span aria-hidden="true">↻</span> Reset</button></div>
+    </div>
+  </section>
+  <main id="main" tabindex="-1"></main>
+  <footer class="site-footer"><span>A proposal for LITEfile · No production behavior changes</span><details><summary>About this exploration</summary><p>Concept A proposes a small, bounded check of filenames and opening-page text to suggest a source. Concept B requires the filer to choose a source. Both use only the confirmed document and page range for subsequent case suggestions. All document previews, model choices, and results here are hand-authored examples.</p><p>The full files stay in the filing. Choosing a source does not decide the court’s filing code or lead-document category. No real files, model requests, accounts, or filing services are connected.</p></details></footer>
+  <div id="announcer" class="sr-only" role="status" aria-live="polite" aria-atomic="true"></div>
+  <noscript><p class="noscript">Enable JavaScript to try the two interactive prototypes. No documents or personal information are required.</p></noscript>
+</body>
+</html>
