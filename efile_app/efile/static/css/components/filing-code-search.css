@@ -592,3 +592,8 @@
 .code-search__glossary dd {
     margin: 0 0 0.375rem;
 }
+
+/* Keep the helper aligned when its label changes after code selection. */
+#open-code-search {
+    min-inline-size: 12rem;
+}

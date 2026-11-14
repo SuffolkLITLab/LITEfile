@@ -148,7 +148,7 @@ test("the same module object serves both pages, so payloads cannot drift", () =>
     assert.strictEqual(paymentHandler.createDocumentBundle, reviewHandler.createDocumentBundle);
 });
 
-test("Cook and DuPage get their court-specific self-represented cross references", () => {
+test("Cook reference is resolved on the server; DuPage retains its reference", () => {
     const handler = makeHandler();
     const cook = {
         al_court_bundle: []
@@ -166,9 +166,7 @@ test("Cook and DuPage get their court-specific self-represented cross references
         court_name: "DuPage County"
     }, []);
 
-    assert.deepStrictEqual(cook.cross_references, {
-        254500: "99500"
-    });
+    assert.equal(cook.cross_references, undefined);
     assert.deepStrictEqual(dupage.cross_references, {
         136524: "99500"
     });

@@ -436,5 +436,8 @@ def parties(request, jurisdiction):
         )
         or filer.email,
     }
+    from efile.views.service_contacts import service_context
+
+    context.update(service_context(request, draft))
     context.update(get_workflow_context(WorkflowStepKey.PARTIES, jurisdiction, draft))
     return render(request, "efile/parties.html", context)

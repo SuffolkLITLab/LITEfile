@@ -5,6 +5,8 @@ from django.conf import settings
 from django.http import JsonResponse
 from django.views.decorators.http import require_http_methods
 
+from efile.api.suffolk_api_views import get_tyler_token
+
 from ..services.current_drafts import get_current_draft
 from ..services.efsp_errors import describe_efsp_error, efsp_error_problems, error_actions
 from ..services.efsp_payload import PayloadValidationError, prepare_efile_payload
@@ -175,7 +177,13 @@ def forward_final_filing(request, data):
 
         # Same fixups the fee quote applied, so the filing matches the quote.
         try:
-            prepare_efile_payload(efile_data, jurisdiction_id, court_id, draft=draft)
+            prepare_efile_payload(
+                efile_data,
+                jurisdiction_id,
+                court_id,
+                draft=draft,
+                service_token=get_tyler_token(request, jurisdiction_id),
+            )
         except PayloadValidationError as error:
             return JsonResponse(
                 {

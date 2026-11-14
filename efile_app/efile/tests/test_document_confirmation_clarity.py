@@ -278,3 +278,14 @@ def test_refreshing_source_does_not_restore_removed_people(draft):
 def test_organize_rejects_stale_new_case(draft):
     with pytest.raises(ValueError, match="case changed"):
         _save_document_details(draft, [], draft.documents.first().pk, confirmed_case_fingerprint="old")
+
+
+def test_summary_hides_form_metadata_without_losing_matching_evidence(client, draft):
+    draft.extracted_guesses = {"form identifier": "ABC-123", "form revision": "2026-01"}
+    draft.save()
+    response = client.get(reverse("extraction_review", args=[draft.jurisdiction]))
+    assert response.status_code == 200
+    assert b'data-extracted-detail="form identifier"' not in response.content
+    assert b'data-extracted-detail="form revision"' not in response.content
+    draft.refresh_from_db()
+    assert draft.extracted_guesses["form identifier"] == "ABC-123"

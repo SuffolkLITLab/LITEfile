@@ -39,7 +39,7 @@ def _authorize_jurisdiction_session(client, jurisdiction="illinois"):
 
 def _prepare_submission(client, draft, monkeypatch, jurisdiction="illinois"):
     """Populate the draft (the source of truth) and session so submit can run."""
-    write_case_data(draft, {"court": "cook:cd"})
+    write_case_data(draft, {"court": "cook:cd", "case_type": draft.case_type_code or "civil"})
     write_upload_data(
         draft,
         {

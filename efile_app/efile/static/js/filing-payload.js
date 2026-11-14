@@ -337,14 +337,8 @@ const FilingPayload = {
 
     addCourtBundles(efilingData, uploadData, caseData, users) {
         const courtName = caseData.court_name || caseData.court || "";
-        // Cook and DuPage require a local attorney/SRL identifier. The code-list
-        // entry is the map key; 99500 is the value both courts publish for a
-        // self-represented filer. The two courts use different entry codes.
-        if (courtName.toLowerCase().includes("cook")) {
-            efilingData.cross_references = {
-                254500: "99500"
-            };
-        } else if (courtName.toLowerCase().includes("dupage")) {
+        // Cook's self-represented reference is resolved by the server.
+        if (courtName.toLowerCase().includes("dupage")) {
             efilingData.cross_references = {
                 136524: "99500"
             };

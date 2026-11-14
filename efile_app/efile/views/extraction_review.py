@@ -408,7 +408,7 @@ def _extraction_review(request, jurisdiction):
     summary_details = [
         detail
         for detail in extracted_details(guesses)
-        if detail["key"] not in {"classification evidence", "docket code evidence"}
+        if detail["key"] not in {"classification evidence", "docket code evidence", "form identifier", "form revision"}
     ]
     summary_groups = [
         {"label": _("Document details"), "details": []},
@@ -425,8 +425,6 @@ def _extraction_review(request, jurisdiction):
         elif key in {
             "document title",
             "form name",
-            "form identifier",
-            "form revision",
             "form purpose",
             "filing type",
             "document date",

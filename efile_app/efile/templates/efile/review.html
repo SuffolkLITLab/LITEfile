@@ -32,6 +32,22 @@
                 {% include "efile/components/extraction_marker_help.html" %}
             </div>
         {% endif %}
+        {% if service_saved.contacts %}
+            <section class="review-summary-card mb-3"
+                     aria-labelledby="review-service-heading">
+                <header>
+                    <h2 id="review-service-heading">{% translate "Email recipients" %}</h2>
+                    <a href="{% url 'parties' jurisdiction %}?return_to=review&amp;service=1#email-recipients">{% translate "Edit" %}</a>
+                </header>
+                {% if service_stale %}
+                    <p class="alert alert-warning">{% translate "Your case details changed. Edit and save your email recipients before filing." %}</p>
+                {% else %}
+                    <p>{% translate "These people will get all the documents when you file." %}</p>
+                {% endif %}
+                <ul>{% for contact in service_saved.contacts %}<li>{{ contact.name }}{% if contact.email %} — {{ contact.email }}{% endif %}</li>{% endfor %}</ul>
+                <p>{% translate "Check the court's service rules. Email may not be enough, especially when you start a case." %}</p>
+            </section>
+        {% endif %}
         <div class="review-summary-grid">
             <section class="review-summary-card">
                 <header>
@@ -74,6 +90,14 @@
                             {{ draft.court_name|default:draft.court_code }}{% if extracted_markers.court %} *{% endif %}
                         </dd>
                     </div>
+                    {% if cook_srl_reference %}
+                        <div>
+                            <dt>{% translate "Cook County filing number" %}</dt>
+                            <dd>
+                                {% translate "99500 — for people without a lawyer. We add this if the court asks for it." %}
+                            </dd>
+                        </div>
+                    {% endif %}
                     <div>
                         <dt>{% translate "Category" %}</dt>
                         <dd>
@@ -359,7 +383,7 @@
                 <input class="form-check-input"
                        type="checkbox"
                        id="confirm-filing"
-                       {% if disclaimer_error or correction_issues %}disabled{% endif %} />
+                       {% if disclaimer_error or correction_issues or service_stale %}disabled{% endif %} />
                 <span>
                     {% if court_disclaimers %}
                         {% translate "I have read and accept the court requirements above. I reviewed this filing and am ready to submit it to the court." %}

@@ -30,7 +30,8 @@ Add `filing_availability` inside the relevant court entry under
 `contact`, and other settings. Preserve those existing settings, and merge
 examples into the existing entry rather than repeating a YAML key.
 
-There is no environment variable or database migration for this feature.
+No database migration is needed. Deployment settings can also block whole courts with `FILING_DISABLED_COURTS`, a mapping from jurisdiction names to court codes or county patterns such as `cook:*`. These blocks add to the YAML rules. Production blocks `cook` and `cook:*` at launch; staging keeps them available for testing.
+
 `filing_availability` is not a top-level jurisdiction setting.
 
 ### Court keys and type names

@@ -360,7 +360,7 @@ test.describe('filing code search', () => {
 
     async function openSearch(page) {
         await page.getByRole('button', {
-            name: 'Help me choose'
+            name: /^(Help me choose|Change filing code)$/
         }).click();
         return page.getByRole('dialog');
     }
@@ -513,7 +513,7 @@ test.describe('filing code search', () => {
             const queries = await mockSearch(page);
             await openSavedDraft(page);
             const open = page.getByRole('button', {
-                name: 'Help me choose'
+                name: /^(Help me choose|Change filing code)$/
             });
             const dialog = await openSearch(page);
             await expect(searchbox(page)).toBeFocused();
@@ -1360,7 +1360,7 @@ test.describe('filing code search', () => {
         await page.keyboard.press('Escape');
         await expect(page.getByRole('dialog')).not.toBeVisible();
         await expect(page.getByRole('button', {
-            name: 'Help me choose'
+            name: /^(Help me choose|Change filing code)$/
         })).toBeFocused();
     });
 

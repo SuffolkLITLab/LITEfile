@@ -11,7 +11,7 @@
     <section class="workflow-card">
         <h1>{% translate "Organize your documents" %}</h1>
         {% include "efile/partials/filing_guidance.html" %}
-        <p class="workflow-lede">{% translate "Choose a type of document (filing code) for each file." %}</p>
+        <p class="workflow-lede">{% translate "Check the document type (filing code) for each file. The court may send your filing back if the code is wrong." %}</p>
         {% if organize_context.guessed_filing_type %}
             <div class="extraction-page-help">
                 <span>{% translate "A * marks a choice suggested from your document." %}</span>

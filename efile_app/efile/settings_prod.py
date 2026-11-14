@@ -62,3 +62,6 @@ DATABASES["default"] = dj_database_url.config(
 
 # Explicit opt-in; applies per process, including background worker processes.
 configure_connection_pool(DATABASES["default"])
+
+# Launch restriction; staging keeps Cook County available for testing.
+FILING_DISABLED_COURTS = {"illinois": ["cook", "cook:*"]}

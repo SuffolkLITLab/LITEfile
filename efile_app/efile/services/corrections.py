@@ -307,6 +307,11 @@ def correction_readiness(draft):
     from efile.services.handoff import issues_for
 
     issues = issues_for(draft, current_metadata=True)
+    from efile.services.service_contacts import saved_service, scope
+
+    service = saved_service(draft)
+    if service.get("contacts") and service.get("scope") != scope(draft):
+        issues.append({"message": "Check and save your email recipients before filing again.", "view": "parties"})
     if draft.status != FilingDraft.Status.DRAFT:
         issues.append(
             {

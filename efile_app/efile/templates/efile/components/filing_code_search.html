@@ -1,10 +1,6 @@
 {% load i18n %}
 {% load ui_text %}
 <div class="code-search-invitation">
-    {% comment %}
-    The court calls these four choices a filing code, but filers never see
-    that word: the prompt names what they get, which is the fields filled in.
-    {% endcomment %}
     <div class="code-search-invitation__text">
         <strong id="code-search-prompt">{% translate "Not sure what to choose?" %}</strong>
         <strong id="code-search-prompt-prefilled" hidden>{% ui_text "extraction_review.helper_prompt_prefilled" %}</strong>
@@ -13,7 +9,13 @@
     <button type="button"
             class="btn btn-outline-primary"
             id="open-code-search"
-            disabled>{% translate "Help me choose" %}</button>
+            disabled>
+        {% if extraction_context.filing_type_code %}
+            {% translate "Change filing code" %}
+        {% else %}
+            {% translate "Help me choose" %}
+        {% endif %}
+    </button>
 </div>
 {% comment %}
 Three steps, each answering one question: what is being filed (search, ZIP,

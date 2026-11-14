@@ -48,7 +48,7 @@ Some cases also ask **Which side of this case are you on?** Pick your side.
    own heading and choice.
 4. Choose **Continue**.
 
-**Not sure what to pick?** Choose **Help me choose**. LITEfile asks a few easy
+**Not sure what to pick?** Choose **Help me choose** (or **Change filing code** if a code is already selected). LITEfile asks a few easy
 questions and fills these in for you.
 
 ## File in an existing case

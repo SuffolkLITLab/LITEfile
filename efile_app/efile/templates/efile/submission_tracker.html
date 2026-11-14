@@ -1,7 +1,16 @@
+{% load static %}
 {% load i18n %}
 <!DOCTYPE html>
 <html lang="en">
     <head>
+        <link rel="icon"
+              type="image/x-icon"
+              href="{% static 'img/favicon.ico' %}"
+              sizes="32x32" />
+        <link rel="icon"
+              type="image/svg+xml"
+              href="{% static 'img/favicon.svg' %}"
+              sizes="any" />
         <meta charset="UTF-8">
         <meta name="viewport" content="width=device-width, initial-scale=1">
         <title>{% translate "Your filing" %}</title>

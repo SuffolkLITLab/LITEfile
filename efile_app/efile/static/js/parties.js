@@ -98,3 +98,57 @@
         });
     }
 })();
+
+// Keep recipients from being silently discarded by another People-page form.
+(() => {
+    const form = document.getElementById("service-recipients-form");
+    if (!form) return;
+    let dirty = false;
+    const rules = form.querySelector('[name="service_rules_checked"]');
+    const updateRequired = () => {
+        rules.required = !!form.querySelector('[name="service_contact"]:checked');
+    };
+    updateRequired();
+    form.addEventListener("change", () => {
+        dirty = true;
+        updateRequired();
+    });
+    document.addEventListener("submit", event => {
+        if (!dirty) return;
+        if (event.target === form || event.submitter?.value === "clear_contacts") {
+            dirty = false;
+            return;
+        }
+        event.preventDefault();
+        document.getElementById("service-save-note").focus();
+    });
+    window.addEventListener("beforeunload", event => {
+        if (dirty) {
+            event.preventDefault();
+            event.returnValue = "";
+        }
+    });
+})();
+
+
+// Warn before leaving unsaved role details to choose or save email recipients.
+(() => {
+    const role = document.getElementById("your-role");
+    if (!role || !document.getElementById("email-recipients")) return;
+    let dirty = false;
+    role.addEventListener("input", () => {
+        dirty = true;
+    });
+    role.addEventListener("change", () => {
+        dirty = true;
+    });
+    role.addEventListener("submit", () => {
+        dirty = false;
+    });
+    window.addEventListener("beforeunload", event => {
+        if (dirty) {
+            event.preventDefault();
+            event.returnValue = "";
+        }
+    });
+})();

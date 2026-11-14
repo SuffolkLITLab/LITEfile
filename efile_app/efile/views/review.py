@@ -14,6 +14,7 @@ from efile.services.fee_surcharges import matching_exemption
 from efile.services.filing_availability import draft_unavailable_message, unavailable_response
 from efile.services.filing_plans import documents_missing_from_envelope
 from efile.services.people import get_case_questions
+from efile.services.service_contacts import saved_service, scope
 from efile.utils.config_loader import config_loader
 
 from ..workflow import RETURN_TO_REVIEW, WorkflowStepKey, get_step_url, get_workflow_context, with_return_to
@@ -139,6 +140,9 @@ def case_review(request, jurisdiction):
         # their own case is reached at their account address, and saying so
         # here would be one more line of screen for nothing.
         "notice_email": draft.notice_email,
+        "service_saved": saved_service(draft),
+        "service_stale": bool(saved_service(draft) and saved_service(draft).get("scope") != scope(draft)),
+        "cook_srl_reference": draft.jurisdiction == "illinois" and draft.court_code.split(":", 1)[0] == "cook",
         "documents": documents,
         "extracted_markers": extracted_markers,
         "question_answers": question_answers,

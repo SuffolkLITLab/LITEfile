@@ -324,6 +324,7 @@
                id="party-list-next"
                {% if not continue_preview.hint %}hidden{% endif %}>{{ continue_preview.hint }}</p>
         </div>
+        {% include "efile/components/service_contacts.html" %}
         <div class="workflow-actions">
             {% if return_to == "review" %}
                 <a class="btn btn-outline-secondary"

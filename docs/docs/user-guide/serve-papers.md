@@ -34,6 +34,16 @@ forms have a **certificate of service** or **proof of delivery** section for
 this. Others need a separate form. Fill it out **before** you submit in
 LITEfile.
 
+## Email service in LITEfile
+
+On the People page, **Send copies by email** lets you choose recipients when
+the court supports email service for your filing. Save your choices and check
+them on Review. Saving contacts does not send documents; submitting the filing
+sends all its documents to the selected recipients.
+
+This option is separate from courtesy copies and court notices. Check your
+court's rules before using it, especially when starting a case.
+
 ## Getting papers from the other side
 
 If you give the other side your email address, they may send papers to you by

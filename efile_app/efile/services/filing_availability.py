@@ -22,6 +22,11 @@ def _court_availability(jurisdiction, court):
     if ":" in court:
         keys.append(court.split(":", 1)[0] + ":*")
     availabilities = [(courts.get(key) or {}).get("filing_availability") or {} for key in keys]
+    disabled = getattr(settings, "FILING_DISABLED_COURTS", {}).get(jurisdiction, [])
+    if any(key in disabled for key in keys):
+        availabilities.append(
+            {"enabled": False, "message": _("LITEfile cannot file in this court yet. Ask the court clerk how to file.")}
+        )
     for availability in availabilities:
         _validate(availability)
     return availabilities

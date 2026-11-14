@@ -346,6 +346,10 @@ def test_correction_browser(live_server, client, original, monkeypatch, tmp_path
     accounts = [{"paymentAccountID": "pay", "accountName": "Test card", "paymentAccountTypeCode": "CC", "active": True}]
     monkeypatch.setattr("efile.views.payment.payment_accounts", lambda *args: accounts)
     monkeypatch.setattr(
+        "efile.services.document_choices.filing_choices",
+        lambda draft: [{"value": "petition", "text": "Petition"}],
+    )
+    monkeypatch.setattr(
         "efile.views.organize_documents._court_document_types", lambda *args: [{"code": "public", "name": "Public"}]
     )
     from efile.tests.test_fee_quotes import FakeResponse, efsp_fee_response

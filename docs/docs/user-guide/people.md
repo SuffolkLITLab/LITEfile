@@ -65,6 +65,20 @@ family member to send their papers. The papers must be theirs, and they must
 sign them. Unless you are a lawyer, you can't give them legal advice or speak
 for them in court.
 
+## Send copies by email
+
+If your court allows email service, choose **Choose email recipients** on the
+People page. Select contacts from your account or case, or choose **Add an
+email contact**. Adding a contact does not send any documents.
+
+Check your court's service rules, then choose **Save email recipients**.
+All selected recipients will get all documents when you file. Service fees
+are included in the fee estimate. Review the list before you submit.
+
+If your court or case changes, check and save the recipients again. Choose
+**Remove all email recipients** to turn off email service for this filing.
+See [Sending copies to the other side](./serve-papers.md) for more help.
+
 ## What you should see
 
 Each person shows **Complete**. You then move to **Fees**.
