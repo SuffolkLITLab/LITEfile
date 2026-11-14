@@ -36,7 +36,7 @@ LITEfile.
 
 ## Email service in LITEfile
 
-On the People page, **Send copies by email** lets you choose recipients when
+On the People page, **Court email service** lets you choose recipients when
 the court supports email service for your filing. Save your choices and check
 them on Review. Saving contacts does not send documents; submitting the filing
 sends all its documents to the selected recipients.

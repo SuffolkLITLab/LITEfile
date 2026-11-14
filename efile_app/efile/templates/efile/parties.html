@@ -5,6 +5,10 @@
 {% block title %}
     {% translate "People in this filing" %}
 {% endblock title %}
+{% block extra_css %}
+    <link rel="stylesheet"
+          href="{% static 'css/components/service-contacts.css' %}" />
+{% endblock extra_css %}
 {% block workflow_content %}
     <section class="workflow-card">
         <h1>{% translate "Who is involved in this case?" %}</h1>
@@ -355,5 +359,6 @@
 {% endblock workflow_content %}
 {% block extra_js %}
     <script src="{% static 'js/parties.js' %}"></script>
+    <script src="{% static 'js/service-contacts.js' %}"></script>
     <script src="{% static 'js/claim-party.js' %}"></script>
 {% endblock extra_js %}

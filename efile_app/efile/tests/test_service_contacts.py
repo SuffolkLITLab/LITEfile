@@ -250,7 +250,7 @@ def test_service_picker_browser(client, db_draft, live_server, monkeypatch, tmp_
         }
         options[0][:] = [item for item in options[0] if item["contact_id"] != "new-person"]
         options[0].append(contact)
-        return contact
+        return contact["contact_id"]
 
     monkeypatch.setattr("efile.views.service_contacts.create_contact", add_browser_contact)
     monkeypatch.setattr("efile.views.service_contacts.service_options", lambda *args: options)
@@ -263,7 +263,7 @@ def test_service_picker_browser(client, db_draft, live_server, monkeypatch, tmp_
         json.dumps(
             {
                 "baseUrl": live_server.url,
-                "url": reverse("parties", args=["illinois"]) + f"?draft={db_draft.pk}&service=1",
+                "url": reverse("parties", args=["illinois"]) + f"?draft={db_draft.pk}",
                 "uploadUrl": reverse("upload_documents", args=["illinois"]) + f"?draft={db_draft.pk}",
                 "cookie": client.cookies[settings.SESSION_COOKIE_NAME].value,
             }
@@ -407,3 +407,35 @@ def test_correction_review_keeps_feedback_visible_with_stale_recipients(client, 
     assert response.status_code == 200
     assert b"Fix the court choice." in response.content
     assert b"Edit and save your email recipients before filing." in response.content
+
+
+@pytest.mark.django_db
+def test_modal_save_returns_summary_and_errors_preserve_saved_selection(client, db_draft, monkeypatch):
+    from django.core import signing
+    from django.urls import reverse
+
+    monkeypatch.setattr(
+        "efile.services.service_contacts.service_options",
+        lambda *args: (
+            [{"contact_id": "person", "name": "Alex Example", "email": "alex@example.com"}],
+            [{"code": "-580"}],
+        ),
+    )
+    data = {
+        "draft": db_draft.pk,
+        "service_scope": signing.dumps([db_draft.pk, scope(db_draft)], salt="service-contacts"),
+        "service_contact": "person",
+        "service_type": "-580",
+        "service_rules_checked": "yes",
+    }
+    url = reverse("update_service_contacts", args=["illinois"])
+    response = client.post(url, data, HTTP_X_REQUESTED_WITH="XMLHttpRequest")
+    assert response.status_code == 200
+    assert "Alex Example" in response.json()["summary_html"]
+    assert 'id="service-editor"' not in response.json()["summary_html"]
+    data["service_contact"] = "not-allowed"
+    response = client.post(url, data, HTTP_X_REQUESTED_WITH="XMLHttpRequest")
+    assert response.status_code == 400
+    assert response.json()["success"] is False
+    db_draft.refresh_from_db()
+    assert db_draft.supplemental_fields[KEY]["contacts"][0]["contact_id"] == "person"

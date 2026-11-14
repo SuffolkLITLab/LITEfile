@@ -1,125 +1,32 @@
 {% load i18n %}
 <section id="email-recipients"
-         class="mt-4"
+         class="people-section service-summary"
          aria-labelledby="email-recipients-heading">
-    <h2 id="email-recipients-heading">{% translate "Send copies by email" %}</h2>
-    <p>{% translate "Choose who gets your documents through the court's email service when you file." %}</p>
-    <p>{% translate "Check the court's service rules first. Email may not be enough, especially when you start a case." %}</p>
+    <h2 id="email-recipients-heading">{% translate "Court email service" %}</h2>
+    <p>{% translate "Choose who gets copies of your documents when you file." %}</p>
     {% if service_stale %}
-        <p class="alert alert-warning">{% translate "Your case details changed. Check and save your recipients again." %}</p>
+        <p class="alert alert-warning">{% translate "Your case details changed. Check your recipients again." %}</p>
     {% endif %}
     {% if service_saved.contacts %}
-        {% if not service_open %}<ul>{% for contact in service_saved.contacts %}<li>{{ contact.name }}{% if contact.email %} — {{ contact.email }}{% endif %}</li>{% endfor %}</ul>{% endif %}
+        <ul class="service-summary__list">
+            {% for contact in service_saved.contacts %}
+                <li><strong>{{ contact.name }}</strong>{% if contact.email %}<span>{{ contact.email }}</span>{% endif %}</li>
+            {% endfor %}
+        </ul>
     {% else %}
-        <p>{% translate "No email recipients selected." %}</p>
+        <p class="form-text">{% translate "No email recipients selected." %}</p>
     {% endif %}
-    {% if service_saved.contacts %}
-        <form method="post"
-              action="{% url 'update_service_contacts' jurisdiction %}"
-              class="mb-3">
-            {% csrf_token %}
-            <input type="hidden" name="draft" value="{{ service_draft_id }}" />
-            <input type="hidden" name="service_scope" value="{{ service_scope }}" />
-            <input type="hidden" name="return_to" value="{{ return_to }}" />
-            <button class="btn btn-outline-secondary"
-                    type="submit"
-                    name="action"
-                    value="clear_contacts">{% translate "Remove all email recipients" %}</button>
-        </form>
-    {% endif %}
-    {% if not service_open %}
-        <a class="btn btn-outline-primary"
-           href="?draft={{ service_draft_id }}&amp;service=1{% if return_to == 'review' %}&amp;return_to=review{% endif %}#email-recipients">{% translate "Choose email recipients" %}</a>
-    {% elif service_error %}
-        <p class="alert alert-warning" role="alert">{{ service_error }}</p>
-        <a href="?draft={{ service_draft_id }}&amp;service=1{% if return_to == 'review' %}&amp;return_to=review{% endif %}#email-recipients">{% translate "Try again" %}</a>
-    {% else %}
-        <form id="service-recipients-form"
-              method="post"
-              action="{% url 'update_service_contacts' jurisdiction %}">
-            {% csrf_token %}
-            <input type="hidden" name="draft" value="{{ service_draft_id }}" />
-            <input type="hidden" name="service_scope" value="{{ service_scope }}" />
-            <input type="hidden" name="return_to" value="{{ return_to }}" />
-            <fieldset>
-                <legend class="h3">{% translate "Who should get a copy?" %}</legend>
-                {% for contact in service_contacts %}
-                    <label class="d-block mb-2"><input class="form-check-input me-2"
-       type="checkbox"
-       name="service_contact"
-       value="{{ contact.contact_id }}"
-       {% if contact.selected %}checked{% endif %} />{{ contact.name }}{% if contact.email %} — {{ contact.email }}{% endif %}</label>
-                {% empty %}
-                    <p>{% translate "No contacts found. You can add a person below." %}</p>
-                {% endfor %}
-            </fieldset>
-            <div class="mb-3">
-                {% if service_types|length > 1 %}
-                    <label for="service-type" class="form-label">{% translate "Email service" %}</label>
-                    <select class="form-select" name="service_type" id="service-type">
-                        {% for type in service_types %}<option value="{{ type.code }}"
-        {% if type.code == service_saved.service_type %}selected{% endif %}>{{ type.name }}</option>{% endfor %}
-                    </select>
-                {% else %}
-                    <input type="hidden" name="service_type" value="{{ service_types.0.code }}" />
-                {% endif %}
-                <p class="form-text">{% translate "Any service fees will be included in your fee estimate." %}</p>
-                {% for type in service_types %}{% if type.disclaimertext %}<p>{{ type.disclaimertext }}</p>{% endif %}{% endfor %}
-            </div>
-            <label class="d-block mb-3">
-                <input class="form-check-input me-2"
-                       type="checkbox"
-                       name="service_rules_checked"
-                       value="yes" />
-                {% translate "I checked the court's rules and can use email service for this filing." %}
-            </label>
-            <p class="form-text" id="service-save-note" tabindex="-1">{% translate "Save your recipients before you continue." %}</p>
-            <button class="btn btn-outline-primary"
-                    type="submit"
-                    name="action"
-                    value="save_contacts">{% translate "Save email recipients" %}</button>
-        </form>
-        <details class="mt-3">
-            <summary>{% translate "Add an email contact" %}</summary>
-            <form class="mt-3"
-                  method="post"
-                  action="{% url 'update_service_contacts' jurisdiction %}">
-                {% csrf_token %}
-                <input type="hidden" name="draft" value="{{ service_draft_id }}" />
-                <input type="hidden" name="service_scope" value="{{ service_scope }}" />
-                <input type="hidden" name="return_to" value="{{ return_to }}" />
-                <div class="people-grid">
-                    <div class="form-field">
-                        <label class="form-label" for="contact-first-name">{% translate "First name" %}</label>
-                        <input class="form-control"
-                               id="contact-first-name"
-                               name="contact_first_name"
-                               maxlength="100"
-                               required />
-                    </div>
-                    <div class="form-field">
-                        <label class="form-label" for="contact-last-name">{% translate "Last name" %}</label>
-                        <input class="form-control"
-                               id="contact-last-name"
-                               name="contact_last_name"
-                               maxlength="100"
-                               required />
-                    </div>
-                    <div class="form-field">
-                        <label class="form-label" for="contact-email">{% translate "Email address" %}</label>
-                        <input class="form-control"
-                               id="contact-email"
-                               name="contact_email"
-                               type="email"
-                               required />
-                    </div>
-                </div>
-                <p class="form-text">{% translate "This saves a contact in your court account. It does not send your documents." %}</p>
-                <button class="btn btn-outline-primary"
-                        type="submit"
-                        name="action"
-                        value="create_contact">{% translate "Add contact" %}</button>
-            </form>
-        </details>
-    {% endif %}
+    <a class="btn btn-outline-primary"
+       data-service-open
+       href="?draft={{ service_draft_id }}&amp;service=1{% if return_to == 'review' %}&amp;return_to=review{% endif %}#service-editor">
+        {% if service_saved.contacts %}
+            {% translate "Edit recipients" %}
+        {% else %}
+            {% translate "Choose recipients" %}
+        {% endif %}
+    </a>
+    <p class="form-text service-status" role="status" aria-live="polite"></p>
 </section>
+{% if service_open %}
+    {% include "efile/components/service_contact_editor.html" %}
+{% endif %}

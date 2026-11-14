@@ -3,8 +3,9 @@
 from django.contrib import messages
 from django.core import signing
 from django.db import transaction
-from django.http import HttpResponse, HttpResponseBadRequest
+from django.http import HttpResponse, HttpResponseBadRequest, JsonResponse
 from django.shortcuts import redirect
+from django.template.loader import render_to_string
 from django.urls import reverse
 from django.views.decorators.http import require_http_methods
 
@@ -47,13 +48,24 @@ def service_context(request, draft):
 
 @require_http_methods(["POST"])
 def update_service_contacts(request, jurisdiction) -> HttpResponse:
+    wants_json = request.headers.get("X-Requested-With") == "XMLHttpRequest"
+
+    def failure(message, status=400):
+        if wants_json:
+            return JsonResponse({"success": False, "error": message}, status=status)
+        return HttpResponseBadRequest(message)
+
     token = get_tyler_token(request, jurisdiction)
     if not request.user.is_authenticated or not token:
+        if wants_json:
+            return failure("Sign in again before changing recipients.", status=401)
         return redirect("efile_login", jurisdiction=jurisdiction)
     draft = get_current_draft(request, jurisdiction=jurisdiction)
     if draft is None:
-        return HttpResponseBadRequest("Open your filing before changing recipients.")
+        return failure("Open your filing before changing recipients.")
     if message := draft_unavailable_message(draft):
+        if wants_json:
+            return failure(message, status=409)
         return unavailable_response(request, draft, message)
     destination = reverse("parties", args=[jurisdiction]) + f"?draft={draft.pk}&service=1"
     if request.POST.get("return_to") == "review":
@@ -63,9 +75,22 @@ def update_service_contacts(request, jurisdiction) -> HttpResponse:
         if expected != [draft.pk, scope(draft)]:
             raise ServiceContactError("Your case details changed. Check the recipients again.")
         if draft.status not in ACTIVE_DRAFT_STATUSES or draft.deletion_pending:
-            return HttpResponseBadRequest("This filing can no longer be changed.")
+            return failure("This filing can no longer be changed.")
         if request.POST.get("action") == "create_contact":
-            create_contact(draft, token, request.POST)
+            contact_id = create_contact(draft, token, request.POST)
+            if wants_json:
+                return JsonResponse(
+                    {
+                        "success": True,
+                        "contact": {
+                            "contact_id": contact_id,
+                            "name": request.POST.get("contact_first_name", "").strip()
+                            + " "
+                            + request.POST.get("contact_last_name", "").strip(),
+                            "email": request.POST.get("contact_email", "").strip(),
+                        },
+                    }
+                )
             messages.success(request, "Contact added. Select them below to include them.")
         else:
             data = request.POST.copy()
@@ -80,11 +105,29 @@ def update_service_contacts(request, jurisdiction) -> HttpResponse:
                     raise ServiceContactError("Your case details changed. Check the recipients again.")
                 draft.supplemental_fields = {**(draft.supplemental_fields or {}), KEY: selection}
                 draft.save(update_fields=["supplemental_fields", "updated_at"])
+            if wants_json:
+                context = service_context(request, draft)
+                context.update(jurisdiction=jurisdiction, return_to=request.POST.get("return_to", ""))
+                return JsonResponse(
+                    {
+                        "success": True,
+                        "summary_html": render_to_string(
+                            "efile/components/service_contacts.html", context, request=request
+                        ),
+                    }
+                )
+            destination = destination.replace("&service=1", "")
             messages.success(request, "Email recipients saved. No documents have been sent yet.")
     except signing.BadSignature:
+        if wants_json:
+            return JsonResponse(
+                {"success": False, "error": "Reload the People page before changing recipients."}, status=400
+            )
         messages.error(request, "Reload the People page before changing recipients.")
     except FilingDraft.DoesNotExist:
-        return HttpResponseBadRequest("This filing can no longer be changed.")
+        return failure("This filing can no longer be changed.")
     except (ServiceContactError, PayloadValidationError, ValueError) as error:
+        if wants_json:
+            return JsonResponse({"success": False, "error": str(error)}, status=400)
         messages.error(request, str(error))
     return redirect(destination + "#email-recipients")
