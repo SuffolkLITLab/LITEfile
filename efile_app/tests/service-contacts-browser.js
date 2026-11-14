@@ -24,6 +24,18 @@ const {
                 url: config.baseUrl
             }]);
             const page = await context.newPage();
+            await page.goto(config.baseUrl + config.uploadUrl);
+            await page.evaluate(() => document.fonts.ready);
+            const upload = await page.locator('#upload-button').boundingBox();
+            const confirm = await page.locator('#continue-to-analysis').boundingBox();
+            assert.ok(Math.abs(upload.x + upload.width - confirm.x - confirm.width) <= 1, 'Upload and Confirm share the right grid edge');
+            assert.ok(Math.abs(upload.height - confirm.height) <= 1, 'Upload and Confirm use the same button height');
+            if (width < 700) assert.ok(Math.abs(upload.x - confirm.x) <= 1, 'Both mobile actions span the content width');
+            assert.equal(await page.locator('#ai-opt-out').evaluate(el => !!(el.compareDocumentPosition(document.querySelector('#upload-button')) & Node.DOCUMENT_POSITION_FOLLOWING)), true);
+            await page.screenshot({
+                path: `/tmp/litefile-upload-${width}.png`,
+                fullPage: true
+            });
             await page.goto(config.baseUrl + config.url);
             const section = page.locator('#email-recipients');
             const modal = page.getByRole('dialog');
