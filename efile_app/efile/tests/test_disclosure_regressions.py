@@ -22,7 +22,9 @@ def signed_in(django_user_model):
     client = Client(enforce_csrf_checks=True)
     user = django_user_model.objects.create_user(username="filer", tyler_jurisdiction="illinois")
     client.force_login(user)
-    draft = FilingDraft.objects.create(user=user, jurisdiction="illinois", court_code="cook:law1")
+    draft = FilingDraft.objects.create(
+        user=user, jurisdiction="illinois", court_code="cook:law1", case_type_code="civil"
+    )
     session = client.session
     session.update(
         {

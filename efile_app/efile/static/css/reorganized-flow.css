@@ -172,7 +172,8 @@
     padding-top: 1.5rem;
 }
 
-.workflow-actions .btn {
+.workflow-actions .btn,
+.upload-submit>.btn {
     border-radius: 8px;
     font-weight: 650;
     padding: 0.7rem 1.15rem;
@@ -278,9 +279,9 @@
 
 .upload-submit {
     align-items: center;
-    display: flex;
-    flex-wrap: wrap;
+    display: grid;
     gap: 0.75rem 1.5rem;
+    grid-template-columns: minmax(0, 1fr) auto;
     margin-top: 1rem;
 }
 
@@ -1563,6 +1564,10 @@
 
     .review-grid {
         grid-template-columns: 1fr;
+    }
+
+    .upload-submit {
+        grid-template-columns: minmax(0, 1fr);
     }
 
     .workflow-actions {

@@ -19,6 +19,8 @@ WORKFLOW_VIEWS = frozenset(
         "parties",
         "party_details",
         "case_questions",
+        "service",
+        "update_service_contacts",
         "payment",
         "waiver_documents",
         "document_checks",

@@ -1,11 +1,11 @@
 ---
 id: check-status
-title: "Step 11: Check your filing status"
-sidebar_label: "11. Check your filing status"
+title: "Step 12: Check your filing status"
+sidebar_label: "12. Check your filing status"
 description: Find out if the court accepted your papers, and save your court copies.
 ---
 
-# Step 11: Check your filing status
+# Step 12: Check your filing status
 
 **What you will do:** See what the court did with your papers.
 

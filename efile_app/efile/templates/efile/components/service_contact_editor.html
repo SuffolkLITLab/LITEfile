@@ -1,0 +1,145 @@
+{% load i18n %}
+<section id="service-editor"
+         class="service-editor"
+         aria-labelledby="service-editor-title">
+    <header>
+        <h2 id="service-editor-title" tabindex="-1">{% translate "Choose service recipients" %}</h2>
+        <p>{% translate "Submitting your filing requests electronic service on these people." %}</p>
+    </header>
+    <p class="alert alert-warning service-editor-error"
+       role="alert"
+       {% if not service_error %}hidden{% endif %}>{{ service_error }}</p>
+    {% if service_stale %}
+        <p class="alert alert-warning">{% translate "Your case details changed. Check the list and the court's rules again." %}</p>
+    {% endif %}
+    {% if service_error %}
+        <a href="?draft={{ service_draft_id }}&amp;service=1{% if return_to %}&amp;return_to={{ return_to }}{% endif %}#service-editor">{% translate "Try again" %}</a>
+        <a class="btn btn-outline-secondary"
+           data-service-cancel
+           href="?draft={{ service_draft_id }}{% if return_to %}&amp;return_to={{ return_to }}{% endif %}#email-recipients">{% translate "Close" %}</a>
+        {% if service_saved.contacts %}
+            <form id="service-clear-form"
+                  method="post"
+                  action="{% url 'update_service_contacts' jurisdiction %}">
+                {% csrf_token %}
+                <input type="hidden" name="draft" value="{{ service_draft_id }}" />
+                <input type="hidden" name="service_scope" value="{{ service_scope }}" />
+                <input type="hidden" name="return_to" value="{{ return_to }}" />
+                <button class="btn btn-outline-secondary"
+                        type="submit"
+                        name="action"
+                        value="clear_contacts">{% translate "Stop electronic service" %}</button>
+            </form>
+        {% endif %}
+    {% else %}
+        <form id="service-recipients-form"
+              method="post"
+              action="{% url 'update_service_contacts' jurisdiction %}">
+            {% csrf_token %}
+            <input type="hidden" name="draft" value="{{ service_draft_id }}" />
+            <input type="hidden" name="service_scope" value="{{ service_scope }}" />
+            <input type="hidden" name="return_to" value="{{ return_to }}" />
+            <div class="service-editor-body">
+                <fieldset class="service-recipient-list">
+                    <legend>{% translate "Who should get a copy?" %}</legend>
+                    <div class="compact-choice-list" id="service-contact-choices">
+                        {% for contact in service_contacts %}
+                            <label class="service-contact-row">
+                                <input type="checkbox"
+                                       name="service_contact"
+                                       value="{{ contact.contact_id }}"
+                                       {% if contact.selected %}checked{% endif %} />
+                                <span><strong>{{ contact.name }}</strong>{% if contact.email %}<small>{{ contact.email }}</small>{% endif %}</span>
+                            </label>
+                        {% empty %}
+                            <p data-service-empty>{% translate "No contacts yet. Add a contact below." %}</p>
+                        {% endfor %}
+                    </div>
+                </fieldset>
+                <details class="service-add-contact">
+                    <summary>{% translate "Add a new contact" %}</summary>
+                    <div class="service-contact-fields">
+                        <div class="form-field">
+                            <label for="contact-first-name">{% translate "First name" %}</label>
+                            <input class="form-control"
+                                   id="contact-first-name"
+                                   name="contact_first_name"
+                                   form="service-add-form"
+                                   maxlength="100"
+                                   required />
+                        </div>
+                        <div class="form-field">
+                            <label for="contact-last-name">{% translate "Last name" %}</label>
+                            <input class="form-control"
+                                   id="contact-last-name"
+                                   name="contact_last_name"
+                                   form="service-add-form"
+                                   maxlength="100"
+                                   required />
+                        </div>
+                        <div class="form-field service-contact-fields__email">
+                            <label for="contact-email">{% translate "Email address" %}</label>
+                            <input class="form-control"
+                                   id="contact-email"
+                                   name="contact_email"
+                                   form="service-add-form"
+                                   type="email"
+                                   maxlength="254"
+                                   required />
+                        </div>
+                    </div>
+                    <p class="form-text">{% translate "This adds a contact to your court account. No documents are sent now." %}</p>
+                    <button class="btn btn-outline-primary"
+                            type="submit"
+                            form="service-add-form"
+                            name="action"
+                            value="create_contact">{% translate "Add contact" %}</button>
+                </details>
+                <p class="form-text" data-service-add-status role="status"></p>
+                {% if service_types|length > 1 %}
+                    <div class="form-field service-type-choice">
+                        <label for="service-type">{% translate "Service option" %}</label>
+                        <select class="form-select" name="service_type" id="service-type">
+                            {% for type in service_types %}<option value="{{ type.code }}"
+        {% if type.code == service_saved.service_type %}selected{% endif %}>{{ type.name }}</option>{% endfor %}
+                        </select>
+                    </div>
+                {% else %}
+                    <input type="hidden" name="service_type" value="{{ service_types.0.code }}" />
+                {% endif %}
+                {% for type in service_types %}{% if type.disclaimertext %}<p class="service-disclaimer" data-service-type="{{ type.code }}">{{ type.disclaimertext }}</p>{% endif %}{% endfor %}
+                <div class="service-rules">
+                    <details>
+                        <summary>{% translate "Read the service rules" %}</summary>
+                        {% include "efile/components/service_rules.html" %}
+                    </details>
+                    <label class="service-contact-row">
+                        <input type="checkbox"
+                               name="service_rules_checked"
+                               value="yes"
+                               {% if service_saved.rules_checked and not service_stale %}checked{% endif %} />
+                        <span>{% translate "I checked the rules. I can use electronic service for this filing." %}</span>
+                    </label>
+                    <p class="form-text">{% translate "Any service fees will appear on the Fees page." %}</p>
+                </div>
+            </div>
+            <div class="service-actions">
+                <a class="btn btn-outline-secondary"
+                   data-service-cancel
+                   href="?draft={{ service_draft_id }}{% if return_to %}&amp;return_to={{ return_to }}{% endif %}#email-recipients">{% translate "Cancel" %}</a>
+                <button class="btn btn-primary"
+                        type="submit"
+                        name="action"
+                        value="save_contacts">{% translate "Save recipients" %}</button>
+            </div>
+        </form>
+        <form id="service-add-form"
+              method="post"
+              action="{% url 'update_service_contacts' jurisdiction %}">
+            {% csrf_token %}
+            <input type="hidden" name="draft" value="{{ service_draft_id }}" />
+            <input type="hidden" name="service_scope" value="{{ service_scope }}" />
+            <input type="hidden" name="return_to" value="{{ return_to }}" />
+        </form>
+    {% endif %}
+</section>

@@ -58,6 +58,9 @@ class _EfspLookups:
         self._deadline = time.monotonic() + budget
         self._cache = {}
 
+    def remaining_seconds(self):
+        return max(0, self._deadline - time.monotonic())
+
     def get(self, url):
         """Return the parsed JSON body, or None when it could not be fetched."""
         if url in self._cache:
@@ -128,7 +131,7 @@ def parse_optional_services(services):
     return parsed
 
 
-def prepare_efile_payload(efile_data, jurisdiction_id, court_id, *, draft=None):
+def prepare_efile_payload(efile_data, jurisdiction_id, court_id, *, draft=None, service_token=None):
     """Apply every server-side fixup an EFSP request needs. Mutates ``efile_data``.
 
     Raises ``PayloadValidationError`` when the payload is knowably invalid.
@@ -148,8 +151,44 @@ def prepare_efile_payload(efile_data, jurisdiction_id, court_id, *, draft=None):
         refresh_correction_documents(efile_data, draft)
     else:
         bind_filing_documents(efile_data, draft)
+    from efile.services.service_contacts import bind_service
+
+    lookups = _EfspLookups()
+    add_cook_srl_reference(efile_data, draft, lookups=lookups)
     reconcile_case_parties(efile_data, draft, jurisdiction_id, court_id)
-    return normalize_efile_payload(efile_data, jurisdiction_id, court_id)
+    normalize_efile_payload(efile_data, jurisdiction_id, court_id, lookups=lookups)
+    bind_service(efile_data, draft, lookups=lookups, token=service_token)
+    return efile_data
+
+
+def add_cook_srl_reference(payload, draft, *, lookups=None):
+    """Resolve Cook's self-represented reference against this deployment's codes."""
+    if draft.jurisdiction != "illinois" or draft.court_code.split(":", 1)[0] != "cook":
+        return
+    try:
+        court = validated_code(draft.court_code)
+        case_type = validated_code(draft.case_type_code)
+    except ValueError as error:
+        raise PayloadValidationError("Choose a court and case type before continuing.") from error
+    choices = (lookups or _EfspLookups()).get(
+        f"{settings.EFSP_URL}/jurisdictions/illinois/codes/courts/{court}/case_types/{case_type}/cross_references"
+    )
+    if not isinstance(choices, list):
+        raise PayloadValidationError("We could not check Cook County's filing number. Try again later.")
+    matches = [item for item in choices if isinstance(item, dict) and item.get("efspcode") == "COOKCOUNTYATTORNEY"]
+    if any(not item.get("code") for item in matches):
+        raise PayloadValidationError("We could not confirm Cook County's filing number. Contact support before filing.")
+    references = payload.get("cross_references") or {}
+    if not isinstance(references, dict):
+        raise PayloadValidationError("Reload your filing and try again.")
+    # Discard the old browser's fixed code, which can differ between environments.
+    references.pop("254500", None)
+    for item in matches:
+        references[str(item["code"])] = "99500"
+    if references:
+        payload["cross_references"] = references
+    else:
+        payload.pop("cross_references", None)
 
 
 def bind_filing_documents(payload, draft):
@@ -200,9 +239,9 @@ def bind_filing_documents(payload, draft):
     payload["al_court_bundle"] = rebuilt
 
 
-def normalize_efile_payload(efile_data, jurisdiction_id, court_id):
+def normalize_efile_payload(efile_data, jurisdiction_id, court_id, *, lookups=None):
     """Normalize already bound documents using the court's code lists."""
-    lookups = _EfspLookups()
+    lookups = lookups or _EfspLookups()
     _clean_case_identifiers(efile_data)
     validate_party_formats(efile_data, jurisdiction_id, court_id)
     validate_lower_court(efile_data, jurisdiction_id, court_id, lookups=lookups)

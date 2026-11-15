@@ -158,9 +158,6 @@
                 </div>
                 <div class="alert alert-danger" id="upload-error" role="alert" hidden></div>
                 <div class="upload-submit">
-                    <button class="btn btn-primary" id="upload-button" type="submit" disabled>
-                        {% translate "Upload selected files" %}
-                    </button>
                     <div class="ai-choice">
                         <div class="form-check">
                             <input class="form-check-input"
@@ -179,6 +176,9 @@
                             {% translate "Learn more about how we use AI." %}
                         </button>
                     </div>
+                    <button class="btn btn-primary" id="upload-button" type="submit" disabled>
+                        {% translate "Upload selected files" %}
+                    </button>
                 </div>
                 {% comment %}
             Account preferences are optional secondary controls. Merely opening

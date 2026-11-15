@@ -24,10 +24,11 @@ Use this if there is **no case number** yet.
 6. [ ] [Pick the court and type of case](./case-information.md#start-a-new-case)
 7. [ ] [Check and organize your documents](./organize-documents.md)
 8. [ ] [Add the people in the case](./people.md#new-case)
-9. [ ] [Pay fees or ask for a fee waiver](./fees.md)
-10. [ ] [Review and submit](./review-submit.md)
-11. [ ] [Check your filing status](./check-status.md)
-12. [ ] [Serve the other side](./serve-papers.md#starting-a-new-case), as the court tells you
+9. [ ] [Choose how to serve the other side](./serve-papers.md)
+10. [ ] [Pay fees or ask for a fee waiver](./fees.md)
+11. [ ] [Review and submit](./review-submit.md)
+12. [ ] [Check your filing status](./check-status.md)
+13. [ ] [Serve the other side](./serve-papers.md#check-your-states-rules), as the court tells you
 
 ## File in an existing case
 
@@ -41,9 +42,9 @@ Use this if your papers have a **case number**.
 6. [ ] [Find your court case](./case-information.md#file-in-an-existing-case)
 7. [ ] [Check and organize your documents](./organize-documents.md)
 8. [ ] [Pick who you are filing for](./people.md#existing-case)
-9. [ ] [Pay fees or ask for a fee waiver](./fees.md)
-10. [ ] [Plan how to send copies to the other side](./serve-papers.md#filing-in-a-case-that-already-started)
+9. [ ] [Choose how to serve the other side](./serve-papers.md)
     and fill out the proof of service on your form
+10. [ ] [Pay fees or ask for a fee waiver](./fees.md)
 11. [ ] [Review and submit](./review-submit.md)
 12. [ ] [Check your filing status](./check-status.md)
 

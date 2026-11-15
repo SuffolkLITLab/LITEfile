@@ -62,6 +62,7 @@ class WorkflowStage(StrEnum):
     CHECK_DOCUMENTS = "check_documents"
     ORGANIZE_DOCUMENTS = "organize_documents"
     PEOPLE = "people"
+    SERVICE = "service"
     FEES = "fees"
     REVIEW = "review"
 
@@ -74,6 +75,7 @@ WORKFLOW_STAGE_LABELS = {
     WorkflowStage.CHECK_DOCUMENTS: _("Check documents"),
     WorkflowStage.ORGANIZE_DOCUMENTS: _("Organize documents"),
     WorkflowStage.PEOPLE: _("People"),
+    WorkflowStage.SERVICE: _("Service"),
     WorkflowStage.FEES: _("Fees"),
     WorkflowStage.REVIEW: _("Review"),
 }
@@ -95,6 +97,7 @@ class WorkflowStepKey(StrEnum):
     PARTIES = "parties"
     PARTY_DETAILS = "party_details"
     CASE_QUESTIONS = "case_questions"
+    SERVICE = "service"
     PAYMENT = "payment"
     REVIEW = "review"
     CONFIRMATION = "confirmation"
@@ -154,6 +157,7 @@ FILING_WORKFLOW: tuple[WorkflowStep, ...] = (
     WorkflowStep(WorkflowStepKey.PARTIES, _("People in this filing"), "parties", WorkflowStage.PEOPLE),
     WorkflowStep(WorkflowStepKey.PARTY_DETAILS, _("Person details"), "party_details", WorkflowStage.PEOPLE),
     WorkflowStep(WorkflowStepKey.CASE_QUESTIONS, _("Case questions"), "case_questions", WorkflowStage.PEOPLE),
+    WorkflowStep(WorkflowStepKey.SERVICE, _("Serve the other side"), "service", WorkflowStage.SERVICE),
     WorkflowStep(WorkflowStepKey.PAYMENT, _("Fees"), "payment", WorkflowStage.FEES),
     WorkflowStep(WorkflowStepKey.REVIEW, _("Review"), "case_review", WorkflowStage.REVIEW),
     WorkflowStep(WorkflowStepKey.CONFIRMATION, _("Confirmation"), "filing_confirmation", WorkflowStage.REVIEW),

@@ -244,7 +244,7 @@ def test_party_details_suffix_is_a_dropdown_fed_by_the_court(client, people_draf
 
 
 @pytest.mark.django_db
-def test_party_details_saves_party_and_advances_to_payment_when_no_questions(client, people_draft):
+def test_party_details_saves_party_and_advances_to_service_when_no_questions(client, people_draft):
     FilingParty.objects.create(
         draft=people_draft,
         role="filer",
@@ -283,9 +283,9 @@ def test_party_details_saves_party_and_advances_to_payment_when_no_questions(cli
     people_draft.refresh_from_db()
     party.refresh_from_db()
     assert response.status_code == 302
-    assert response.url.partition("?")[0] == reverse("payment", kwargs={"jurisdiction": "illinois"})
+    assert response.url.partition("?")[0] == reverse("service", kwargs={"jurisdiction": "illinois"})
     assert party.first_name == "Morgan"
-    assert people_draft.current_step == WorkflowStepKey.PAYMENT
+    assert people_draft.current_step == WorkflowStepKey.SERVICE
 
 
 @pytest.mark.django_db
@@ -323,7 +323,7 @@ def test_party_details_saves_an_other_party_without_an_optional_address(client, 
 
     party.refresh_from_db()
     assert response.status_code == 302
-    assert response.url.partition("?")[0] == reverse("payment", kwargs={"jurisdiction": "illinois"})
+    assert response.url.partition("?")[0] == reverse("service", kwargs={"jurisdiction": "illinois"})
     assert party.first_name == "Morgan"
     assert party.address_line_1 == ""
 
@@ -483,7 +483,7 @@ def test_case_questions_are_configured_and_saved(client, people_draft):
 
     people_draft.refresh_from_db()
     assert response.status_code == 302
-    assert response.url.partition("?")[0] == reverse("payment", kwargs={"jurisdiction": "illinois"})
+    assert response.url.partition("?")[0] == reverse("service", kwargs={"jurisdiction": "illinois"})
     assert people_draft.supplemental_fields["has_children"] is True
     assert people_draft.supplemental_fields["child_count"] == 2
     assert people_draft.supplemental_fields["_case_questions_required"] is True
@@ -578,7 +578,7 @@ def test_case_questions_saves_a_valid_amount_in_controversy(client, people_draft
 
     people_draft.refresh_from_db()
     assert response.status_code == 302
-    assert response.url.partition("?")[0] == reverse("payment", kwargs={"jurisdiction": "illinois"})
+    assert response.url.partition("?")[0] == reverse("service", kwargs={"jurisdiction": "illinois"})
     assert people_draft.amount_in_controversy == "12500.00"
 
 

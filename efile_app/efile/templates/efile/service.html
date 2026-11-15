@@ -1,0 +1,76 @@
+{% extends "efile/workflow_base.html" %}
+{% load static i18n %}
+{% block title %}
+    {% translate "Serve the other side" %}
+{% endblock title %}
+{% block extra_css %}
+    <link rel="stylesheet"
+          href="{% static 'css/components/service-contacts.css' %}" />
+{% endblock extra_css %}
+{% block workflow_content %}
+    <section class="workflow-card service-page">
+        <h1>{% translate "How will you serve the other side?" %}</h1>
+        {% include "efile/partials/filing_guidance.html" %}
+        <p class="workflow-lede">{% translate "Serving means giving the other side copies in a way the court allows. Filing your papers with the court does not take care of service by itself." %}</p>
+        {% if service_initial %}
+            <p class="alert alert-info">{% translate "The first papers in a case have special service rules. Do not assume that sending an email is enough." %}</p>
+        {% endif %}
+        {% if service_choice_error %}<p class="alert alert-danger" role="alert">{{ service_choice_error }}</p>{% endif %}
+        <form id="service-method-form" method="post">
+            {% csrf_token %}
+            <input type="hidden" name="draft" value="{{ service_draft_id }}" />
+            <input type="hidden" name="service_scope" value="{{ service_scope }}" />
+            <input type="hidden" name="return_to" value="{{ return_to }}" />
+            <fieldset class="service-method-choices">
+                <legend class="visually-hidden">{% translate "Choose how to handle service" %}</legend>
+                <div class="choice-stack">
+                    <label class="choice-card service-method-choice">
+                        <input type="radio"
+                               name="service_method"
+                               value="other"
+                               {% if service_method == 'other' %}checked{% endif %}
+                               required />
+                        <span><strong>{% translate "I'll arrange service outside LITEfile" %}</strong><small>{% translate "Use a method the court allows, including direct email when allowed." %}</small>
+                            <small data-service-removal-note
+                                   {% if not service_saved.contacts %}hidden{% endif %}>{% translate "Continuing with this choice removes your electronic service recipients." %}</small>
+                        </span>
+                    </label>
+                    <label class="choice-card service-method-choice">
+                        <input type="radio"
+                               name="service_method"
+                               value="electronic"
+                               {% if service_method == 'electronic' %}checked{% endif %}
+                               required />
+                        <span><strong>{% translate "Check whether I can use electronic service" %}</strong><small>{% translate "Read the rules for your case before choosing recipients." %}</small></span>
+                    </label>
+                </div>
+            </fieldset>
+        </form>
+        <details class="service-state-rules"
+                 id="service-state-rules"
+                 {% if service_method == 'electronic' %}open{% endif %}>
+            <summary>{% translate "What are the service rules?" %}</summary>
+            {% include "efile/components/service_rules.html" %}
+        </details>
+        <div id="electronic-service-details">
+            <p>{% translate "This requests service through the filing system, not a courtesy copy." %}</p>
+            <p>{% translate "Only choose people you are allowed to serve this way. Adding an email address does not give you permission to use it for service." %}</p>
+            {% include "efile/components/service_contacts.html" %}
+        </div>
+        <div class="workflow-actions">
+            <a class="btn btn-outline-secondary"
+               href="{% if return_to == 'review' %}{% url 'case_review' jurisdiction %}{% elif return_to == 'handoff' %}{% url 'handoff_review' service_draft_id %}{% else %}{{ workflow_previous_url }}{% endif %}">{% translate "Back" %}</a>
+            <button class="btn btn-primary" type="submit" form="service-method-form">
+                {% if return_to == 'review' %}
+                    {% translate "Save and return to review" %}
+                {% else %}
+                    {% translate "Continue to fees" %}
+                {% endif %}
+            </button>
+        </div>
+    </section>
+{% endblock workflow_content %}
+{% block extra_js %}
+    <script src="{% static 'js/service-contacts.js' %}"></script>
+    <script src="{% static 'js/service-page.js' %}"></script>
+{% endblock extra_js %}

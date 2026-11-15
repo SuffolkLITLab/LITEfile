@@ -99,7 +99,7 @@ def _continue_from_parties(request, jurisdiction, draft, party_types, return_to)
         **(draft.supplemental_fields or {}),
         "_case_questions_required": has_questions,
     }
-    default_step = WorkflowStepKey.CASE_QUESTIONS if has_questions else WorkflowStepKey.PAYMENT
+    default_step = WorkflowStepKey.CASE_QUESTIONS if has_questions else WorkflowStepKey.SERVICE
     draft.current_step = continue_step(draft, return_to, default_step)
     draft.save(update_fields=["supplemental_fields", "current_step", "updated_at"])
     return redirect(continue_url(draft, jurisdiction, return_to, default_step))

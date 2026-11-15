@@ -381,3 +381,17 @@ def test_draft_check_skips_document_query_without_filing_type_rules(
     configure({"rules": [{"case_types": ["Contract"]}]})
     with django_assert_num_queries(0):
         assert draft_unavailable_message(submission_draft)
+
+
+@pytest.mark.parametrize("court", ["cook", "cook:law1", "cook:cvd1"])
+def test_deployment_block_covers_cook_without_affecting_other_courts(settings, monkeypatch, court):
+    monkeypatch.setattr(
+        "efile.services.filing_availability.config_loader.load_jurisdiction_config", lambda jurisdiction: {}
+    )
+    settings.FILING_DISABLED_COURTS = {"illinois": ["cook", "cook:*"]}
+    assert filing_unavailable_message("illinois", court)
+    assert outgoing_unavailable_message("illinois", court, {}, {})
+    assert not filing_unavailable_message("illinois", "dupage")
+    assert not filing_unavailable_message("massachusetts", court)
+    settings.FILING_DISABLED_COURTS = {}
+    assert not filing_unavailable_message("illinois", court)

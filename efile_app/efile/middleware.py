@@ -13,7 +13,7 @@ from efile.workflow import ExistingCase
 
 # Steps that read or file the court roster. An existing case reaches them only
 # once its import is loaded and confirmed; this is the one place that says so.
-NEEDS_CONFIRMED_CASE = {"parties", "party_details", "case_questions", "payment", "case_review"}
+NEEDS_CONFIRMED_CASE = {"parties", "party_details", "case_questions", "service", "payment", "case_review"}
 
 
 class DraftIdentityMiddleware(MiddlewareMixin):

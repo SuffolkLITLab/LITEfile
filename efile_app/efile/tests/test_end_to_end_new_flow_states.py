@@ -385,12 +385,29 @@ def test_complete_new_filing_flow_by_jurisdiction(
             },
         )
         assert party_details_resp.status_code == 302
-        assert party_details_resp.url.partition("?")[0] == reverse("payment", kwargs={"jurisdiction": jurisdiction})
+        assert party_details_resp.url.partition("?")[0] == reverse("service", kwargs={"jurisdiction": jurisdiction})
 
     draft.refresh_from_db()
     other_party.refresh_from_db()
     assert other_party.first_name == "John"
     assert other_party.last_name == "Smith"
+    assert draft.current_step == WorkflowStepKey.SERVICE
+
+    # The filer explicitly chooses service outside this system.
+    service_url = reverse("service", kwargs={"jurisdiction": jurisdiction})
+    service_page = client.get(service_url)
+    assert service_page.status_code == 200
+    assert service_page.context["service_method"] == ""
+    service_response = client.post(
+        service_url,
+        {
+            "service_method": "other",
+            "service_scope": service_page.context["service_scope"],
+        },
+    )
+    assert service_response.status_code == 302
+    assert service_response.url.partition("?")[0] == reverse("payment", kwargs={"jurisdiction": jurisdiction})
+    draft.refresh_from_db()
     assert draft.current_step == WorkflowStepKey.PAYMENT
 
     # 8. Step: payment

@@ -73,6 +73,17 @@ const {
             await expect(supporting).toHaveValue("exhibit");
             await supporting.selectOption("complaint");
             await expect(page.locator("#filing_type_code")).toHaveValue("complaint");
+            await expect(page.locator("#open-code-search")).toHaveText("Change filing code");
+            const helperWidth = (await page.locator("#open-code-search").boundingBox()).width;
+            await page.getByRole("button", {
+                name: "Edit type of document",
+                exact: true
+            }).click();
+            await page.locator("#filing_type_code").selectOption("");
+            await expect(page.locator("#open-code-search")).toHaveText("Help me choose");
+            assert.equal((await page.locator("#open-code-search").boundingBox()).width, helperWidth);
+            await page.locator("#filing_type_code").selectOption("complaint");
+            await expect(page.locator("#open-code-search")).toHaveText("Change filing code");
             await expect(supporting).toHaveAccessibleName("Exhibit.pdf Type of document");
             await expect(page.locator('[data-confirmation-document][data-is-source="lead"]')).toBeHidden();
             await expect(page.locator("#document-type-definition")).toBeVisible();
@@ -97,6 +108,10 @@ const {
             assert.deepEqual(audit.violations, []);
             assert.equal(await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth), true);
             assert.deepEqual(errors, []);
+            if (!config.inferred) await page.screenshot({
+                path: `/tmp/litefile-confirmation-${width}.png`,
+                fullPage: true
+            });
             await page.goto(config.baseUrl + config.partiesUrl);
             const staffChoice = page.locator('#filer-not-a-party');
             await expect(staffChoice).toBeVisible();

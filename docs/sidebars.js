@@ -28,6 +28,7 @@ const sidebars = {
         'user-guide/case-information',
         'user-guide/organize-documents',
         'user-guide/people',
+        'user-guide/serve-papers',
         'user-guide/fees',
         'user-guide/review-submit',
         'user-guide/check-status',
@@ -40,7 +41,6 @@ const sidebars = {
       items: [
         'user-guide/after-you-file',
         'user-guide/fix-returned-filing',
-        'user-guide/serve-papers',
       ],
     },
     {

@@ -1,0 +1,32 @@
+{% load i18n %}
+<section id="email-recipients"
+         class="people-section service-summary"
+         aria-labelledby="email-recipients-heading">
+    <h2 id="email-recipients-heading">{% translate "Electronic service recipients" %}</h2>
+    <p>{% translate "Choose who you can serve through the filing system." %}</p>
+    {% if service_stale %}
+        <p class="alert alert-warning">{% translate "Your case details changed. Check your recipients again." %}</p>
+    {% endif %}
+    {% if service_saved.contacts %}
+        <ul class="service-summary__list">
+            {% for contact in service_saved.contacts %}
+                <li><strong>{{ contact.name }}</strong>{% if contact.email %}<span>{{ contact.email }}</span>{% endif %}</li>
+            {% endfor %}
+        </ul>
+    {% else %}
+        <p class="form-text">{% translate "No service recipients selected." %}</p>
+    {% endif %}
+    <a class="btn btn-outline-primary"
+       data-service-open
+       href="?draft={{ service_draft_id }}&amp;service=1{% if return_to %}&amp;return_to={{ return_to }}{% endif %}#service-editor">
+        {% if service_saved.contacts %}
+            {% translate "Edit recipients" %}
+        {% else %}
+            {% translate "Choose recipients" %}
+        {% endif %}
+    </a>
+    <p class="form-text service-status" role="status" aria-live="polite"></p>
+</section>
+{% if service_open %}
+    {% include "efile/components/service_contact_editor.html" %}
+{% endif %}

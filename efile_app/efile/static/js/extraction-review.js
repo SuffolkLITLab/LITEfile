@@ -141,6 +141,14 @@
         prefilled.hidden = false;
     }
 
+    function syncCodeSearchLabel() {
+        const button = document.getElementById("open-code-search");
+        const field = fields.filing_type;
+        const selected = field.loading ? field.current.code : field.select.value;
+        if (button) button.textContent = selected ?
+            gettext("Change filing code") : gettext("Help me choose");
+    }
+
     function setMode(key, mode) {
         const field = fields[key];
         field.mode = mode;
@@ -211,6 +219,7 @@
             text
         };
         field.nameInput.value = text;
+        syncCodeSearchLabel();
         if (field.valueEl && code) {
             field.valueEl.textContent = text + (option.textContent.trim().endsWith("*") ? " *" : "");
         }
@@ -222,6 +231,7 @@
         field.select.disabled = true;
         field.select.innerHTML = `<option value="">${escapeHtml(message)}</option>`;
         field.root.setAttribute("aria-busy", "true");
+        syncCodeSearchLabel();
         availability.check();
         if (field.checking) {
             field.checking.textContent = gettext("Checking this is still offered…");
@@ -246,6 +256,7 @@
         field.nameInput.value = "";
         field.hint.textContent = field.defaultHint;
         setMode(key, "edit");
+        syncCodeSearchLabel();
         availability.check();
     }
 
@@ -394,6 +405,7 @@
             setMode(key, "edit");
         }
         if (token !== undefined && !isCurrent(key, token)) return;
+        syncCodeSearchLabel();
         availability.check();
         await ADVANCE[key]();
     }
@@ -589,6 +601,7 @@
                 setMode(key, field.guided ? "edit" : "found");
             });
             await loadFilerRoles();
+            syncCodeSearchLabel();
             availability.check();
             announce(gettext("Filing path updated. Check the choices, then confirm and continue to save them."));
         } finally {
@@ -705,6 +718,7 @@
         document.getElementById("docket-number-field").hidden = !existing || context.case_confirmed;
         const summary = document.getElementById("confirmed-case-summary");
         if (summary) summary.hidden = !existing;
+        syncCodeSearchLabel();
         availability.check();
     }
 
@@ -803,12 +817,14 @@
 
     function startNewCase() {
         if (isExisting()) {
+            syncCodeSearchLabel();
             availability.check();
             return;
         }
         if (newCaseStarted) return;
         newCaseStarted = true;
         loadCourts().finally(() => {
+            syncCodeSearchLabel();
             availability.check();
             window.filingCodeSearch?.mount({
                 jurisdiction: context.jurisdiction,

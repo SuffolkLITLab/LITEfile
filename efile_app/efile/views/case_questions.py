@@ -39,9 +39,9 @@ def case_questions(request, jurisdiction):
     show_amount_field = needs_amount_in_controversy(draft)
     if not questions and not show_amount_field:
         return_to = return_target(request)
-        draft.current_step = continue_step(draft, return_to, WorkflowStepKey.PAYMENT)
+        draft.current_step = continue_step(draft, return_to, WorkflowStepKey.SERVICE)
         draft.save(update_fields=["current_step", "updated_at"])
-        return redirect(continue_url(draft, jurisdiction, return_to, WorkflowStepKey.PAYMENT))
+        return redirect(continue_url(draft, jurisdiction, return_to, WorkflowStepKey.SERVICE))
 
     for question in questions:
         raw_value = (
@@ -100,9 +100,9 @@ def case_questions(request, jurisdiction):
                 draft.amount_in_controversy = str(amount_in_controversy)
                 update_fields.append("amount_in_controversy")
             return_to = return_target(request)
-            draft.current_step = continue_step(draft, return_to, WorkflowStepKey.PAYMENT)
+            draft.current_step = continue_step(draft, return_to, WorkflowStepKey.SERVICE)
             draft.save(update_fields=update_fields)
-            return redirect(continue_url(draft, jurisdiction, return_to, WorkflowStepKey.PAYMENT))
+            return redirect(continue_url(draft, jurisdiction, return_to, WorkflowStepKey.SERVICE))
 
     amount_value = draft.amount_in_controversy
     if show_amount_field:

@@ -1,0 +1,220 @@
+.service-summary>p {
+    margin: 0 0 1rem;
+}
+
+.service-summary__list {
+    list-style: none;
+    margin: 0 0 1rem;
+    padding: 0;
+}
+
+.service-summary__list li {
+    margin-bottom: 0.75rem;
+}
+
+.service-summary__list span,
+.service-contact-row small {
+    color: var(--text-muted);
+    display: block;
+    overflow-wrap: anywhere;
+}
+
+.service-summary .service-status {
+    margin: 0.75rem 0 0;
+}
+
+.service-status:empty {
+    display: none;
+}
+
+.service-dialog {
+    background: #fff;
+    border: 1px solid var(--border-default);
+    border-radius: 12px;
+    box-shadow: 0 18px 48px rgb(15 32 60 / 28%);
+    max-height: 90dvh;
+    max-width: 40rem;
+    overflow-y: auto;
+    overscroll-behavior: contain;
+    padding: 0;
+    width: calc(100% - 2rem);
+}
+
+.service-dialog::backdrop {
+    background: rgb(15 32 60 / 45%);
+}
+
+.service-editor {
+    padding: clamp(1rem, 3vw, 2rem);
+}
+
+.service-editor h2 {
+    color: var(--text-heading);
+    font-size: 1.4rem;
+    margin: 0 0 0.5rem;
+}
+
+.service-editor header {
+    margin-bottom: 1.5rem;
+}
+
+.service-recipient-list {
+    border: 0;
+    margin: 0;
+    min-width: 0;
+    padding: 0;
+}
+
+.service-recipient-list legend {
+    font-size: 1rem;
+    font-weight: 650;
+    margin-bottom: 0.75rem;
+}
+
+.service-contact-row,
+.compact-choice-list .service-contact-row {
+    align-items: start;
+    cursor: pointer;
+    display: flex;
+    gap: 0.75rem;
+    line-height: 1.5;
+    min-width: 0;
+    padding: 0.85rem;
+}
+
+.service-contact-row input {
+    flex: 0 0 auto;
+    height: 1.1rem;
+    margin-top: 0.2rem;
+    width: 1.1rem;
+}
+
+.service-contact-row>span {
+    min-width: 0;
+    overflow-wrap: anywhere;
+}
+
+.service-add-contact {
+    border-bottom: 1px solid var(--border-subtle);
+    margin: 1.25rem 0;
+    padding-bottom: 1.25rem;
+}
+
+.service-add-contact summary {
+    color: var(--better-blue);
+    cursor: pointer;
+    padding: 0.25rem 0;
+}
+
+.service-contact-fields {
+    display: grid;
+    gap: 1rem;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    margin: 1rem 0;
+}
+
+.service-contact-fields__email {
+    grid-column: 1 / -1;
+}
+
+.service-rules {
+    margin-top: 1.5rem;
+}
+
+.service-rules label {
+    padding: 0;
+}
+
+.service-rules .form-text {
+    margin: 0.75rem 0 0;
+}
+
+.service-actions {
+    align-items: center;
+    background: #fff;
+    border-top: 1px solid var(--border-subtle);
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.75rem;
+    justify-content: flex-end;
+    margin-top: 1.5rem;
+    padding: 1rem 0 0;
+}
+
+.service-actions .btn {
+    padding: 0.7rem 1rem;
+}
+
+@media (max-width: 480px) {
+    .service-contact-fields {
+        grid-template-columns: minmax(0, 1fr);
+    }
+}
+
+.service-dialog .service-editor {
+    box-sizing: border-box;
+    display: flex;
+    flex-direction: column;
+    max-height: calc(90dvh - 2px);
+}
+
+.service-dialog .service-editor header,
+.service-dialog .service-actions {
+    flex-shrink: 0;
+}
+
+.service-dialog #service-recipients-form {
+    display: flex;
+    flex-direction: column;
+    min-height: 0;
+}
+
+.service-dialog .service-editor-body {
+    min-height: 0;
+    overflow-y: auto;
+    overscroll-behavior: contain;
+    padding: 0.2rem;
+}
+
+.service-dialog #service-add-form {
+    display: none;
+}
+
+.service-method-choices {
+    border: 0;
+    margin: 0;
+    min-width: 0;
+    padding: 0;
+}
+
+.service-method-choice {
+    grid-template-columns: auto minmax(0, 1fr);
+}
+
+.service-state-rules {
+    margin: 1.5rem 0;
+    padding-bottom: 1.25rem;
+}
+
+.service-state-rules summary {
+    color: var(--better-blue);
+    cursor: pointer;
+    padding: 0.25rem 0;
+}
+
+.service-rule-copy {
+    margin-top: 1rem;
+    max-width: 42rem;
+}
+
+.service-page:not(:has([name="service_method"][value="electronic"]:checked)) #electronic-service-details {
+    display: none;
+}
+
+.service-page [data-service-removal-note][hidden] {
+    display: none;
+}
+
+.service-page .workflow-actions {
+    gap: 0.75rem;
+}

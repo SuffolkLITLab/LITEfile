@@ -20,7 +20,7 @@ from efile.tests.helpers import reviewed_document
 from efile.workflow import ExistingCase, WorkflowStepKey
 
 PARTIES_URL = reverse("parties", kwargs={"jurisdiction": "illinois"})
-PAYMENT_URL = reverse("payment", kwargs={"jurisdiction": "illinois"})
+SERVICE_URL = reverse("service", kwargs={"jurisdiction": "illinois"})
 REVIEW_URL = reverse("case_review", kwargs={"jurisdiction": "illinois"})
 PARTY_DETAILS_URL = reverse("party_details", kwargs={"jurisdiction": "illinois"})
 
@@ -142,9 +142,9 @@ def test_continue_alone_advances_a_complete_roster(client, draft):
     response = post(client, action="continue", filer_party_type="defendant")
 
     assert response.status_code == 302
-    assert response.url.partition("?")[0] == PAYMENT_URL
+    assert response.url.partition("?")[0] == SERVICE_URL
     draft.refresh_from_db()
-    assert draft.current_step == WorkflowStepKey.PAYMENT
+    assert draft.current_step == WorkflowStepKey.SERVICE
 
 
 @pytest.mark.django_db
@@ -156,7 +156,7 @@ def test_continue_carries_an_unsaved_role_choice(client, draft):
 
     response = post(client, action="continue", filer_party_type="defendant")
 
-    assert response.url.partition("?")[0] == PAYMENT_URL
+    assert response.url.partition("?")[0] == SERVICE_URL
     filer.refresh_from_db()
     assert filer.party_type == "defendant"
 
@@ -278,7 +278,7 @@ def test_saving_a_filing_for_someone_else_stays_and_shows_who(client, draft):
         filing_for=tenant.pk,
         notice_email="kris@example.com",
     )
-    assert response.url.partition("?")[0] == PAYMENT_URL
+    assert response.url.partition("?")[0] == SERVICE_URL
 
 
 # --- Account and document names that differ -----------------------------------
@@ -414,4 +414,4 @@ def test_the_label_for_each_role_matches_where_continue_goes(client, draft, save
     goes_to_details = response.url.partition("?")[0] == PARTY_DETAILS_URL
     assert goes_to_details == (label == "Continue to missing party details")
     if not goes_to_details:
-        assert response.url.partition("?")[0] == PAYMENT_URL
+        assert response.url.partition("?")[0] == SERVICE_URL

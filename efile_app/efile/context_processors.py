@@ -71,6 +71,8 @@ USER_GUIDE_PAGES = {
     "parties": "people",
     "party_details": "people",
     "case_questions": "people",
+    "service": "serve-papers",
+    "update_service_contacts": "serve-papers",
     "payment": "fees",
     "waiver_documents": "fees#ask-for-a-fee-waiver",
     "case_review": "review-submit",

@@ -182,7 +182,13 @@ class FilingAPIViews(APIResponseMixin):
             # Must match what submit_final_filing sends, or fees are quoted
             # against a payload that differs from the one actually filed.
             try:
-                prepare_efile_payload(efile_data, jurisdiction_id, court_id, draft=draft)
+                prepare_efile_payload(
+                    efile_data,
+                    jurisdiction_id,
+                    court_id,
+                    draft=draft,
+                    service_token=get_tyler_token(request, jurisdiction_id),
+                )
             except PayloadValidationError as error:
                 # Known-bad payload: answer with the specific reason rather than
                 # letting the EFSP reply with a code-list error no filer can act on.

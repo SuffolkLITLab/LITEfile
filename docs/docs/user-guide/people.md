@@ -67,7 +67,7 @@ for them in court.
 
 ## What you should see
 
-Each person shows **Complete**. You then move to **Fees**.
+Each person shows **Complete**. You then move to **Service**.
 
 ## If something is different
 
@@ -78,4 +78,4 @@ Each person shows **Complete**. You then move to **Fees**.
 - **More questions appear:** Some cases need extra details. Answer what you
   can.
 
-**Next:** [Step 9: Pay fees or ask for a fee waiver](./fees.md)
+**Next:** [Step 9: Serve the other side](./serve-papers.md)
