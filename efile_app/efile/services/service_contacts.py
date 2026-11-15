@@ -46,7 +46,7 @@ def proxy_request(draft, token, path, *, body=None, method=None, timeout=15):
             raise ServiceContactError("Sign in again to check the court's email contacts and service options.")
         if response.status_code == 400 and method == "GET" and body is not None:
             raise ServiceContactError(
-                "The court needs more filing details to check email service. Finish your filing details, then return to People and try again."
+                "The court needs more filing details to check electronic service. Finish your filing details, then return to Service and try again."
             )
         if response.status_code == 400 and body is not None:
             raise ServiceContactError("The court could not add this contact. Check the name and email address.")
@@ -143,7 +143,7 @@ def electronic_service_types(draft, *, lookups=None, token=None, payload=None):
         and isinstance(location, dict)
         and str(location.get("disallowelectronicserviceonnewcontacts")).lower() == "true"
     ):
-        raise ServiceContactError("This court does not allow email service to new contacts when starting a case.")
+        raise ServiceContactError("This court does not allow electronic service to new contacts when starting a case.")
     if initial:
         flag = str((location or {}).get("allowserviceoninitial", "")).lower() if isinstance(location, dict) else ""
         if flag in {"true", "false"}:
@@ -155,10 +155,10 @@ def electronic_service_types(draft, *, lookups=None, token=None, payload=None):
             allowed = str(row["isvisible"]).lower() == "true"
     if allowed is False:
         raise ServiceContactError(
-            "This court does not allow email service for this filing. Check its rules for how to serve copies."
+            "This court does not allow electronic service for this filing. Check its rules for how to serve copies."
         )
     if allowed is None:
-        raise ServiceContactError("We could not check whether this court allows email service. Try again later.")
+        raise ServiceContactError("We could not check whether this court allows electronic service. Try again later.")
     types = lookups.get(f"{base}/service_types")
     if not isinstance(types, list):
         raise ServiceContactError("We could not check the court's service options. Try again later.")
@@ -168,10 +168,10 @@ def electronic_service_types(draft, *, lookups=None, token=None, payload=None):
         if isinstance(item, dict) and item.get("code") and item.get("servicemethod") == "ESERVICE"
     ]
     if not choices:
-        raise ServiceContactError("Email service is not available for this court.")
+        raise ServiceContactError("Electronic service is not available for this court.")
     if isinstance(location, dict) and str(location.get("hasconditionalservicetypes")).lower() == "true":
         if not token:
-            raise ServiceContactError("Sign in again to check the court's email service options.")
+            raise ServiceContactError("Sign in again to check the court's electronic service options.")
         from copy import deepcopy
 
         from efile.services.service_query import service_query_payload
@@ -197,7 +197,7 @@ def electronic_service_types(draft, *, lookups=None, token=None, payload=None):
         codes = {_nested(item, "serviceCodeID", "value") for item in offered if isinstance(item, dict)}
         choices = [item for item in choices if str(item["code"]) in codes]
         if not choices:
-            raise ServiceContactError("The court does not offer email service for these documents.")
+            raise ServiceContactError("The court does not offer electronic service for these documents.")
     return [{**item, "code": str(item["code"])} for item in choices]
 
 
@@ -297,7 +297,7 @@ def bind_service(payload, draft, *, lookups=None, token=None):
     contacts = saved.get("contacts") or []
     if contacts and (saved.get("scope") != scope(draft) or not saved.get("rules_checked")):
         raise PayloadValidationError(
-            "Your case details changed. Check email recipients on the People page before filing."
+            "Your case details changed. Check service recipients on the Service page before filing."
         )
     payload.pop("service_contacts", None)
     if contacts:
@@ -307,7 +307,7 @@ def bind_service(payload, draft, *, lookups=None, token=None):
             raise PayloadValidationError(str(error)) from error
         if saved.get("service_type") not in {str(item["code"]) for item in types}:
             raise PayloadValidationError(
-                "The court's email service options changed. Choose recipients again on the People page."
+                "The court's electronic service options changed. Choose recipients again on the Service page."
             )
         payload["service_contacts"] = [
             {"contact_id": item["contact_id"], "service_type": saved["service_type"]} for item in contacts

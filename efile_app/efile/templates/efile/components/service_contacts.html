@@ -2,8 +2,8 @@
 <section id="email-recipients"
          class="people-section service-summary"
          aria-labelledby="email-recipients-heading">
-    <h2 id="email-recipients-heading">{% translate "Court email service" %}</h2>
-    <p>{% translate "Choose who gets copies of your documents when you file." %}</p>
+    <h2 id="email-recipients-heading">{% translate "Electronic service recipients" %}</h2>
+    <p>{% translate "Choose who you can serve through the filing system." %}</p>
     {% if service_stale %}
         <p class="alert alert-warning">{% translate "Your case details changed. Check your recipients again." %}</p>
     {% endif %}
@@ -14,11 +14,11 @@
             {% endfor %}
         </ul>
     {% else %}
-        <p class="form-text">{% translate "No email recipients selected." %}</p>
+        <p class="form-text">{% translate "No service recipients selected." %}</p>
     {% endif %}
     <a class="btn btn-outline-primary"
        data-service-open
-       href="?draft={{ service_draft_id }}&amp;service=1{% if return_to == 'review' %}&amp;return_to=review{% endif %}#service-editor">
+       href="?draft={{ service_draft_id }}&amp;service=1{% if return_to %}&amp;return_to={{ return_to }}{% endif %}#service-editor">
         {% if service_saved.contacts %}
             {% translate "Edit recipients" %}
         {% else %}

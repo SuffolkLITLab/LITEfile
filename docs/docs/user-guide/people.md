@@ -65,25 +65,9 @@ family member to send their papers. The papers must be theirs, and they must
 sign them. Unless you are a lawyer, you can't give them legal advice or speak
 for them in court.
 
-## Court email service
-
-If your court allows email service, choose **Choose recipients** on the
-People page. A window opens with contacts from your account or case.
-Choose **Add a new contact** if someone is missing. Adding a contact saves
-them to your court account; it does not send documents.
-
-Select who should get copies and check your court's service rules. Choose
-**Save recipients** to return to People. **Cancel** keeps your saved list.
-All selected recipients will get all documents when you file. Service fees
-appear on the Fees page.
-
-Choose **Edit recipients** to change the list. To turn off email service,
-uncheck everyone and save. If your court or case changes, check and save the
-recipients again. See [Sending copies to the other side](./serve-papers.md).
-
 ## What you should see
 
-Each person shows **Complete**. You then move to **Fees**.
+Each person shows **Complete**. You then move to **Service**.
 
 ## If something is different
 
@@ -94,4 +78,4 @@ Each person shows **Complete**. You then move to **Fees**.
 - **More questions appear:** Some cases need extra details. Answer what you
   can.
 
-**Next:** [Step 9: Pay fees or ask for a fee waiver](./fees.md)
+**Next:** [Step 9: Serve the other side](./serve-papers.md)

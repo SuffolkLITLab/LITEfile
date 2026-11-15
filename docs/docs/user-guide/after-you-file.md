@@ -40,8 +40,8 @@ your papers. Write it down. You need it for everything you file later.
 ## 3. Serve the other side
 
 In a new case, the other side must get official notice after you file. In an
-existing case, you usually send copies when you file. LITEfile **does not** do
-this for you. See [Send copies to the other side](./serve-papers.md).
+existing case, you usually send copies when you file. If you chose electronic service in LITEfile, check that it reached each recipient.
+Otherwise, arrange service using a method the court allows. See [Send copies to the other side](./serve-papers.md).
 
 ## 4. Watch for a hearing date
 

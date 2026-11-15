@@ -1,11 +1,11 @@
 ---
 id: review-submit
-title: "Step 10: Review and submit"
-sidebar_label: "10. Review and submit"
+title: "Step 11: Review and submit"
+sidebar_label: "11. Review and submit"
 description: Check everything once more, agree to the court's rules and send your filing.
 ---
 
-# Step 10: Review and submit
+# Step 11: Review and submit
 
 **What you will do:** Check your whole filing, then send it to the court.
 
@@ -56,4 +56,4 @@ Don't wait until the last day.
   contact the clerk or [LITEfile support](./get-help.md#litefile-help) first.
   Sending twice could mean paying twice.
 
-**Next:** [Step 11: Check your filing status](./check-status.md)
+**Next:** [Step 12: Check your filing status](./check-status.md)

@@ -1,18 +1,18 @@
-"""Edit recipients from the People page without sending documents."""
+"""Explain service choices and edit electronic-service recipients."""
 
 from django.contrib import messages
 from django.core import signing
 from django.db import transaction
 from django.http import HttpResponse, HttpResponseBadRequest, JsonResponse
-from django.shortcuts import redirect
+from django.shortcuts import redirect, render
 from django.template.loader import render_to_string
 from django.urls import reverse
 from django.views.decorators.http import require_http_methods
 
 from efile.api.suffolk_api_views import get_tyler_token
 from efile.models import FilingDraft
-from efile.services.current_drafts import get_current_draft
-from efile.services.drafts import ACTIVE_DRAFT_STATUSES
+from efile.services.current_drafts import ensure_current_draft, get_current_draft
+from efile.services.drafts import ACTIVE_DRAFT_STATUSES, draft_snapshot
 from efile.services.efsp_payload import PayloadValidationError
 from efile.services.filing_availability import draft_unavailable_message, unavailable_response
 from efile.services.service_contacts import (
@@ -24,12 +24,14 @@ from efile.services.service_contacts import (
     scope,
     service_options,
 )
+from efile.workflow import WorkflowStepKey, continue_step, continue_url, get_workflow_context, return_target
 
 
 def service_context(request, draft):
     saved = saved_service(draft)
     context = {
         "service_saved": saved,
+        "service_initial": draft.existing_case != "existing",
         "service_draft_id": draft.pk,
         "service_stale": bool(saved and saved.get("scope") != scope(draft)),
         "service_scope": signing.dumps([draft.pk, scope(draft)], salt="service-contacts"),
@@ -67,9 +69,9 @@ def update_service_contacts(request, jurisdiction) -> HttpResponse:
         if wants_json:
             return failure(message, status=409)
         return unavailable_response(request, draft, message)
-    destination = reverse("parties", args=[jurisdiction]) + f"?draft={draft.pk}&service=1"
-    if request.POST.get("return_to") == "review":
-        destination += "&return_to=review"
+    destination = reverse("service", args=[jurisdiction]) + f"?draft={draft.pk}&service=1"
+    if return_target(request):
+        destination += "&return_to=" + return_target(request)
     try:
         expected = signing.loads(request.POST.get("service_scope", ""), salt="service-contacts", max_age=3600)
         if expected != [draft.pk, scope(draft)]:
@@ -103,7 +105,11 @@ def update_service_contacts(request, jurisdiction) -> HttpResponse:
                 )
                 if expected != [draft.pk, scope(draft)]:
                     raise ServiceContactError("Your case details changed. Check the recipients again.")
-                draft.supplemental_fields = {**(draft.supplemental_fields or {}), KEY: selection}
+                draft.supplemental_fields = {
+                    **(draft.supplemental_fields or {}),
+                    KEY: selection,
+                    "_service_method": {"method": "electronic" if selection else "", "scope": scope(draft)},
+                }
                 draft.save(update_fields=["supplemental_fields", "updated_at"])
             if wants_json:
                 context = service_context(request, draft)
@@ -117,13 +123,13 @@ def update_service_contacts(request, jurisdiction) -> HttpResponse:
                     }
                 )
             destination = destination.replace("&service=1", "")
-            messages.success(request, "Email recipients saved. No documents have been sent yet.")
+            messages.success(request, "Service recipients saved. No documents have been sent yet.")
     except signing.BadSignature:
         if wants_json:
             return JsonResponse(
-                {"success": False, "error": "Reload the People page before changing recipients."}, status=400
+                {"success": False, "error": "Reload the Service page before changing recipients."}, status=400
             )
-        messages.error(request, "Reload the People page before changing recipients.")
+        messages.error(request, "Reload the Service page before changing recipients.")
     except FilingDraft.DoesNotExist:
         return failure("This filing can no longer be changed.")
     except (ServiceContactError, PayloadValidationError, ValueError) as error:
@@ -131,3 +137,73 @@ def update_service_contacts(request, jurisdiction) -> HttpResponse:
             return JsonResponse({"success": False, "error": str(error)}, status=400)
         messages.error(request, str(error))
     return redirect(destination + "#email-recipients")
+
+
+@require_http_methods(["GET", "POST"])
+def service(request, jurisdiction):
+    if not request.user.is_authenticated or not get_tyler_token(request, jurisdiction):
+        return redirect("efile_login", jurisdiction=jurisdiction)
+    draft = ensure_current_draft(request, jurisdiction, current_step=WorkflowStepKey.SERVICE, workflow_version=2)
+    if message := draft_unavailable_message(draft):
+        return unavailable_response(request, draft, message)
+    if not draft.court_code or not draft.case_type_code:
+        return redirect("extraction_review", jurisdiction=jurisdiction)
+    return_to = return_target(request)
+    saved = saved_service(draft)
+    choice = (draft.supplemental_fields or {}).get("_service_method", {})
+    method = (
+        "electronic"
+        if saved.get("contacts") or request.GET.get("service") == "1"
+        else (choice.get("method", "") if choice.get("scope") == scope(draft) else "")
+    )
+    error = ""
+    if request.method == "POST":
+        method = request.POST.get("service_method", "")
+        try:
+            expected = signing.loads(request.POST.get("service_scope", ""), salt="service-contacts", max_age=3600)
+            if expected != [draft.pk, scope(draft)]:
+                raise ServiceContactError("Your case details changed. Reload this page and check the service rules.")
+            if method not in {"other", "electronic"}:
+                raise ServiceContactError("Choose how you will handle service before continuing.")
+            with transaction.atomic():
+                draft = FilingDraft.objects.select_for_update().get(
+                    pk=draft.pk, user=request.user, status__in=ACTIVE_DRAFT_STATUSES, deletion_pending=False
+                )
+                if expected != [draft.pk, scope(draft)]:
+                    raise ServiceContactError(
+                        "Your case details changed. Reload this page and check the service rules."
+                    )
+                current = saved_service(draft)
+                if method == "electronic" and (
+                    not current.get("contacts")
+                    or current.get("scope") != scope(draft)
+                    or not current.get("rules_checked")
+                ):
+                    raise ServiceContactError(
+                        "Check the rules, then choose and save the people you can serve electronically."
+                    )
+                fields = dict(draft.supplemental_fields or {})
+                if method == "other":
+                    fields[KEY] = {}
+                fields["_service_method"] = {"method": method, "scope": scope(draft)}
+                draft.supplemental_fields = fields
+                draft.current_step = continue_step(draft, return_to, WorkflowStepKey.PAYMENT)
+                draft.save(update_fields=["supplemental_fields", "current_step", "updated_at"])
+            return redirect(continue_url(draft, jurisdiction, return_to, WorkflowStepKey.PAYMENT))
+        except signing.BadSignature:
+            error = "Reload the Service page before continuing."
+        except FilingDraft.DoesNotExist:
+            return HttpResponseBadRequest("This filing can no longer be changed.")
+        except ServiceContactError as exc:
+            error = str(exc)
+    context = service_context(request, draft)
+    context.update(
+        is_logged_in=True,
+        filing_draft=draft_snapshot(draft),
+        return_to=return_to,
+        service_method=method,
+        service_choice_error=error,
+        service_initial=draft.existing_case != "existing",
+    )
+    context.update(get_workflow_context(WorkflowStepKey.SERVICE, jurisdiction, draft))
+    return render(request, "efile/service.html", context)

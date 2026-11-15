@@ -5,10 +5,6 @@
 {% block title %}
     {% translate "People in this filing" %}
 {% endblock title %}
-{% block extra_css %}
-    <link rel="stylesheet"
-          href="{% static 'css/components/service-contacts.css' %}" />
-{% endblock extra_css %}
 {% block workflow_content %}
     <section class="workflow-card">
         <h1>{% translate "Who is involved in this case?" %}</h1>
@@ -328,7 +324,6 @@
                id="party-list-next"
                {% if not continue_preview.hint %}hidden{% endif %}>{{ continue_preview.hint }}</p>
         </div>
-        {% include "efile/components/service_contacts.html" %}
         <div class="workflow-actions">
             {% if return_to == "review" %}
                 <a class="btn btn-outline-secondary"
@@ -359,6 +354,5 @@
 {% endblock workflow_content %}
 {% block extra_js %}
     <script src="{% static 'js/parties.js' %}"></script>
-    <script src="{% static 'js/service-contacts.js' %}"></script>
     <script src="{% static 'js/claim-party.js' %}"></script>
 {% endblock extra_js %}

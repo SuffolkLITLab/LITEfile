@@ -3,8 +3,8 @@
          class="service-editor"
          aria-labelledby="service-editor-title">
     <header>
-        <h2 id="service-editor-title" tabindex="-1">{% translate "Choose email recipients" %}</h2>
-        <p>{% translate "They will get your documents when you submit this filing." %}</p>
+        <h2 id="service-editor-title" tabindex="-1">{% translate "Choose service recipients" %}</h2>
+        <p>{% translate "Submitting your filing requests electronic service on these people." %}</p>
     </header>
     <p class="alert alert-warning service-editor-error"
        role="alert"
@@ -13,10 +13,10 @@
         <p class="alert alert-warning">{% translate "Your case details changed. Check the list and the court's rules again." %}</p>
     {% endif %}
     {% if service_error %}
-        <a href="?draft={{ service_draft_id }}&amp;service=1{% if return_to == 'review' %}&amp;return_to=review{% endif %}#service-editor">{% translate "Try again" %}</a>
+        <a href="?draft={{ service_draft_id }}&amp;service=1{% if return_to %}&amp;return_to={{ return_to }}{% endif %}#service-editor">{% translate "Try again" %}</a>
         <a class="btn btn-outline-secondary"
            data-service-cancel
-           href="?draft={{ service_draft_id }}{% if return_to == 'review' %}&amp;return_to=review{% endif %}#email-recipients">{% translate "Close" %}</a>
+           href="?draft={{ service_draft_id }}{% if return_to %}&amp;return_to={{ return_to }}{% endif %}#email-recipients">{% translate "Close" %}</a>
         {% if service_saved.contacts %}
             <form id="service-clear-form"
                   method="post"
@@ -28,7 +28,7 @@
                 <button class="btn btn-outline-secondary"
                         type="submit"
                         name="action"
-                        value="clear_contacts">{% translate "Stop email service" %}</button>
+                        value="clear_contacts">{% translate "Stop electronic service" %}</button>
             </form>
         {% endif %}
     {% else %}
@@ -109,13 +109,16 @@
                 {% endif %}
                 {% for type in service_types %}{% if type.disclaimertext %}<p class="service-disclaimer" data-service-type="{{ type.code }}">{{ type.disclaimertext }}</p>{% endif %}{% endfor %}
                 <div class="service-rules">
-                    <p>{% translate "Check the court's rules. Email may not be enough, especially when starting a case." %}</p>
+                    <details>
+                        <summary>{% translate "Read the service rules" %}</summary>
+                        {% include "efile/components/service_rules.html" %}
+                    </details>
                     <label class="service-contact-row">
                         <input type="checkbox"
                                name="service_rules_checked"
                                value="yes"
                                {% if service_saved.rules_checked and not service_stale %}checked{% endif %} />
-                        <span>{% translate "I checked the rules. I can use email service for this filing." %}</span>
+                        <span>{% translate "I checked the rules. I can use electronic service for this filing." %}</span>
                     </label>
                     <p class="form-text">{% translate "Any service fees will appear on the Fees page." %}</p>
                 </div>
@@ -123,7 +126,7 @@
             <div class="service-actions">
                 <a class="btn btn-outline-secondary"
                    data-service-cancel
-                   href="?draft={{ service_draft_id }}{% if return_to == 'review' %}&amp;return_to=review{% endif %}#email-recipients">{% translate "Cancel" %}</a>
+                   href="?draft={{ service_draft_id }}{% if return_to %}&amp;return_to={{ return_to }}{% endif %}#email-recipients">{% translate "Cancel" %}</a>
                 <button class="btn btn-primary"
                         type="submit"
                         name="action"

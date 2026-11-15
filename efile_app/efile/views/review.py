@@ -141,6 +141,9 @@ def case_review(request, jurisdiction):
         # here would be one more line of screen for nothing.
         "notice_email": draft.notice_email,
         "service_saved": saved_service(draft),
+        "service_method_chosen": (draft.supplemental_fields or {}).get("_service_method", {}).get("scope")
+        == scope(draft)
+        and (draft.supplemental_fields or {}).get("_service_method", {}).get("method") == "other",
         "service_stale": bool(saved_service(draft) and saved_service(draft).get("scope") != scope(draft)),
         "cook_srl_reference": draft.jurisdiction == "illinois" and draft.court_code.split(":", 1)[0] == "cook",
         "documents": documents,

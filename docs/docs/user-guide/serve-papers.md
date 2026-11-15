@@ -1,67 +1,65 @@
 ---
 id: serve-papers
-title: Send copies to the other side
-sidebar_label: Send copies to the other side
-description: How the other people in your case get copies of what you filed. LITEfile does not do this for you.
+title: "Step 9: Serve the other side"
+sidebar_label: "9. Service"
+description: Choose how to give the other side copies using a method the court allows.
 ---
 
-# Send copies to the other side
+# Step 9: Serve the other side
 
-**What you will do:** Make sure the other people in your case get copies of
-what you filed. Courts call this **service**.
+**What you will do:** Choose how to give the other side copies in a way the
+court allows. Courts call this **service**. Filing papers with the court does
+not take care of service by itself. Neither choice is selected for you.
 
-**LITEfile does not send copies for you.** Filing with the court and serving the
-other side are two separate jobs.
+## Arrange service outside LITEfile
 
-## Starting a new case
+Choose **I'll arrange service outside LITEfile** if you will use another
+allowed method, or have already served the papers. This may include direct
+email when the rules allow it. LITEfile will not send service copies.
 
-When you start a case, the other side must get official notice. This is often
-called **service of process**. The rules are strict. Usually a sheriff,
-constable or professional process server delivers the papers. You may need a
-**summons** form, and there may be a fee.
+Choosing this option and continuing removes any saved electronic recipients.
 
-Follow your court's instructions. Ask the clerk or a help center if you are
-not sure how.
+## Check electronic service
 
-## Filing in a case that already started
+Choose **Check whether I can use electronic service** to read your state's
+rules. This is a way to serve the other side through the filing system.
+It is different from a courtesy copy or a court notice.
 
-For most papers in an existing case, you send a copy to each other party, or to
-their lawyer, **at the same time you file**. Many courts allow email, mail or
-hand delivery. Check your court's rules.
+The first papers in a case have special rules. Adding an email address does
+not mean you can serve that person by email.
 
-Many courts want **proof** that you sent copies, filed with your papers. Some
-forms have a **certificate of service** or **proof of delivery** section for
-this. Others need a separate form. Fill it out **before** you submit in
-LITEfile.
+If the rules allow it:
 
-## Email service in LITEfile
+1. Choose **Choose recipients** to open the contact list.
+2. Select the people you can serve this way. Use **Add a new contact** if
+   someone is missing.
+3. Confirm that you checked the rules, then choose **Save recipients**.
+4. Continue to Fees and check the cost. Review your recipients before filing.
 
-On the People page, **Court email service** lets you choose recipients when
-the court supports email service for your filing. Save your choices and check
-them on Review. Saving contacts does not send documents; submitting the filing
-sends all its documents to the selected recipients.
+Saving recipients does not send documents. Submitting your filing requests
+electronic service of its documents on those people. Check that service
+reaches them and keep any proof the court requires.
 
-This option is separate from courtesy copies and court notices. Check your
-court's rules before using it, especially when starting a case.
+## Check your state's rules
 
-## Getting papers from the other side
+- **Massachusetts:** The first papers usually need conventional service.
+  A court may allow another way, or the recipient may agree in writing.
+  For later papers, registered users can be served through the system;
+  registration counts as consent. See
+  [Rule 6 for first papers](https://www.mass.gov/supreme-judicial-court-rules/massachusetts-rules-of-electronic-filing-rule-6-electronic-filing-and-service-of-civil-case-initiating-documents)
+  and [Rule 7 for electronic service](https://www.mass.gov/supreme-judicial-court-rules/massachusetts-rules-of-electronic-filing-rule-7-service-of-electronically-filed-documents).
+- **Illinois:** Later papers generally need electronic service unless a rule
+  or court order allows another way. This may be direct email to a designated
+  service address or service through an approved filing system. First papers
+  have separate rules. See
+  [Rules 11, 12, and 102](https://www.illinoiscourts.gov/rules/supreme-court-rules).
+- **Vermont:** People who e-file generally serve each other through the
+  filing system, with some exceptions. Personal service requirements still
+  apply. See the
+  [court's electronic filing and service guide](https://www.vtcourts.gov/about-vermont-judiciary/electronic-access/electronic-filing).
 
-If you give the other side your email address, they may send papers to you by
-email. Check your email, including spam, often.
+Follow any special rules or orders for your case. If the other side has a
+lawyer, check whether you must serve the lawyer. You may need a certificate
+or other proof of service. Get legal help if you are unsure.
 
-## Where to learn your state's rules
-
-- **Illinois:** [Illinois Legal Aid Online](https://www.illinoislegalaid.org/)
-  and [Illinois Court Help](https://www.ilcourthelp.gov/).
-- **Massachusetts:** [MassLegalHelp](https://www.masslegalhelp.org/) and
-  [Court Service Centers](https://www.mass.gov/orgs/court-service-centers).
-- **Vermont:** [VTLawHelp](https://vtlawhelp.org/) and
-  [Vermont Judiciary self-help](https://www.vtcourts.gov/self-help).
-
-## Good to know
-
-- An email about your filing status is **not** service.
-- **Accepted** by the clerk does not mean the other side got a copy.
-- Courtesy copies in LITEfile are not service.
-
-**Next:** [What happens after you file](./after-you-file.md)
+**Next:** [Step 10: Pay fees or ask for a fee waiver](./fees.md)

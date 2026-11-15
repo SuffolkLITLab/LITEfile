@@ -426,7 +426,7 @@ def test_the_party_screen_maps_sides_and_asks_only_for_what_is_missing(client, r
     assert responding.party_type == "defendant"
     assert FilingParty.objects.filter(draft=review_draft, role="other").count() == 1
     assert response.status_code == 302
-    assert response.url.partition("?")[0] == reverse("payment", kwargs={"jurisdiction": "illinois"})
+    assert response.url.partition("?")[0] == reverse("service", kwargs={"jurisdiction": "illinois"})
 
 
 # --- Answers that are not names ----------------------------------------------

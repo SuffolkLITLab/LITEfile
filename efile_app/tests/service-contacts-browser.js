@@ -24,7 +24,9 @@ const {
                 url: config.baseUrl
             }]);
             const page = await context.newPage();
-            await page.goto(config.baseUrl + config.uploadUrl);
+            await page.goto(config.baseUrl + config.uploadUrl, {
+                waitUntil: 'domcontentloaded'
+            });
             await page.evaluate(() => document.fonts.ready);
             const upload = await page.locator('#upload-button').boundingBox();
             const confirm = await page.locator('#continue-to-analysis').boundingBox();
@@ -46,10 +48,23 @@ const {
             const rules = () => modal.getByRole('checkbox', {
                 name: 'I checked'
             });
+            await expect(page.getByRole('heading', {
+                name: 'How will you serve the other side?'
+            })).toBeVisible();
+            if (width === 1280) assert.equal(await page.locator('[name="service_method"]:checked').count(), 0);
+            else await expect(page.getByRole('radio', {
+                name: "I'll arrange service outside LITEfile"
+            })).toBeChecked();
+            await page.screenshot({
+                path: `/tmp/litefile-service-question-${width}.png`,
+                fullPage: true
+            });
+            await page.getByRole('radio', {
+                name: 'Check whether I can use electronic service'
+            }).check();
             await expect(section).toBeVisible();
+            await expect(page.locator('#service-state-rules')).toHaveAttribute('open', '');
             assert.equal(await section.getByRole('checkbox').count(), 0);
-            const role = page.locator('#your-role input[name="filer_party_type"][value="plaintiff"]');
-            await role.check();
             await open();
             await expect(modal).toBeVisible();
             await alex().check();
@@ -58,7 +73,6 @@ const {
                 exact: true
             }).click();
             await expect(modal).toHaveCount(0);
-            await expect(role).toBeChecked();
             await expect(section.locator('[data-service-open]')).toBeFocused();
             await open();
             await expect(alex()).not.toBeChecked();
@@ -78,7 +92,7 @@ const {
                 path: `/tmp/litefile-service-summary-${width}.png`
             });
             await page.screenshot({
-                path: `/tmp/litefile-people-${width}.png`,
+                path: `/tmp/litefile-service-step-${width}.png`,
                 fullPage: true
             });
 
@@ -95,7 +109,9 @@ const {
             assert.deepEqual(audit.violations, []);
             // A failed add keeps both typed details and pending recipient edits.
             await alex().uncheck();
-            await modal.locator('summary').click();
+            await modal.getByText('Add a new contact', {
+                exact: true
+            }).click();
             await page.locator('#contact-first-name').fill('Jordan');
             await page.locator('#contact-last-name').fill('Example');
             await page.locator('#contact-email').fill('jordan@example.com');
@@ -114,7 +130,7 @@ const {
                 path: `/tmp/litefile-service-add-${width}.png`
             });
 
-            await page.route('**/service-contacts/', route => route.fulfill({
+            await page.route(/\/service-contacts\/(?:\?|$)/, route => route.fulfill({
                 status: 400,
                 contentType: 'application/json',
                 body: JSON.stringify({
@@ -161,14 +177,25 @@ const {
                 name: 'Save recipients',
                 exact: true
             }).click();
-            await expect(section.getByText('No email recipients selected.', {
+            await expect(section.getByText('No service recipients selected.', {
                 exact: true
             })).toBeVisible();
             await open();
+            await expect(modal).toBeVisible();
             await page.keyboard.press('Escape');
             await expect(modal).toHaveCount(0);
             await expect(section.locator('[data-service-open]')).toBeFocused();
             assert.equal(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth), true);
+            await page.getByRole('radio', {
+                name: "I'll arrange service outside LITEfile"
+            }).check();
+            await expect(section).not.toBeVisible();
+            // This recipient-only fixture has no documents. Reaching the payment
+            // guard proves the choice was submitted; full state-flow tests cover Fees.
+            await page.getByRole('button', {
+                name: 'Continue to fees'
+            }).click();
+            await expect(page.getByText('Add and organize at least one document before choosing payment.')).toBeVisible();
             await context.close();
         }
     } finally {

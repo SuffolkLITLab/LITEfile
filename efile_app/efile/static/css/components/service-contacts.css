@@ -179,3 +179,42 @@
 .service-dialog #service-add-form {
     display: none;
 }
+
+.service-method-choices {
+    border: 0;
+    margin: 0;
+    min-width: 0;
+    padding: 0;
+}
+
+.service-method-choice {
+    grid-template-columns: auto minmax(0, 1fr);
+}
+
+.service-state-rules {
+    margin: 1.5rem 0;
+    padding-bottom: 1.25rem;
+}
+
+.service-state-rules summary {
+    color: var(--better-blue);
+    cursor: pointer;
+    padding: 0.25rem 0;
+}
+
+.service-rule-copy {
+    margin-top: 1rem;
+    max-width: 42rem;
+}
+
+.service-page:not(:has([name="service_method"][value="electronic"]:checked)) #electronic-service-details {
+    display: none;
+}
+
+.service-page [data-service-removal-note][hidden] {
+    display: none;
+}
+
+.service-page .workflow-actions {
+    gap: 0.75rem;
+}

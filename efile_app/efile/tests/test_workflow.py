@@ -58,6 +58,7 @@ def test_target_workflow_declares_every_reorganized_screen():
         WorkflowStepKey.PARTIES,
         WorkflowStepKey.PARTY_DETAILS,
         WorkflowStepKey.CASE_QUESTIONS,
+        WorkflowStepKey.SERVICE,
         WorkflowStepKey.PAYMENT,
         WorkflowStepKey.REVIEW,
         WorkflowStepKey.CONFIRMATION,
@@ -68,7 +69,7 @@ def test_every_draft_uses_the_canonical_workflow_after_migration():
     pre_migration_version = draft(current_step=WorkflowStepKey.PAYMENT, workflow_version=1)
 
     assert get_visible_workflow(pre_migration_version) != ()
-    assert key_of(get_previous_step(WorkflowStepKey.PAYMENT, pre_migration_version)) == WorkflowStepKey.PARTIES
+    assert key_of(get_previous_step(WorkflowStepKey.PAYMENT, pre_migration_version)) == WorkflowStepKey.SERVICE
     assert key_of(get_next_step(WorkflowStepKey.PAYMENT, pre_migration_version)) == WorkflowStepKey.REVIEW
 
 
@@ -204,9 +205,9 @@ def test_workflow_context_uses_draft_branch_and_includes_stage_progress():
     context = get_workflow_context(WorkflowStepKey.PAYMENT, "illinois", current_draft)
 
     assert context["workflow_current_step"].key == WorkflowStepKey.PAYMENT
-    assert context["workflow_previous_step"].key == WorkflowStepKey.PARTIES
+    assert context["workflow_previous_step"].key == WorkflowStepKey.SERVICE
     assert context["workflow_next_step"].key == WorkflowStepKey.REVIEW
-    assert context["workflow_previous_url"] == reverse("parties", kwargs={"jurisdiction": "illinois"})
+    assert context["workflow_previous_url"] == reverse("service", kwargs={"jurisdiction": "illinois"})
     assert context["workflow_next_url"] == reverse("case_review", kwargs={"jurisdiction": "illinois"})
     assert [stage.value for stage in context["workflow_stages"]] == [
         "filing",
@@ -215,6 +216,7 @@ def test_workflow_context_uses_draft_branch_and_includes_stage_progress():
         "check_documents",
         "organize_documents",
         "people",
+        "service",
         "fees",
         "review",
     ]

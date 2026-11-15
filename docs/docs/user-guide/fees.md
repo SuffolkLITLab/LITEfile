@@ -1,11 +1,11 @@
 ---
 id: fees
-title: "Step 9: Pay fees or ask for a fee waiver"
-sidebar_label: "9. Fees and fee waivers"
+title: "Step 10: Pay fees or ask for a fee waiver"
+sidebar_label: "10. Fees and fee waivers"
 description: See the court fee, add a card or bank account, or ask the court to waive the fee.
 ---
 
-# Step 9: Pay fees or ask for a fee waiver
+# Step 10: Pay fees or ask for a fee waiver
 
 **What you will do:** Choose how to handle the court's fee.
 
@@ -79,4 +79,4 @@ Need the waiver form? See [Get your forms ready first](./before-you-begin.md).
 - **You changed a document or filing code:** Check the fees again. They may
   change.
 
-**Next:** [Step 10: Review and submit](./review-submit.md)
+**Next:** [Step 11: Review and submit](./review-submit.md)

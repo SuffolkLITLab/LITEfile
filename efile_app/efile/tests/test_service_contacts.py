@@ -256,14 +256,14 @@ def test_service_picker_browser(client, db_draft, live_server, monkeypatch, tmp_
     monkeypatch.setattr("efile.views.service_contacts.service_options", lambda *args: options)
     monkeypatch.setattr("efile.services.service_contacts.service_options", lambda *args: options)
     monkeypatch.setattr(
-        "efile.views.parties.get_party_types", lambda *args: [{"code": "plaintiff", "name": "Plaintiff"}]
+        "efile.services.people.get_party_types", lambda *args: [{"code": "plaintiff", "name": "Plaintiff"}]
     )
     config = tmp_path / "service.json"
     config.write_text(
         json.dumps(
             {
                 "baseUrl": live_server.url,
-                "url": reverse("parties", args=["illinois"]) + f"?draft={db_draft.pk}",
+                "url": reverse("service", args=["illinois"]) + f"?draft={db_draft.pk}",
                 "uploadUrl": reverse("upload_documents", args=["illinois"]) + f"?draft={db_draft.pk}",
                 "cookie": client.cookies[settings.SESSION_COOKIE_NAME].value,
             }
@@ -274,9 +274,12 @@ def test_service_picker_browser(client, db_draft, live_server, monkeypatch, tmp_
         cwd=settings.BASE_DIR,
         capture_output=True,
         text=True,
-        timeout=90,
+        timeout=180,
     )
     assert result.returncode == 0, result.stdout + result.stderr
+    db_draft.refresh_from_db()
+    assert db_draft.supplemental_fields["_service_method"]["method"] == "other"
+    assert not db_draft.supplemental_fields[KEY]
 
 
 def test_conditional_types_query_uses_full_payload_and_filters_catalog(draft, court_codes, monkeypatch):
@@ -406,7 +409,7 @@ def test_correction_review_keeps_feedback_visible_with_stale_recipients(client, 
     response = client.get(reverse("case_review", args=["illinois"]) + f"?draft={db_draft.pk}")
     assert response.status_code == 200
     assert b"Fix the court choice." in response.content
-    assert b"Edit and save your email recipients before filing." in response.content
+    assert b"Edit and save your service recipients before filing." in response.content
 
 
 @pytest.mark.django_db
@@ -439,3 +442,127 @@ def test_modal_save_returns_summary_and_errors_preserve_saved_selection(client, 
     assert response.json()["success"] is False
     db_draft.refresh_from_db()
     assert db_draft.supplemental_fields[KEY]["contacts"][0]["contact_id"] == "person"
+
+
+@pytest.mark.django_db
+def test_service_step_has_no_default_and_other_method_clears_saved_service(client, db_draft):
+    from django.core import signing
+    from django.urls import reverse
+
+    url = reverse("service", args=["illinois"])
+    response = client.get(url)
+    assert response.status_code == 200
+    assert response.context["service_method"] == ""
+    assert b"I'll arrange service outside LITEfile" in response.content
+    db_draft.refresh_from_db()
+    db_draft.supplemental_fields[KEY] = selection(db_draft)
+    db_draft.save()
+    response = client.post(
+        url,
+        {
+            "service_method": "other",
+            "service_scope": signing.dumps([db_draft.pk, scope(db_draft)], salt="service-contacts"),
+        },
+    )
+    assert response.status_code == 302
+    assert response.url.partition("?")[0] == reverse("payment", args=["illinois"])
+    db_draft.refresh_from_db()
+    assert db_draft.supplemental_fields[KEY] == {}
+    assert db_draft.supplemental_fields["_service_method"]["method"] == "other"
+
+
+@pytest.mark.django_db
+def test_service_step_requires_saved_recipients_for_electronic_choice(client, db_draft):
+    from django.core import signing
+    from django.urls import reverse
+
+    response = client.post(
+        reverse("service", args=["illinois"]),
+        {
+            "service_method": "electronic",
+            "service_scope": signing.dumps([db_draft.pk, scope(db_draft)], salt="service-contacts"),
+        },
+    )
+    assert response.status_code == 200
+    assert b"choose and save the people" in response.content
+
+
+@pytest.mark.django_db
+@pytest.mark.parametrize(
+    "jurisdiction,phrase",
+    [
+        ("massachusetts", "Registration counts as consent"),
+        ("illinois", "Rule 11 does not cover"),
+        ("vermont", "first papers may require personal service"),
+    ],
+)
+def test_service_rules_match_the_state(client, db_draft, jurisdiction, phrase):
+    from django.template.loader import render_to_string
+
+    content = render_to_string(
+        "efile/components/service_rules.html", {"jurisdiction": jurisdiction, "service_initial": True}
+    )
+    assert phrase in content
+
+
+@pytest.mark.django_db
+@pytest.mark.parametrize("method", ["", "unexpected"])
+def test_service_step_requires_an_explicit_valid_answer(client, db_draft, method):
+    from django.core import signing
+    from django.urls import reverse
+
+    response = client.post(
+        reverse("service", args=["illinois"]),
+        {
+            "service_method": method,
+            "service_scope": signing.dumps([db_draft.pk, scope(db_draft)], salt="service-contacts"),
+        },
+    )
+    assert response.status_code == 200
+    assert b"Choose how you will handle service" in response.content
+    db_draft.refresh_from_db()
+    assert "_service_method" not in db_draft.supplemental_fields
+
+
+@pytest.mark.django_db
+def test_service_step_rejects_a_stale_scope_without_removing_recipients(client, db_draft):
+    from django.core import signing
+    from django.urls import reverse
+
+    token = signing.dumps([db_draft.pk, scope(db_draft)], salt="service-contacts")
+    db_draft.supplemental_fields[KEY] = selection(db_draft)
+    db_draft.court_code = "another-court"
+    db_draft.save()
+    response = client.post(
+        reverse("service", args=["illinois"]),
+        {
+            "service_method": "other",
+            "service_scope": token,
+        },
+    )
+    assert response.status_code == 200
+    assert b"Your case details changed" in response.content
+    db_draft.refresh_from_db()
+    assert db_draft.supplemental_fields[KEY]["contacts"]
+
+
+@pytest.mark.django_db
+def test_service_step_keeps_electronic_recipients_when_returning_to_review(client, db_draft):
+    from django.core import signing
+    from django.urls import reverse
+
+    db_draft.supplemental_fields[KEY] = selection(db_draft)
+    db_draft.save()
+    response = client.post(
+        reverse("service", args=["illinois"]),
+        {
+            "service_method": "electronic",
+            "return_to": "review",
+            "service_scope": signing.dumps([db_draft.pk, scope(db_draft)], salt="service-contacts"),
+        },
+    )
+    assert response.status_code == 302
+    assert response.url.partition("?")[0] == reverse("case_review", args=["illinois"])
+    db_draft.refresh_from_db()
+    assert db_draft.supplemental_fields[KEY]["contacts"]
+    assert db_draft.supplemental_fields["_service_method"]["method"] == "electronic"

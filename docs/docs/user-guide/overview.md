@@ -42,7 +42,8 @@ flowchart TD
     U --> C["Confirm the court and case"]
     C --> D["Check and organize documents"]
     D --> P["People in the case"]
-    P --> F["Fees"]
+    P --> S["Service"]
+    S --> F["Fees"]
     F --> R["Review and submit"]
     R --> T["Check your filing status"]
 ```

@@ -36,16 +36,29 @@
             <section class="review-summary-card mb-3"
                      aria-labelledby="review-service-heading">
                 <header>
-                    <h2 id="review-service-heading">{% translate "Email recipients" %}</h2>
-                    <a href="{% url 'parties' jurisdiction %}?return_to=review&amp;service=1#email-recipients">{% translate "Edit" %}</a>
+                    <h2 id="review-service-heading">{% translate "Electronic service" %}</h2>
+                    <a href="{% url 'service' jurisdiction %}?return_to=review">{% translate "Edit" %}</a>
                 </header>
                 {% if service_stale %}
-                    <p class="alert alert-warning">{% translate "Your case details changed. Edit and save your email recipients before filing." %}</p>
+                    <p class="alert alert-warning">{% translate "Your case details changed. Edit and save your service recipients before filing." %}</p>
                 {% else %}
-                    <p>{% translate "These people will get all the documents when you file." %}</p>
+                    <p>{% translate "Submitting your filing requests electronic service on these people." %}</p>
                 {% endif %}
                 <ul>{% for contact in service_saved.contacts %}<li>{{ contact.name }}{% if contact.email %} — {{ contact.email }}{% endif %}</li>{% endfor %}</ul>
                 <p>{% translate "Check the court's service rules. Email may not be enough, especially when you start a case." %}</p>
+            </section>
+        {% else %}
+            <section class="review-summary-card mb-3"
+                     aria-labelledby="review-service-heading">
+                <header>
+                    <h2 id="review-service-heading">{% translate "Service" %}</h2>
+                    <a href="{% url 'service' jurisdiction %}?return_to=review">{% translate "Edit" %}</a>
+                </header>
+                {% if service_method_chosen %}
+                    <p>{% translate "You chose to arrange service outside LITEfile. Use a method the court allows, if you have not done so already." %}</p>
+                {% else %}
+                    <p>{% translate "No service method is saved. LITEfile will not serve the other side. Check your service plan before filing." %}</p>
+                {% endif %}
             </section>
         {% endif %}
         <div class="review-summary-grid">

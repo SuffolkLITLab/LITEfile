@@ -1,4 +1,4 @@
-/* Keep the optional recipient editor off the main People form. */
+/* Keep the optional recipient editor off the service-method question. */
 (() => {
     if (!window.HTMLDialogElement || !HTMLDialogElement.prototype.showModal) return;
     let dialog;
@@ -118,8 +118,8 @@
                     'X-Requested-With': 'XMLHttpRequest'
                 },
             });
-            if (response.redirected) throw new Error(text('Your session changed. Reload the People page and try again.'));
-            if (!response.headers.get('content-type')?.includes('application/json')) throw new Error(text('We could not save your changes. Reload the People page and try again.'));
+            if (response.redirected) throw new Error(text('Your session changed. Reload the Service page and try again.'));
+            if (!response.headers.get('content-type')?.includes('application/json')) throw new Error(text('We could not save your changes. Reload the Service page and try again.'));
             const result = await response.json();
             if (!response.ok || !result.success) throw new Error(result.error || text('We could not save your changes. Try again.'));
             if (adding) {
@@ -133,6 +133,11 @@
                 const replacement = parsed.getElementById('email-recipients');
                 if (!replacement?.querySelector('.service-status') || !summary()) throw new Error(text('Recipients were saved. Reload this page to see the list.'));
                 summary().replaceWith(replacement);
+                document.dispatchEvent(new CustomEvent("service-recipients-saved", {
+                    detail: {
+                        selected: !!replacement.querySelector(".service-summary__list")
+                    }
+                }));
                 busy = false;
                 closeEditor();
                 summary().querySelector('.service-status').textContent = text('Recipients saved. No documents have been sent yet.');
@@ -166,7 +171,7 @@
         status.textContent = text('Loading contacts…');
         try {
             const response = await fetch(link.href);
-            if (response.redirected) throw new Error(text('Your session changed. Reload the People page and try again.'));
+            if (response.redirected) throw new Error(text('Your session changed. Reload the Service page and try again.'));
             const parsed = new DOMParser().parseFromString(await response.text(), 'text/html');
             const editor = parsed.getElementById('service-editor');
             if (!response.ok || !editor) throw new Error(text('We could not load contacts. Try again or reload this page.'));

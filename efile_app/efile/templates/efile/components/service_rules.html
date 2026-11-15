@@ -1,0 +1,35 @@
+{% load i18n %}
+<div class="service-rule-copy">
+    {% if jurisdiction == 'massachusetts' %}
+        <p><strong>{% translate "Massachusetts" %}</strong></p>
+        {% if service_initial %}
+            <p>{% translate "Starting a case? Use the usual service methods unless the court allows another way or the other side agrees in writing. An email address alone is not enough." %}</p>
+        {% endif %}
+        <p>{% translate "For later papers, the filing system can serve registered users. Registration counts as consent to electronic service. People who are not registered must be served by another allowed method." %}</p>
+        <p>{% translate "If the system cannot deliver service, use another allowed method. You must also include a certificate of service." %}</p>
+        <p><a href="https://www.mass.gov/supreme-judicial-court-rules/massachusetts-rules-of-electronic-filing-rule-6-electronic-filing-and-service-of-civil-case-initiating-documents">{% translate "Massachusetts rules for the first papers in a case" %}</a></p>
+        <p><a href="https://www.mass.gov/supreme-judicial-court-rules/massachusetts-rules-of-electronic-filing-rule-7-service-of-electronically-filed-documents">{% translate "Massachusetts rules for electronic service" %}</a></p>
+        <p><a href="https://www.mass.gov/rules-of-civil-procedure/civil-procedure-rule-5-service-and-filing-of-pleadings-and-other-papers">{% translate "Other service methods in Massachusetts civil cases" %}</a></p>
+    {% elif jurisdiction == 'illinois' %}
+        <p><strong>{% translate "Illinois" %}</strong></p>
+        {% if service_initial %}
+            <p>{% translate "Rule 11 does not cover serving a summons or other first papers. Those papers have separate rules. Email may require a court order." %}</p>
+        {% endif %}
+        <p>{% translate "Later papers generally must be served electronically unless a rule or court order allows another way. You can use an allowed email address directly or an approved filing system." %}</p>
+        <p>{% translate "Use an address designated for service, such as the one on the other side's filed appearance or entered by them in the filing system. Do not use just any email address you know." %}</p>
+        <p>{% translate "If the other side has a lawyer, serve the lawyer as the rules require. Check the rules for proof of service too." %}</p>
+        <p><a href="https://ilcourtsaudio.blob.core.windows.net/antilles-resources/resources/3dd0a46c-817b-4f5a-992d-71eb62a92e0d/Rule%2011.pdf">{% translate "Illinois Rule 11: serving later papers" %}</a></p>
+        <p><a href="https://www.illinoiscourts.gov/rules/supreme-court-rules">{% translate "Illinois rules: see Rule 102 for a summons and Rule 12 for proof of service" %}</a></p>
+    {% elif jurisdiction == 'vermont' %}
+        <p><strong>{% translate "Vermont" %}</strong></p>
+        {% if service_initial %}
+            <p>{% translate "The first papers may require personal service. The filing system does not replace that requirement." %}</p>
+        {% endif %}
+        <p>{% translate "People who e-file generally must serve each other through the filing system. The rules allow some exceptions, such as a written agreement to use another method." %}</p>
+        <p>{% translate "If the other side does not e-file or has no service contact, use the method required by the rules for your case. Do not assume any email address can be used." %}</p>
+        <p><a href="https://www.vtcourts.gov/about-vermont-judiciary/electronic-access/electronic-filing">{% translate "Vermont electronic filing and service rules" %}</a></p>
+    {% else %}
+        <p>{% translate "Check your court's service rules. They may require the other side's consent or a court order before you can use electronic service. The first papers in a case may need a different method." %}</p>
+    {% endif %}
+    <p>{% translate "Follow any special rules or orders for your court and case. Keep the proof of service the court requires. If you are unsure, get legal help before choosing a method." %}</p>
+</div>
