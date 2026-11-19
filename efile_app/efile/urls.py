@@ -54,7 +54,7 @@ from .views.session_api import (
 )
 from .views.submission import submit_final_filing
 from .views.submission_tracker import submission_tracker
-from .views.upload_documents import document_extraction_status, upload_documents
+from .views.upload_documents import document_extraction_status, document_worker_health, upload_documents
 from .views.waiver_documents import waiver_documents
 from .views.your_information import your_information
 
@@ -72,6 +72,7 @@ def jurisdiction_homepage(request, jurisdiction):
 
 
 urlpatterns = [
+    path("health/document-workers/", document_worker_health, name="document_worker_health"),
     path("jurisdiction/<str:jurisdiction>/service/", service, name="service"),
     path("jurisdiction/<str:jurisdiction>/service-contacts/", update_service_contacts, name="update_service_contacts"),
     path("favicon.ico", lambda request: redirect(static("img/favicon.ico")), name="favicon"),

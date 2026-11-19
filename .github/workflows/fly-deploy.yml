@@ -42,14 +42,68 @@ jobs:
           fi
       - uses: superfly/flyctl-actions/setup-flyctl@ed8efb33836e8b2096c7fd3ba1c8afe303ebbff1
         if: steps.current.outputs.deploy == 'true'
-      - name: Deploy the tested commit
-        if: steps.current.outputs.deploy == 'true'
-        run: >-
-          flyctl deploy --remote-only --config fly.toml
-          --build-arg LITEFILE_COMMIT_SHA="$(git rev-parse HEAD)"
-          --build-arg LITEFILE_COMMIT_DATE="$(git show -s --format=%cI HEAD)"
+      - name: Guard the return to warm workers
+        if: steps.current.outputs.deploy == 'true' && vars.LITEFILE_STAGING_WORKER_AUTOSCALING != 'true'
+        shell: bash
+        run: |
+          health=$(mktemp)
+          machines=$(mktemp)
+          trap 'rm -f "$health" "$machines"' EXIT
+          flyctl machine list --app litefile-staging --json > "$machines"
+          coordinator=$(python3 -c '
+          import json, sys
+          print("present" if any((m["config"].get("metadata") or {}).get("fly_process_group")
+                                 == "document_worker_coordinator" for m in json.load(sys.stdin)) else "absent")
+          ' < "$machines")
+          if [[ "$coordinator" == "absent" ]]; then
+            exit 0
+          fi
+          status=$(curl --silent --show-error --max-time 10 --output "$health" --write-out '%{http_code}' \
+            https://litefile-staging.fly.dev/health/document-workers/)
+          if [[ "$status" != "200" && "$status" != "503" ]]; then
+            echo "::error::Could not verify staging's current document worker mode."
+            exit 1
+          fi
+          if ! python3 -c 'import json, sys; sys.exit(0 if json.load(sys.stdin).get("mode") == "warm" else 1)' < "$health"; then
+            echo "::error::Set the live staging coordinator to warm before removing it."
+            exit 1
+          fi
+          flyctl machine list --app litefile-staging --json |
+            python3 .github/scripts/check_fly_document_workers.py --warm-transition
         env:
           FLY_API_TOKEN: ${{ secrets.FLY_API_TOKEN }}
-      - name: Check the public site
+      - name: Deploy the tested commit
+        id: fly_deploy
         if: steps.current.outputs.deploy == 'true'
+        run: |
+          config=fly.toml
+          flags=()
+          if [[ "$STAGING_AUTOSCALE" == "true" ]]; then
+            config=fly.staging-autoscale.toml
+            flags+=(--ha=false)
+          fi
+          flyctl deploy --remote-only --config "$config" "${flags[@]}" \
+            --build-arg LITEFILE_COMMIT_SHA="$(git rev-parse HEAD)" \
+            --build-arg LITEFILE_COMMIT_DATE="$(git show -s --format=%cI HEAD)"
+        env:
+          FLY_API_TOKEN: ${{ secrets.FLY_API_TOKEN }}
+          STAGING_AUTOSCALE: ${{ vars.LITEFILE_STAGING_WORKER_AUTOSCALING }}
+      - name: Check document workers
+        if: steps.current.outputs.deploy == 'true'
+        shell: bash
+        run: |
+          flags=()
+          if [[ "$STAGING_AUTOSCALE" == "true" ]]; then
+            flags+=(--autoscale)
+            curl --fail --silent --show-error --retry 6 --retry-all-errors --retry-delay 5 \
+              https://litefile-staging.fly.dev/health/document-workers/ |
+              python3 -c 'import json, sys; sys.exit(0 if json.load(sys.stdin).get("mode") == "autoscale" else 1)'
+          fi
+          flyctl machine list --app litefile-staging --json |
+            python3 .github/scripts/check_fly_document_workers.py "${flags[@]}"
+        env:
+          FLY_API_TOKEN: ${{ secrets.FLY_API_TOKEN }}
+          STAGING_AUTOSCALE: ${{ vars.LITEFILE_STAGING_WORKER_AUTOSCALING }}
+      - name: Check the public site
+        if: ${{ !cancelled() && steps.fly_deploy.outcome == 'success' }}
         run: curl --fail --silent --show-error --retry 5 --retry-all-errors --retry-delay 10 https://litefile-staging.fly.dev/about/ > /dev/null

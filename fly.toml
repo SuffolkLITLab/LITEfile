@@ -16,6 +16,7 @@ primary_region = 'lax'
   DB_POOL_MAX_SIZE = "1"
   DB_POOL_MAX_IDLE = "60"
   DOCUMENT_PREPARATION_ASYNC = "true"
+  DOCUMENT_WORKER_SCALING_CONTROL = "false"
   # Copy filing codes straight from the EFSP proxy's codes database, read
   # only. Set the connection with: fly secrets set EFSP_CODES_DATABASE_URL=...
   FILING_CODE_SYNC_MODE = "database"
@@ -37,6 +38,11 @@ primary_region = 'lax'
   preparation_worker = "uv run python manage.py process_document_preparations"
   # Daily copy + index at FILING_CODE_SYNC_TIME, plus staff-requested resyncs and rebuilds.
   code_index_worker = "uv run python manage.py refresh_filing_code_index --daily --retry-interval 900"
+
+[[restart]]
+  # These workers poll the database queue and have no request-driven autostart.
+  policy = "always"
+  processes = ["extraction_worker", "preparation_worker"]
 
 [http_service]
   internal_port = 8000

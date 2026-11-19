@@ -43,6 +43,7 @@ jobs:
       - uses: superfly/flyctl-actions/setup-flyctl@ed8efb33836e8b2096c7fd3ba1c8afe303ebbff1
         if: steps.current.outputs.deploy == 'true'
       - name: Deploy the tested commit
+        id: fly_deploy
         if: steps.current.outputs.deploy == 'true'
         run: >-
           flyctl deploy --remote-only --config fly.production.toml --ha=false
@@ -50,6 +51,12 @@ jobs:
           --build-arg LITEFILE_COMMIT_DATE="$(git show -s --format=%cI HEAD)"
         env:
           FLY_API_TOKEN: ${{ secrets.FLY_PRODUCTION_API_TOKEN }}
-      - name: Check the public site
+      - name: Check document workers
         if: steps.current.outputs.deploy == 'true'
+        shell: bash
+        run: flyctl machine list --app litefile-prod --json | python3 .github/scripts/check_fly_document_workers.py
+        env:
+          FLY_API_TOKEN: ${{ secrets.FLY_PRODUCTION_API_TOKEN }}
+      - name: Check the public site
+        if: ${{ !cancelled() && steps.fly_deploy.outcome == 'success' }}
         run: curl --fail --silent --show-error --retry 5 --retry-all-errors --retry-delay 10 https://app.litefile.org/about/ > /dev/null

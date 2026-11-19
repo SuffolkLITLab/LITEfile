@@ -1,0 +1,61 @@
+name: Monitor staging document workers
+
+on:
+  schedule:
+    - cron: '2-57/5 * * * *'
+  workflow_dispatch:
+    inputs:
+      test_delivery:
+        description: Assign a test alert without interrupting staging
+        type: boolean
+        default: false
+
+permissions:
+  issues: write
+
+concurrency:
+  group: staging-document-worker-monitor
+  cancel-in-progress: false
+
+jobs:
+  monitor:
+    if: github.event_name == 'workflow_dispatch' || vars.LITEFILE_STAGING_WORKER_ALERTS_ENABLED == 'true'
+    runs-on: ubuntu-latest
+    timeout-minutes: 2
+    steps:
+      - name: Probe staging and notify the operator
+        shell: bash
+        env:
+          GH_TOKEN: ${{ github.token }}
+          ALERT_ASSIGNEE: ${{ vars.LITEFILE_STAGING_WORKER_ALERT_ASSIGNEE }}
+          TEST_DELIVERY: ${{ inputs.test_delivery }}
+        run: |
+          test -n "$ALERT_ASSIGNEE"
+          health_url="https://litefile-staging.fly.dev/health/document-workers/"
+          title="Staging document worker outage"
+          workflow_url="$GITHUB_SERVER_URL/$GITHUB_REPOSITORY/actions/runs/$GITHUB_RUN_ID"
+
+          if [[ "$TEST_DELIVERY" == "true" ]]; then
+            gh issue create --repo "$GITHUB_REPOSITORY" --assignee "$ALERT_ASSIGNEE" \
+              --title "Staging worker alert delivery test ($GITHUB_RUN_ID)" \
+              --body "This test confirms that an operator receives staging worker alerts. No outage was induced. [Monitor run]($workflow_url)"
+            exit 0
+          fi
+
+          open_alert=$(gh api --method GET "repos/$GITHUB_REPOSITORY/issues" \
+            -f state=open -f 'creator=github-actions[bot]' -F per_page=100 \
+            --jq '[.[] | select(.pull_request == null and .title == "Staging document worker outage")][0].number // empty')
+          if curl --fail --silent --show-error --connect-timeout 5 --max-time 12 --retry 2 --retry-delay 2 "$health_url" |
+            python3 -c 'import json, sys; data = json.load(sys.stdin); sys.exit(0 if data.get("mode") in ("warm", "autoscale") and data.get("errors") == [] else 1)'; then
+            if [[ -n "$open_alert" ]]; then
+              gh issue close "$open_alert" --repo "$GITHUB_REPOSITORY"
+            fi
+            exit 0
+          fi
+
+          if [[ -z "$open_alert" ]]; then
+            gh issue create --repo "$GITHUB_REPOSITORY" --assignee "$ALERT_ASSIGNEE" --title "$title" \
+              --body "Staging's independent queue-health probe is failing. Check the coordinator, worker readiness and overdue jobs. [Queue health]($health_url) · [Monitor run]($workflow_url)"
+          fi
+          echo "::error::Staging document worker health is unavailable."
+          exit 1

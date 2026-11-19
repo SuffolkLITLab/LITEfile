@@ -599,6 +599,31 @@ def sync_primary_filing_type(draft):
         setattr(draft, field, value)
 
 
+class DocumentWorkerControl(models.Model):
+    """Staging's shared worker wake reservation and coordinator health."""
+
+    enabled = models.BooleanField(default=False)
+    wake_until = models.DateTimeField(null=True, blank=True)
+    coordinator_seen_at = models.DateTimeField(null=True, blank=True)
+    unavailable_groups = models.JSONField(default=list, blank=True)
+    active_machine_ids = models.JSONField(default=list, blank=True)
+
+
+class DocumentWorkerHeartbeat(models.Model):
+    """A worker supervisor's status for its current Machine boot."""
+
+    class State(models.TextChoices):
+        READY = "ready", "Ready"
+        BUSY = "busy", "Busy"
+        DRAINING = "draining", "Draining"
+
+    machine_id = models.CharField(primary_key=True, max_length=40)
+    group = models.CharField(max_length=30, db_index=True)
+    boot_id = models.UUIDField()
+    state = models.CharField(max_length=10, choices=State.choices)
+    seen_at = models.DateTimeField()
+
+
 class DocumentPreparationJob(models.Model):
     """Originals accepted durably before bounded preparation begins."""
 

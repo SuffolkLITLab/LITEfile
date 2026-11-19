@@ -51,10 +51,17 @@ class Command(BaseCommand):
         parser.add_argument("--poll-interval", type=float, default=2.0)
 
     def handle(self, *args, **options):
+        from efile.models import DocumentWorkerHeartbeat
         from efile.services.document_extractions import (
             claim_next_extraction,
             record_extraction_failure,
             renew_extraction_lease,
+        )
+        from efile.services.document_worker_scaling import (
+            EXTRACTION,
+            WORKER_TICK_SECONDS,
+            WorkerActivity,
+            run_maintenance,
         )
 
         next_rollup = 0.0
@@ -65,6 +72,7 @@ class Command(BaseCommand):
         # to what it uses, whatever the host's core count. Spawned children
         # read this at startup; an operator's own value is kept.
         os.environ.setdefault("MALLOC_ARENA_MAX", "2")
+        activity = WorkerActivity(EXTRACTION)
 
         def rollup_if_due():
             nonlocal next_rollup
@@ -73,7 +81,7 @@ class Command(BaseCommand):
                 return
             next_rollup = now + 60
             try:
-                call_command("process_usage_events", stdout=io.StringIO())
+                run_maintenance(EXTRACTION, lambda: call_command("process_usage_events", stdout=io.StringIO()))
             except Exception:
                 logger.error("Usage rollup failed; queued events retained for retry")
 
@@ -96,7 +104,8 @@ class Command(BaseCommand):
                 time.sleep(max(0.1, options["poll_interval"]))
                 continue
             if job is None:
-                if options["once"]:
+                activity.report(DocumentWorkerHeartbeat.State.READY)
+                if options["once"] or activity.can_sleep():
                     return
                 time.sleep(max(0.1, options["poll_interval"]))
                 continue
@@ -107,17 +116,26 @@ class Command(BaseCommand):
                 args=(job.pk, job.claim_token, settings.DOCUMENT_EXTRACTION_MEMORY_MB, timeout),
             )
             deadline = time.monotonic() + timeout
+            poll_child = WORKER_TICK_SECONDS if activity.enabled else 30
+            renew_at = deadline - timeout + 30
             try:
                 child.start()
                 while child.is_alive():
-                    child.join(timeout=min(30, max(0, deadline - time.monotonic())))
+                    activity.report(DocumentWorkerHeartbeat.State.BUSY)
+                    child.join(timeout=min(poll_child, max(0, deadline - time.monotonic())))
                     if not child.is_alive():
                         break
                     close_old_connections()
                     rollup_if_due()
-                    if time.monotonic() >= deadline or not renew_extraction_lease(job.pk, job.claim_token):
+                    now = time.monotonic()
+                    if now >= deadline:
                         child.terminate()
                         break
+                    if not activity.enabled or now >= renew_at:
+                        if not renew_extraction_lease(job.pk, job.claim_token):
+                            child.terminate()
+                            break
+                        renew_at = now + 30
             finally:
                 if child.pid is not None:
                     child.join(timeout=5)
