@@ -42,6 +42,7 @@
     const selectedFiles = new Map();
     let nextSelectionId = 0;
     let uploading = false;
+    let uploadBlocked = false;
     const hasLead = form.dataset.hasLead === "true";
     let analysisReady = hasLead && form.dataset.extractionPending !== "true";
     // After the server's wait limit the filer may go on without the analysis.
@@ -49,6 +50,18 @@
     // The analysis status the panel shows whenever no upload is in progress.
     let analysisTitle = stateTitle.textContent;
     let analysisDetail = stateDetail.textContent;
+    const initialAnalysisDetail = analysisDetail;
+    const manualEntryMessage = "This is taking longer than usual. You can continue and enter the case details yourself.";
+    const uploadUnknown = "We could not confirm your upload. Reopen this filing from My drafts and check your files before uploading again.";
+
+    function showError(message) {
+        errorBox.textContent = message;
+        errorBox.hidden = false;
+    }
+
+    function updateUploadButton() {
+        uploadButton.disabled = uploading || uploadBlocked || selectedFiles.size === 0;
+    }
 
     function canContinue() {
         return !uploading && (analysisReady || waitOver);
@@ -67,7 +80,7 @@
         waitOver = true;
         updateContinue();
         if (!analysisReady) {
-            showAnalysisStatus(analysisTitle, "This is taking longer than usual. You can continue and enter the case details yourself.");
+            showAnalysisStatus(analysisTitle, manualEntryMessage);
         }
     }
 
@@ -137,19 +150,19 @@
         }
         body.append("csrfmiddlewaretoken", apiUtils.getCSRFToken());
         try {
-            const response = await fetch(aiOptOut.dataset.preferenceUrl || window.location.href, {
-                method: "POST",
-                body
-            });
-            const result = await response.json();
-            if (!response.ok || !result.success) throw new Error(result.error || "Could not save that choice.");
+            const result = await documentRequests.json(
+                aiOptOut.dataset.preferenceUrl || window.location.href,
+                "We could not save your AI choice. Try again.", {
+                    method: "POST",
+                    body
+                }
+            );
             // The document on file was already read the other way, so the page
             // is showing answers that no longer apply. Reload into the fresh
             // analysis instead of leaving them there.
             if (result.reanalyzing) window.location.reload();
         } catch (error) {
-            errorBox.textContent = error.message;
-            errorBox.hidden = false;
+            showError(error.message);
         }
     }
 
@@ -181,7 +194,7 @@
         const transfer = new DataTransfer();
         selectedFiles.forEach((file) => transfer.items.add(file));
         input.files = transfer.files;
-        uploadButton.disabled = selectedFiles.size === 0;
+        updateUploadButton();
         pendingSection.hidden = selectedFiles.size === 0;
         pendingCount.textContent = selectedFiles.size;
         pendingList.replaceChildren();
@@ -245,41 +258,74 @@
         syncFiles();
     });
 
+    async function checkUpload(body) {
+        const statusUrl = new URL(form.dataset.extractionStatusUrl, window.location.href);
+        statusUrl.searchParams.set("upload_request_token", body.get("upload_request_token"));
+        stateDetail.textContent = "Checking whether your upload was received…";
+        return documentRequests.status(statusUrl, uploadUnknown);
+    }
+
+    async function handleUploadError(error, body) {
+        if (error.kind !== "uncertain") {
+            uploadBlocked = error.kind === "reopen";
+            return error.message;
+        }
+        // In async mode the same token can be retried safely even if the first
+        // request reaches the queue just after we check for it.
+        if (form.dataset.asyncPreparation === "true") {
+            try {
+                const result = await checkUpload(body);
+                if (result.upload_recorded === true) {
+                    window.location.reload();
+                    return null;
+                }
+                if (result.upload_recorded === false) {
+                    return "We could not confirm your upload. Check your selected files and try again.";
+                }
+            } catch (statusError) {
+                if (statusError.kind === "reopen") {
+                    uploadBlocked = true;
+                    return statusError.message;
+                }
+            }
+        }
+        uploadBlocked = true;
+        return uploadUnknown;
+    }
+
     form.addEventListener("submit", async (event) => {
         event.preventDefault();
-        if (uploading) return;
+        if (uploading || uploadBlocked || selectedFiles.size === 0) return;
         uploading = true;
         updateContinue();
         errorBox.hidden = true;
         state.hidden = false;
-        uploadButton.disabled = true;
+        updateUploadButton();
         stateTitle.textContent = "Uploading your files…";
         stateDetail.textContent = "Keep this page open while we make your PDFs.";
 
+        const body = new FormData(form);
         try {
-            const response = await fetch(window.location.href, {
+            const result = await documentRequests.json(window.location.href, uploadUnknown, {
                 method: "POST",
-                body: new FormData(form),
+                body,
                 headers: {
                     "X-CSRFToken": apiUtils.getCSRFToken()
                 },
             });
-            if (response.redirected) {
-                window.location.assign(response.url);
-                return;
-            }
-            const result = await response.json();
-            if (!response.ok || !result.success) throw new Error(result.error || "Upload failed.");
-            stateTitle.textContent = result.extraction_pending ? "Your documents are uploaded" : "Your documents are ready";
+            const pending = result.preparation_pending || result.extraction_pending;
+            stateTitle.textContent = pending ? "Your documents are uploaded" : "Your documents are ready";
             let pendingDetail = "Please wait while we read your document to suggest answers. You can continue when it is ready.";
             if (aiIsOff()) pendingDetail = "AI is off. We are looking for form and case numbers.";
-            stateDetail.textContent = result.extraction_pending ?
+            stateDetail.textContent = pending ?
                 pendingDetail :
                 "Review what we found before you continue.";
             const replacement = form.querySelector('[name="replace_document_id"]');
             if (replacement) replacement.value = "";
             window.setTimeout(() => window.location.reload(), 300);
         } catch (error) {
+            const message = await handleUploadError(error, body);
+            if (message === null) return;
             uploading = false;
             updateContinue();
             // Go back to the first file's analysis status, including any
@@ -287,9 +333,8 @@
             state.hidden = form.dataset.extractionPending !== "true";
             stateTitle.textContent = analysisTitle;
             stateDetail.textContent = analysisDetail;
-            errorBox.textContent = error.message;
-            errorBox.hidden = false;
-            uploadButton.disabled = false;
+            showError(message);
+            updateUploadButton();
         }
     });
 
@@ -300,17 +345,18 @@
             body.append("action", "remove");
             body.append("document_id", button.dataset.documentId);
             body.append("csrfmiddlewaretoken", apiUtils.getCSRFToken());
-            const response = await fetch(window.location.href, {
-                method: "POST",
-                body
-            });
-            if (response.redirected) {
-                window.location.assign(response.url);
-                return;
+            try {
+                await documentRequests.json(
+                    window.location.href,
+                    "We could not confirm the document was removed. Reload this page to check your documents.", {
+                        method: "POST",
+                        body
+                    }
+                );
+                window.location.reload();
+            } catch (error) {
+                window.alert(error.message);
             }
-            const result = await response.json();
-            if (response.ok && result.success) window.location.reload();
-            else window.alert(result.error || "Could not remove the document.");
         });
     });
 
@@ -319,21 +365,17 @@
 
     function showPendingAnalysis(result) {
         if (result.wait_seconds === 0) endWait();
-        if (result.delay_message && result.delay_message !== analysisDetail) {
-            showAnalysisStatus(analysisTitle, result.delay_message);
-        }
+        const detail = result.delay_message || (waitOver ? manualEntryMessage : initialAnalysisDetail);
+        if (detail !== analysisDetail) showAnalysisStatus(analysisTitle, detail);
     }
 
     async function pollExtraction() {
         if (!form.dataset.extractionStatusUrl || state.hidden) return;
         try {
-            const response = await fetch(form.dataset.extractionStatusUrl, {
-                headers: {
-                    "X-CSRFToken": apiUtils.getCSRFToken()
-                },
-            });
-            const result = await response.json();
-            if (!response.ok || !result.success) throw new Error(result.error || "Could not check document analysis.");
+            const result = await documentRequests.status(
+                form.dataset.extractionStatusUrl,
+                "We could not check document analysis. We’ll try again shortly."
+            );
             if (!result.ready) {
                 showPendingAnalysis(result);
                 if (result.status !== previousStatus) pollAttempt = 0;
@@ -363,8 +405,9 @@
             }
         } catch (error) {
             showAnalysisStatus(analysisTitle, error.message);
+            if (error.kind !== "uncertain") return;
             if (waitTimerDone) endWait();
-            window.setTimeout(pollExtraction, 5000);
+            window.setTimeout(pollExtraction, extractionPollDelay(pollAttempt++));
         }
     }
 

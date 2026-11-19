@@ -239,6 +239,30 @@ def test_http_acceptance_resume_and_ownership(draft, storage, client, django_use
     assert response.status_code in {401, 404, 409}
 
 
+def test_upload_receipt_is_scoped_and_survives_completion(draft, storage, client, settings):
+    settings.DOCUMENT_PREPARATION_ASYNC = True
+    authorize(client, draft)
+    token = uuid.uuid4()
+    status_url = reverse("document_extraction_status", kwargs={"jurisdiction": "illinois"})
+    params = {"draft": draft.pk, "upload_request_token": str(token)}
+
+    assert client.get(status_url, params).json() == {"success": True, "upload_recorded": False}
+    assert client.get(status_url, {**params, "upload_request_token": "invalid"}).status_code == 400
+
+    upload_url = reverse("upload_documents", kwargs={"jurisdiction": "illinois"})
+    first = client.post(upload_url, {**params, "documents": files()}, HTTP_ACCEPT="application/json")
+    assert first.status_code == 202
+    claimed = queue.claim_preparation()
+    assert queue.process_preparation(claimed.pk, claimed.claim_token)
+    retry = client.post(upload_url, {**params, "documents": files()}, HTTP_ACCEPT="application/json")
+    assert retry.json()["preparation_job_id"] == first.json()["preparation_job_id"]
+    assert draft.documents.count() == 1
+    assert client.get(status_url, params).json() == {"success": True, "upload_recorded": True}
+
+    other = FilingDraft.objects.create(user=draft.user, jurisdiction="illinois", workflow_version=2)
+    assert client.get(status_url, {**params, "draft": other.pk}).json()["upload_recorded"] is False
+
+
 def test_failed_publication_retains_cleanup_ownership(draft, storage, monkeypatch):
     from efile.services.document_preparation import PreparedDocument
 

@@ -46,9 +46,14 @@ class DraftIdentityMiddleware(MiddlewareMixin):
                 and request.content_type != "application/json"
             ):
                 return render(request, "efile/draft_unavailable.html", status=409)
+            if request.resolver_match.url_name in {"upload_documents", "document_extraction_status"} and (
+                not request.user.is_authenticated
+            ):
+                return JsonResponse({"success": False, "error": "Sign in again to continue."}, status=401)
             return JsonResponse(
                 {
                     "success": False,
+                    "error_code": "draft_unavailable",
                     "error": "This draft is no longer available here. Open My drafts to choose a filing, or start a new one.",
                 },
                 status=409,

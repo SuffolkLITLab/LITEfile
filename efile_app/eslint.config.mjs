@@ -4,6 +4,7 @@ import globals from "globals";
 
 const sharedGlobals = {
     apiUtils: "readonly",
+    documentRequests: "readonly",
     ApiUtils: "readonly",
     FilingPayload: "readonly",
     Messages: "readonly",

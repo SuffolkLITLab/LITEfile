@@ -12,7 +12,7 @@ from django.utils import timezone
 from django.views.decorators.http import require_http_methods
 
 from efile.api.suffolk_api_views import get_tyler_token
-from efile.models import DocumentExtraction, FilingDocument, FilingDraft
+from efile.models import DocumentExtraction, DocumentPreparationJob, FilingDocument, FilingDraft
 from efile.services.current_drafts import ensure_current_draft, get_current_draft
 from efile.services.document_extractions import (
     EXTRACTION_WAIT_LIMIT,
@@ -96,6 +96,8 @@ def _apply_remembered_choice(request, opted_out):
 @require_http_methods(["GET", "POST"])
 def upload_documents(request, jurisdiction):
     if not request.user.is_authenticated or not get_tyler_token(request, jurisdiction):
+        if request.method == "POST" and "application/json" in request.headers.get("Accept", ""):
+            return JsonResponse({"success": False, "error": "Sign in again to continue."}, status=401)
         return redirect("efile_login", jurisdiction=jurisdiction)
 
     draft = ensure_current_draft(
@@ -214,7 +216,11 @@ def upload_documents(request, jurisdiction):
                 draft, uploaded_files, jurisdiction, replace_document_id=request.POST.get("replace_document_id")
             )
         except DocumentWorkersUnavailable as error:
-            return JsonResponse({"success": False, "error": str(error)}, status=503, headers={"Retry-After": "3"})
+            return JsonResponse(
+                {"success": False, "error": str(error), "error_code": "workers_unavailable"},
+                status=503,
+                headers={"Retry-After": "3"},
+            )
         except ValueError as error:
             logger.warning("Document upload failed")
             return JsonResponse({"success": False, "error": str(error)}, status=400)
@@ -243,6 +249,7 @@ def upload_documents(request, jurisdiction):
     preparation_job = unfinished_preparation(draft)
     context = {
         "preparation_job": preparation_job,
+        "async_preparation": settings.DOCUMENT_PREPARATION_ASYNC,
         "document_worker_scaling": settings.DOCUMENT_WORKER_SCALING_CONTROL,
         "upload_request_token": str(uuid.uuid4()),
         "saved_path": draft.existing_case if draft.existing_case in {ExistingCase.NEW, ExistingCase.EXISTING} else "",
@@ -284,6 +291,17 @@ def document_extraction_status(request, jurisdiction):
         return JsonResponse({"success": False, "error": "Sign in again to continue."}, status=401)
 
     draft = get_current_draft(request, jurisdiction=jurisdiction)
+    if "upload_request_token" in request.GET:
+        if not settings.DOCUMENT_PREPARATION_ASYNC or draft is None:
+            return JsonResponse({"success": False, "error": "Upload status is unavailable."}, status=404)
+        try:
+            token = uuid.UUID(request.GET["upload_request_token"])
+        except ValueError:
+            return JsonResponse({"success": False, "error": "Invalid upload request."}, status=400)
+        # Include completed jobs and uploads still arriving in storage, so a
+        # lost response cannot cause the browser to send another upload.
+        recorded = DocumentPreparationJob.objects.filter(draft=draft, request_token=token).exists()
+        return JsonResponse({"success": True, "upload_recorded": recorded})
     if draft is None:
         return JsonResponse({"success": True, "status": "not_queued", "ready": False})
     preparation = unfinished_preparation(draft)

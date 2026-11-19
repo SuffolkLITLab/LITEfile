@@ -43,6 +43,7 @@ function uploadPage({
     pending = false,
     hasLead = true,
     waitSeconds = pending ? 120 : 0,
+    asyncPreparation = false,
     fetch
 }) {
     const nodes = new Map();
@@ -66,8 +67,10 @@ function uploadPage({
             removeAttribute(name) {
                 this.attributes.delete(name);
             },
+            append() {},
+            replaceChildren() {},
             querySelector() {
-                return null;
+                return id === "document-drop-zone" ? node("drop-zone-label") : null;
             }
         });
         return nodes.get(id);
@@ -76,20 +79,24 @@ function uploadPage({
         hasLead: String(hasLead),
         extractionPending: String(pending),
         extractionStatusUrl: "/status/",
+        asyncPreparation: String(asyncPreparation),
         waitSeconds: String(waitSeconds)
     };
     node("continue-to-analysis").dataset.continueUrl = "/preview/?return_to=review";
     node("upload-state").hidden = !pending;
     const timers = [];
+    let reloads = 0;
     const context = vm.createContext({
         document: {
+            createElement: tag => node(Symbol(tag)),
             getElementById: node,
             querySelector: () => null,
             querySelectorAll: () => []
         },
         window: {
             location: {
-                href: "/upload/"
+                href: "https://upload.test/upload/",
+                reload: () => reloads++
             },
             setTimeout: (callback, delay) => timers.push({
                 callback,
@@ -99,28 +106,48 @@ function uploadPage({
         apiUtils: {
             getCSRFToken: () => "csrf"
         },
-        FormData: class {},
+        AbortSignal,
+        Headers,
+        URL,
+        DataTransfer: class {
+            files = [];
+            items = {
+                add: file => this.files.push(file)
+            };
+        },
+        FormData: class {
+            get() {
+                return "b65359a8-c34b-44a7-8d2e-3422f765e71a";
+            }
+        },
         fetch
     });
+    // eslint-disable-next-line sonarjs/code-eval
+    vm.runInContext(fs.readFileSync(path.join(__dirname, "../efile/static/js/document-requests.js"), "utf8"), context);
     // eslint-disable-next-line sonarjs/code-eval
     vm.runInContext(fs.readFileSync(path.join(__dirname, "../efile/static/js/upload-documents.js"), "utf8"), context);
     return {
         node,
         timers,
-        submit: () => node("document-upload-form").listeners.submit({
-            preventDefault() {}
-        })
+        reloads: () => reloads,
+        submit() {
+            const input = node("documents-input");
+            if (!input.files) {
+                input.files = [pdf("petition.pdf", 100, 1)];
+                input.listeners.change();
+            }
+            return node("document-upload-form").listeners.submit({
+                preventDefault() {}
+            });
+        }
     };
 }
 
 function reply(data) {
-    return {
-        ok: true,
-        json: async () => ({
-            success: true,
-            ...data
-        })
-    };
+    return Response.json({
+        success: true,
+        ...data
+    });
 }
 const flush = () => new Promise(resolve => setImmediate(resolve));
 
@@ -199,7 +226,7 @@ test("poll failures leave navigation blocked and schedule another check", async 
     });
     await flush();
     assert.equal(page.node("continue-to-analysis").attributes.has("href"), false);
-    assert.equal(page.timers.filter(timer => timer.delay === 5000).length, 1);
+    assert.equal(page.timers.filter(timer => timer.delay === 2500).length, 1);
 });
 
 test("navigation opens once the wait limit passes, even while checks fail", async () => {
@@ -214,7 +241,7 @@ test("navigation opens once the wait limit passes, even while checks fail", asyn
     assert.equal(link.attributes.has("href"), false);
     page.timers.find(timer => timer.delay === 120000).callback();
     assert.equal(link.attributes.has("href"), false);
-    page.timers.filter(timer => timer.delay === 5000).at(-1).callback();
+    page.timers.find(timer => timer.delay === 2500).callback();
     await flush();
     assert.equal(link.attributes.get("href"), "/preview/?return_to=review");
     assert.match(page.node("upload-state-detail").textContent, /taking longer than usual/);
@@ -312,3 +339,43 @@ test("a pending response is the only source of the next poll", async () => {
     await flush();
     assert.equal(page.timers.length, 1); // Terminal status stops polling.
 });
+
+test("an unavailable draft keeps the selected files and tells the filer where to reopen it", async () => {
+    const page = uploadPage({
+        fetch: async () => new Response("<!DOCTYPE html>", {
+            status: 409
+        })
+    });
+    await page.submit();
+    assert.match(page.node("upload-error").textContent, /Open My drafts/);
+    assert.equal(page.node("upload-button").disabled, true);
+    assert.equal(page.node("documents-input").files[0].name, "petition.pdf");
+    assert.equal(page.reloads(), 0);
+});
+
+for (const recorded of [true, false]) {
+    test(`a lost upload response checks its token before a retry (recorded: ${recorded})`, async () => {
+        const requests = [];
+        const page = uploadPage({
+            asyncPreparation: true,
+            fetch: async (url, options) => {
+                requests.push(options.method || "GET");
+                if (options.method === "POST") {
+                    return new Response("<!DOCTYPE html>", {
+                        status: 502
+                    });
+                }
+                assert.equal(url.pathname, "/status/");
+                assert.match(url.searchParams.get("upload_request_token"), /^b65359a8-/);
+                return reply({
+                    upload_recorded: recorded
+                });
+            }
+        });
+        await page.submit();
+        assert.deepEqual(requests, ["POST", "GET"]);
+        assert.equal(page.reloads(), Number(recorded));
+        assert.equal(page.node("upload-button").disabled, recorded);
+        assert.equal(page.node("documents-input").files[0].name, "petition.pdf");
+    });
+}

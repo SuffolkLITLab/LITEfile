@@ -74,6 +74,7 @@
         <form id="document-upload-form"
               enctype="multipart/form-data"
               data-extraction-status-url="{% url 'document_extraction_status' jurisdiction %}"
+              data-async-preparation="{{ async_preparation|yesno:'true,false' }}"
               data-worker-prewake="{{ document_worker_scaling|yesno:'true,false' }}"
               data-has-lead="{{ has_lead_document|yesno:'true,false' }}"
               data-extraction-pending="{{ extraction_pending|yesno:'true,false' }}"
@@ -288,6 +289,7 @@
     </section>
 {% endblock workflow_content %}
 {% block extra_js %}
+    <script src="{% static 'js/document-requests.js' %}"></script>
     <script src="{% static 'js/preparation-status.js' %}"></script>
     <script src="{% static 'js/upload-documents.js' %}"></script>
 {% endblock extra_js %}
