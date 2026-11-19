@@ -16,6 +16,7 @@ primary_region = 'lax'
   DB_POOL_MAX_SIZE = "1"
   DB_POOL_MAX_IDLE = "60"
   DOCUMENT_PREPARATION_ASYNC = "true"
+  DOCUMENT_WORKER_SCALING_CONTROL = "false"
   # Copy filing codes straight from the EFSP proxy's codes database, read
   # only. Set the connection with: fly secrets set EFSP_CODES_DATABASE_URL=...
   FILING_CODE_SYNC_MODE = "database"

@@ -15,6 +15,7 @@ DATABASES = BASE_DATABASES
 
 DEBUG = False
 SHOW_BUILD_COMMIT = True
+DOCUMENT_WORKER_SCALING_CONTROL = os.getenv("DOCUMENT_WORKER_SCALING_CONTROL") == "true"
 ALLOWED_HOSTS = ["litefile-staging.fly.dev"]
 CSRF_TRUSTED_ORIGINS = ["https://litefile-staging.fly.dev"]
 

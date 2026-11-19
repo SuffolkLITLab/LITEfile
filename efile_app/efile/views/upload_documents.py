@@ -3,6 +3,7 @@ import math
 import uuid
 
 from django.conf import settings
+from django.core.cache import caches
 from django.db import transaction
 from django.db.models import Q
 from django.http import JsonResponse
@@ -24,6 +25,17 @@ from efile.services.document_preparation import requires_flattening
 from efile.services.document_preparation_queue import enqueue_preparation, resolve_preparation, unfinished_preparation
 from efile.services.document_previews import document_storage_keys
 from efile.services.document_uploads import upload_files
+from efile.services.document_worker_scaling import (
+    ANALYSIS_DELAYED,
+    EXTRACTION,
+    PREPARATION,
+    PROCESSING_DELAYED,
+    DocumentWorkersUnavailable,
+    control_state,
+    job_is_delayed,
+    queue_health_errors,
+    reserve_workers,
+)
 from efile.services.drafts import draft_snapshot, read_upload_data
 from efile.utils.config_loader import config_loader
 from efile.utils.s3_upload_handler import S3UploadHandler
@@ -95,6 +107,10 @@ def upload_documents(request, jurisdiction):
 
     if request.method == "POST":
         action = request.POST.get("action", "upload")
+        if action == "wake_workers" and settings.DOCUMENT_WORKER_SCALING_CONTROL:
+            if caches["shared"].add(f"document-worker-prewake:{request.user.pk}", True, timeout=30):
+                reserve_workers()
+            return JsonResponse({"success": True})
         if action in {"retry_preparation", "cancel_preparation"}:
             try:
                 job_id = int(request.POST.get("preparation_job_id", "0"))
@@ -197,6 +213,8 @@ def upload_documents(request, jurisdiction):
             upload_data = upload_files(
                 draft, uploaded_files, jurisdiction, replace_document_id=request.POST.get("replace_document_id")
             )
+        except DocumentWorkersUnavailable as error:
+            return JsonResponse({"success": False, "error": str(error)}, status=503, headers={"Retry-After": "3"})
         except ValueError as error:
             logger.warning("Document upload failed")
             return JsonResponse({"success": False, "error": str(error)}, status=400)
@@ -225,6 +243,7 @@ def upload_documents(request, jurisdiction):
     preparation_job = unfinished_preparation(draft)
     context = {
         "preparation_job": preparation_job,
+        "document_worker_scaling": settings.DOCUMENT_WORKER_SCALING_CONTROL,
         "upload_request_token": str(uuid.uuid4()),
         "saved_path": draft.existing_case if draft.existing_case in {ExistingCase.NEW, ExistingCase.EXISTING} else "",
         "is_logged_in": True,
@@ -269,12 +288,15 @@ def document_extraction_status(request, jurisdiction):
         return JsonResponse({"success": True, "status": "not_queued", "ready": False})
     preparation = unfinished_preparation(draft)
     if preparation:
+        preparation_status = {"status": preparation.status, "error": preparation.error}
+        if job_is_delayed(preparation, PREPARATION):
+            preparation_status["delay_message"] = PROCESSING_DELAYED
         return JsonResponse(
             {
                 "success": True,
                 "ready": False,
                 "status": "preparing",
-                "preparation": {"status": preparation.status, "error": preparation.error},
+                "preparation": preparation_status,
             }
         )
     lead = FilingDocument.objects.filter(draft=draft, role=FilingDocument.Role.LEAD).first()
@@ -289,17 +311,31 @@ def document_extraction_status(request, jurisdiction):
             }
         )
 
+    payload = {
+        "success": True,
+        "status": extraction.status,
+        "ai_opted_out": draft.ai_assistance_opted_out,
+        "ready": extraction.status in {DocumentExtraction.Status.COMPLETE, DocumentExtraction.Status.FAILED},
+        "wait_seconds": _wait_seconds(extraction),
+        "pages_analyzed": extraction.pages_analyzed,
+        "total_pages": extraction.total_pages,
+        "review_url": with_return_to(
+            get_step_url(WorkflowStepKey.EXTRACTION_REVIEW, jurisdiction), return_target(request)
+        ),
+    }
+    if job_is_delayed(extraction, EXTRACTION):
+        payload["delay_message"] = ANALYSIS_DELAYED
+    return JsonResponse(payload)
+
+
+@require_http_methods(["GET"])
+def document_worker_health(request):
+    """Fly's independent staging probe contains queue health, never filing data."""
+    if not settings.DOCUMENT_WORKER_SCALING_CONTROL:
+        return JsonResponse({"mode": "warm"}, status=404)
+    control = control_state()
+    errors = queue_health_errors()
     return JsonResponse(
-        {
-            "success": True,
-            "status": extraction.status,
-            "ai_opted_out": draft.ai_assistance_opted_out,
-            "ready": extraction.status in {DocumentExtraction.Status.COMPLETE, DocumentExtraction.Status.FAILED},
-            "wait_seconds": _wait_seconds(extraction),
-            "pages_analyzed": extraction.pages_analyzed,
-            "total_pages": extraction.total_pages,
-            "review_url": with_return_to(
-                get_step_url(WorkflowStepKey.EXTRACTION_REVIEW, jurisdiction), return_target(request)
-            ),
-        }
+        {"mode": "autoscale" if control and control.enabled else "warm", "errors": errors},
+        status=503 if errors else 200,
     )

@@ -1,0 +1,68 @@
+# Opt-in configuration for the staging document worker pilot.
+app = "litefile-staging"
+primary_region = "lax"
+
+[build]
+
+[env]
+  DJANGO_SETTINGS_MODULE = "efile.settings_staging"
+  PYTHONUNBUFFERED = "1"
+  DB_POOL_MAX_SIZE = "1"
+  DB_POOL_MAX_IDLE = "60"
+  DOCUMENT_PREPARATION_ASYNC = "true"
+  DOCUMENT_WORKER_SCALING_CONTROL = "true"
+  FILING_CODE_SYNC_MODE = "database"
+  FILING_CODE_SYNC_TIME = "21:30"
+  FILING_CODE_SYNC_TIMEZONE = "America/New_York"
+
+[deploy]
+  strategy = "rolling"
+  release_command = "uv run python manage.py migrate --noinput --fake-initial"
+  release_command_timeout = "30m"
+
+[processes]
+  app = "env DB_POOL_MAX_SIZE=4 uv run gunicorn efile.asgi:application -k uvicorn.workers.UvicornWorker --bind 0.0.0.0:8000 --workers 2 --timeout 60 --access-logfile - --error-logfile - --log-level debug"
+  extraction_worker = "uv run python manage.py process_document_extractions"
+  preparation_worker = "uv run python manage.py process_document_preparations"
+  code_index_worker = "uv run python manage.py refresh_filing_code_index --daily --retry-interval 900"
+  document_worker_coordinator = "uv run python manage.py coordinate_document_workers"
+
+[[restart]]
+  policy = "always"
+  processes = ["document_worker_coordinator"]
+
+[[restart]]
+  policy = "on-failure"
+  processes = ["extraction_worker", "preparation_worker"]
+
+[http_service]
+  internal_port = 8000
+  force_https = true
+  auto_stop_machines = "stop"
+  auto_start_machines = true
+  min_machines_running = 1
+  processes = ["app"]
+
+# A top-level check reports queue failures independently of HTTP routing.
+[checks.document_workers]
+  type = "http"
+  method = "GET"
+  port = 8000
+  path = "/health/document-workers/"
+  interval = "15s"
+  timeout = "5s"
+  grace_period = "30s"
+  processes = ["app"]
+
+  [checks.document_workers.headers]
+    Host = "litefile-staging.fly.dev"
+    X-Forwarded-Proto = "https"
+
+[[vm]]
+  memory = "1gb"
+  cpu_kind = "shared"
+  cpus = 1
+
+[[vm]]
+  size = "shared-cpu-1x"
+  processes = ["document_worker_coordinator"]

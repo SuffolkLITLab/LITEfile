@@ -42,17 +42,21 @@ class Command(BaseCommand):
         parser.add_argument("--poll-interval", type=float, default=2)
 
     def handle(self, *args, **options):
+        from efile.models import DocumentWorkerHeartbeat
         from efile.services.document_preparation import PreparationError
         from efile.services.document_preparation_queue import claim_preparation, fail_preparation, preparation_timeout
+        from efile.services.document_worker_scaling import PREPARATION, WORKER_TICK_SECONDS, WorkerActivity
 
         os.environ.setdefault("MALLOC_ARENA_MAX", "2")
+        activity = WorkerActivity(PREPARATION)
         while True:
             try:
                 job = claim_preparation()
             finally:
                 connections.close_all()
             if job is None:
-                if options["once"]:
+                activity.report(DocumentWorkerHeartbeat.State.READY)
+                if options["once"] or activity.can_sleep():
                     return
                 time.sleep(max(0.1, options["poll_interval"]))
                 continue
@@ -64,7 +68,13 @@ class Command(BaseCommand):
             )
             try:
                 child.start()
-                child.join(timeout=timeout)
+                if activity.enabled:
+                    deadline = time.monotonic() + timeout
+                    while child.is_alive() and time.monotonic() < deadline:
+                        activity.report(DocumentWorkerHeartbeat.State.BUSY)
+                        child.join(timeout=min(WORKER_TICK_SECONDS, max(0, deadline - time.monotonic())))
+                else:
+                    child.join(timeout=timeout)
                 timed_out = child.is_alive() or child.exitcode == -14
             finally:
                 if child.pid is not None:

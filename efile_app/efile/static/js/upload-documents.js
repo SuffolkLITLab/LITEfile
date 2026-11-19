@@ -206,6 +206,16 @@
     }
 
     function addFiles(files) {
+        if (files.length && form.dataset.workerPrewake === "true") {
+            const body = new FormData();
+            body.append("action", "wake_workers");
+            body.append("csrfmiddlewaretoken", apiUtils.getCSRFToken());
+            // The upload will independently confirm worker readiness.
+            fetch(window.location.href, {
+                method: "POST",
+                body
+            }).catch(() => {});
+        }
         // Each selection is a separate filing document, even if it refers to
         // the same PDF. Removal uses its selection ID, never its filename.
         const merged = mergeFiles(selectedFiles.values(), files);
@@ -306,6 +316,14 @@
 
     let pollAttempt = 0;
     let previousStatus = null;
+
+    function showPendingAnalysis(result) {
+        if (result.wait_seconds === 0) endWait();
+        if (result.delay_message && result.delay_message !== analysisDetail) {
+            showAnalysisStatus(analysisTitle, result.delay_message);
+        }
+    }
+
     async function pollExtraction() {
         if (!form.dataset.extractionStatusUrl || state.hidden) return;
         try {
@@ -317,7 +335,7 @@
             const result = await response.json();
             if (!response.ok || !result.success) throw new Error(result.error || "Could not check document analysis.");
             if (!result.ready) {
-                if (result.wait_seconds === 0) endWait();
+                showPendingAnalysis(result);
                 if (result.status !== previousStatus) pollAttempt = 0;
                 previousStatus = result.status;
                 window.setTimeout(pollExtraction, extractionPollDelay(pollAttempt++, result.wait_seconds));

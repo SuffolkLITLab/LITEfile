@@ -2,6 +2,7 @@
     const panel = document.getElementById("preparation-state");
     if (!panel) return;
     const detail = document.getElementById("preparation-detail");
+    const initialDetail = detail.textContent.trim();
     let attempt = 0;
     async function poll() {
         try {
@@ -16,6 +17,7 @@
                 window.location.reload();
                 return;
             }
+            detail.textContent = result.preparation.delay_message || initialDetail;
         } catch (error) {
             detail.textContent = error.message;
         }
