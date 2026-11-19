@@ -38,6 +38,11 @@ primary_region = 'lax'
   # Daily copy + index at FILING_CODE_SYNC_TIME, plus staff-requested resyncs and rebuilds.
   code_index_worker = "uv run python manage.py refresh_filing_code_index --daily --retry-interval 900"
 
+[[restart]]
+  # These workers poll the database queue and have no request-driven autostart.
+  policy = "always"
+  processes = ["extraction_worker", "preparation_worker"]
+
 [http_service]
   internal_port = 8000
   force_https = true
