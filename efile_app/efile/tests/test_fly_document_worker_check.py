@@ -40,3 +40,46 @@ def test_deploy_requires_started_document_workers_with_restart_policy(
     assert result.returncode == expected_code, result.stdout + result.stderr
     if expected_code:
         assert f"::error::No {group_to_check} machine is started" in result.stdout
+
+
+@pytest.mark.parametrize(("failure", "expected_code"), [(None, 0), ("standby-only", 1), ("coordinator-stopped", 1)])
+def test_staging_gate_accepts_intentionally_sleeping_workers(failure, expected_code):
+    machines = []
+    for group in ("preparation_worker", "extraction_worker"):
+        for index in range(2):
+            config = {"metadata": {"fly_process_group": group}, "restart": {"policy": "on-failure"}}
+            if failure == "standby-only" and index == 1:
+                config["standbys"] = [f"{group}-0"]
+            machines.append({"id": f"{group}-{index}", "state": "stopped", "config": config})
+    machines.append(
+        {
+            "id": "coordinator",
+            "state": "stopped" if failure == "coordinator-stopped" else "started",
+            "config": {
+                "metadata": {"fly_process_group": "document_worker_coordinator"},
+                "restart": {"policy": "always"},
+            },
+        }
+    )
+    result = subprocess.run(
+        [sys.executable, str(SCRIPT), "--autoscale"], input=json.dumps(machines), text=True, capture_output=True
+    )
+    assert result.returncode == expected_code, result.stdout + result.stderr
+    if expected_code:
+        assert "::error::" in result.stdout
+
+
+def test_cannot_remove_the_coordinator_while_preparation_is_asleep():
+    machines = [
+        {
+            "id": group,
+            "state": "started" if group == "extraction_worker" else "stopped",
+            "config": {"metadata": {"fly_process_group": group}, "restart": {"policy": "on-failure"}},
+        }
+        for group in ("preparation_worker", "extraction_worker")
+    ]
+    result = subprocess.run(
+        [sys.executable, str(SCRIPT), "--warm-transition"], input=json.dumps(machines), text=True, capture_output=True
+    )
+    assert result.returncode == 1
+    assert "::error::No preparation_worker machine is started" in result.stdout

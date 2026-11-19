@@ -74,6 +74,7 @@
         <form id="document-upload-form"
               enctype="multipart/form-data"
               data-extraction-status-url="{% url 'document_extraction_status' jurisdiction %}"
+              data-worker-prewake="{{ document_worker_scaling|yesno:'true,false' }}"
               data-has-lead="{{ has_lead_document|yesno:'true,false' }}"
               data-extraction-pending="{{ extraction_pending|yesno:'true,false' }}"
               data-wait-seconds="{{ extraction_wait_seconds }}">

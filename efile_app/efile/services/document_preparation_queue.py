@@ -24,6 +24,7 @@ from efile.services.document_preparation import (
     store_prepared_document,
 )
 from efile.services.document_previews import preview_fingerprint
+from efile.services.document_worker_scaling import PREPARATION, reserve_workers, run_maintenance
 from efile.services.drafts import ACTIVE_DRAFT_STATUSES
 from efile.utils.s3_upload_handler import S3UploadHandler
 
@@ -106,6 +107,11 @@ def _enqueue(draft, files, request_token, replacement_id):
     if not manifests:
         raise PreparationError("Choose at least one PDF or Word document to upload.")
     fingerprint = hashlib.sha256(json.dumps([replacement_id, manifests], sort_keys=True).encode()).hexdigest()
+    if (
+        settings.DOCUMENT_WORKER_SCALING_CONTROL
+        and not draft.preparation_jobs.filter(request_token=token, originals_ready=True).exists()
+    ):
+        reserve_workers(required=True)
     with transaction.atomic(durable=True):
         draft = FilingDraft.objects.select_for_update().get(pk=draft.pk)
         _editable(draft)
@@ -205,7 +211,7 @@ def maintain_preparations():
 
 
 def claim_preparation():
-    maintain_preparations()
+    run_maintenance(PREPARATION, maintain_preparations)
     now = timezone.now()
     expired = Q(status="processing", lease_expires_at__lte=now)
     DocumentPreparationJob.objects.filter(expired, attempts__gte=MAX_ATTEMPTS).update(
