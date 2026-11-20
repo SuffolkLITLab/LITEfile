@@ -278,7 +278,7 @@ def forward_final_filing(request, data):
                 # Handle API error responses
                 logger.error(f"API Error - Status: {response.status_code}")
 
-                error_message = describe_efsp_error(response)
+                error_message = describe_efsp_error(response, payload=efile_data)
 
                 return JsonResponse(
                     {

@@ -87,7 +87,11 @@ def case_review(request, jurisdiction):
     parties = list(FilingParty.objects.filter(draft=draft).order_by("sort_order", "created_at"))
     filer = next((party for party in parties if party.role == "filer"), None)
     other_parties = [party for party in parties if party.role != "filer"]
-    documents = FilingDocument.objects.filter(draft=draft).order_by("role", "sort_order", "created_at")
+    documents = (
+        FilingDocument.objects.filter(draft=draft)
+        .select_related("attached_to")
+        .order_by("role", "sort_order", "created_at")
+    )
     for document in documents:
         document.service_summary = [
             {"name": item.get("name") or item.get("code", ""), "quantity": item.get("multiplier", 1)}

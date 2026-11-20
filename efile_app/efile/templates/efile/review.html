@@ -141,6 +141,11 @@
                             <i class="fa-solid fa-file-pdf" aria-hidden="true"></i>
                             <div>
                                 <strong>{{ document.name|default:document.original_filename }}</strong>
+                                {% if document.attached_to_id %}
+                                    <span class="review-document-tag">{% blocktranslate with name=document.attached_to.name %}Attachment to: {{ name }}{% endblocktranslate %}</span>
+                                {% else %}
+                                    <span class="review-document-tag">{% translate "Lead document" %}</span>
+                                {% endif %}
                                 <small>
                                     {% if document.role == "lead" %}
                                         {% translate "Document we read for case suggestions" %}

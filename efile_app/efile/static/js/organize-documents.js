@@ -303,27 +303,34 @@
     }
 
     function showFilingComponents(card, section, components) {
-        section.closest("fieldset").hidden = components.length === 0;
-        const fieldName = `filing-component-${card.dataset.documentId}`;
-        let savedComponent = card.dataset.filingComponent;
-        if (!savedComponent && components.length) {
-            // Each document goes to the court as its own filing, under its own
-            // filing type, so each one needs that filing type's *required*
-            // component -- the lead document. Defaulting a supporting document
-            // to "Attachments" leaves its filing with no lead document at all,
-            // which the court rejects ("Required filing component '332' not
-            // found") long after the filer has left this screen.
-            const preferred = components.find(isRequiredOption) ||
-                components.find((item) => String(item.efspcode || "").toUpperCase() === "LEAD");
-            savedComponent = optionValue(preferred || components[0]);
-        }
-        if (components.length === 1) {
-            setFixedOption(section, components[0], fieldName);
+        const roleSelect = card.querySelector(".attachment-parent");
+        const attached = Boolean(roleSelect.value);
+        const oppositeRole = attached ? "LEAD" : "ATTACH";
+        const choices = components.filter((item) => String(item.efspcode || "").toUpperCase() !== oppositeRole);
+        setAttachmentValidity(card, "");
+        // The document role determines ordinary lead/attachment component codes.
+        // Keep a court-specific choice only when the role does not resolve it.
+        const fieldset = section.closest("fieldset");
+        fieldset.hidden = choices.length <= 1;
+        if (components.length && !choices.length) {
+            const message = attached ?
+                gettext("This filing code does not allow attachments. Choose Lead document or attach this PDF to a lead document with a different filing code.") :
+                gettext("This filing code requires an attachment. Choose the lead document this PDF belongs to.");
+            setAttachmentValidity(card, message);
+            setPlaceholder(section, message);
+            fieldset.hidden = false;
             return;
         }
+        const fieldName = `filing-component-${card.dataset.documentId}`;
+        if (choices.length === 1) {
+            setFixedOption(section, choices[0], fieldName);
+            return;
+        }
+        const savedComponent = choices.some((item) => optionValue(item) === card.dataset.filingComponent) ?
+            card.dataset.filingComponent : optionValue(choices.find(isRequiredOption) || choices[0] || {});
         setRadioOptions(
             section,
-            components,
+            choices,
             savedComponent,
             fieldName,
             text.no_filing_components,
@@ -332,6 +339,7 @@
     }
 
     function loadFilingComponents(card, filingType) {
+        setAttachmentValidity(card, "");
         const section = card.querySelector(".filing-component-options");
         section.closest("fieldset").hidden = !filingType;
         if (!filingType) {
@@ -545,16 +553,109 @@
         availability.check();
     }
 
+    function setAttachmentValidity(card, message) {
+        const select = card.querySelector(".attachment-parent");
+        const radios = card.querySelectorAll(".attachment-parent-choices input");
+        select.setCustomValidity(radios.length ? "" : message);
+        radios.forEach((radio) => radio.setCustomValidity(radio.checked ? message : ""));
+    }
+
+    function wireAttachmentChoices(card) {
+        const select = card.querySelector(".attachment-parent");
+        if (select.options.length > 5) return;
+        const group = card.querySelector(".attachment-parent-choices");
+        select.hidden = true;
+        group.hidden = false;
+        Array.from(select.options).forEach((option) => {
+            const label = document.createElement("label");
+            const radio = document.createElement("input");
+            radio.type = "radio";
+            radio.className = "form-check-input";
+            radio.name = `attachment-parent-${card.dataset.documentId}`;
+            radio.value = option.value;
+            radio.checked = option.selected;
+            radio.addEventListener("change", () => {
+                select.value = radio.value;
+                select.dispatchEvent(new Event("change", {
+                    bubbles: true
+                }));
+            });
+            const caption = document.createElement("span");
+            caption.textContent = option.textContent;
+            label.append(radio, caption);
+            group.appendChild(label);
+        });
+    }
+
+    function refreshAttachmentParents() {
+        const byId = new Map(cards().map((card) => [card.dataset.documentId, card]));
+        const parentIds = new Set(cards().map((card) => card.querySelector(".attachment-parent").value));
+        cards().forEach((card) => {
+            const select = card.querySelector(".attachment-parent");
+            select.disabled = parentIds.has(card.dataset.documentId);
+            Array.from(select.options).forEach((option) => {
+                if (!option.value) return;
+                const parent = byId.get(option.value);
+                option.disabled = Boolean(parent?.querySelector(".attachment-parent").value);
+                if (parent) option.textContent = interpolate(gettext("Attachment to: %s"), [parent.querySelector(".document-name").value]);
+            });
+            card.querySelectorAll(".attachment-parent-choices input").forEach((radio, index) => {
+                const option = select.options[index];
+                radio.checked = option.selected;
+                radio.disabled = select.disabled || option.disabled;
+                radio.nextElementSibling.textContent = option.textContent;
+            });
+        });
+    }
+
+    async function syncAttachment(card, changed = false) {
+        const parentId = card.querySelector(".attachment-parent").value;
+        const parent = cards().find((item) => item.dataset.documentId === parentId);
+        const filingType = card.querySelector(".filing-type");
+        filingType.disabled = Boolean(parentId);
+        const finder = card.querySelector(".filing-type-finder");
+        if (finder) finder.hidden = Boolean(parentId);
+        card.querySelector(".certified-copy-details").hidden = Boolean(parentId);
+        if (changed) {
+            setAttachmentValidity(card, "");
+            card.dataset.filingComponent = "";
+            if (parentId) {
+                card.dataset.optionalServices = "[]";
+                card.querySelector(".courtesy-copy-toggle").checked = false;
+                card.querySelector(".courtesy-email").value = "";
+                card.querySelector(".courtesy-email").required = false;
+                card.querySelector(".courtesy-email-wrap").hidden = true;
+            }
+        }
+        if (parent && filingType.value !== parent.querySelector(".filing-type").value) {
+            const parentType = parent.querySelector(".filing-type");
+            if (parentType.value && !Array.from(filingType.options).some((option) => option.value === parentType.value)) {
+                filingType.appendChild(parentType.selectedOptions[0].cloneNode(true));
+            }
+            filingType.value = parentType.value;
+            card.dataset.documentType = "";
+            card.dataset.filingComponent = "";
+            changed = true;
+        }
+        if (changed) await loadDependentOptions(card, filingType.value);
+        refreshAttachmentParents();
+    }
+
     function wireCard(card) {
+        wireAttachmentChoices(card);
         const filingType = card.querySelector(".filing-type");
         const suggestionMessage = card.querySelector(".filing-suggestion-message");
+        card.querySelector(".document-name").addEventListener("input", refreshAttachmentParents);
         filingType.addEventListener("change", () => {
             if (suggestionMessage && filingType.value) suggestionMessage.hidden = true;
             availability.check(filingType.closest(".form-field") || filingType.parentElement);
             card.dataset.documentType = "";
             card.dataset.filingComponent = "";
             loadDependentOptions(card, filingType.value);
+            cards().filter((child) => child.querySelector(".attachment-parent").value === card.dataset.documentId)
+                .forEach((child) => syncAttachment(child, true));
         });
+        card.querySelector(".attachment-parent").addEventListener("change", () => syncAttachment(card, true));
 
         const checkbox = card.querySelector(".courtesy-copy-toggle");
         const emailWrap = card.querySelector(".courtesy-email-wrap");
@@ -648,6 +749,7 @@
                 });
             return {
                 id: Number(card.dataset.documentId),
+                attached_to: Number(card.querySelector(".attachment-parent").value) || null,
                 name: card.querySelector(".document-name").value,
                 filing_type: filingType.value,
                 filing_type_name: apiUtils.cleanOptionText(filingType.selectedOptions[0]?.text),
@@ -656,7 +758,7 @@
                 filing_component: component?.value || "",
                 filing_component_name: component?.dataset.optionText || "",
                 courtesy_copy_email: courtesyEmail,
-                requested_optional_services: requestedOptionalServices,
+                requested_optional_services: card.querySelector(".attachment-parent").value ? [] : requestedOptionalServices,
                 requires_amount_in_controversy: filingType.selectedOptions[0]?.dataset.amountInControversyRequired === "true",
             };
         });
@@ -693,8 +795,10 @@
     });
 
     cards().forEach(wireCard);
+    refreshAttachmentParents();
     updatePositions();
     Promise.all(cards().map(loadCardFilingTypes))
+        .then(() => Promise.all(cards().map((card) => syncAttachment(card))))
         .then(() => availability.check())
         .catch((error) => showError(error.message));
 })();

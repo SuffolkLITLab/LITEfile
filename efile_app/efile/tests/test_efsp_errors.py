@@ -242,3 +242,65 @@ def test_nameless_var_is_ignored_rather_than_described_as_blank():
     message = describe_efsp_error(FakeResponse(400, {"wrong_vars": [{"currentVal": ""}]}))
 
     assert "400" in message
+
+
+def test_nested_attachment_error_names_the_actual_pdf():
+    response = FakeResponse(
+        400, {"required_vars": [{"name": "al_court_bundle.elements[0].elements[1].filing_component"}]}
+    )
+    payload = {"al_court_bundle": [{"elements": [{"filename": "Complaint.pdf"}, {"filename": "Exhibit.pdf"}]}]}
+    assert "no filing component was given on Exhibit.pdf" in describe_efsp_error(response, payload=payload)
+    assert "on PDF 2 of filing 1" in describe_efsp_error(response)
+
+
+@pytest.mark.parametrize(
+    "message",
+    [
+        "couldn't get back filing ID from Tyler, required filing component 332 not found",
+        "Required filing component '332' not found",
+        'Required filing component "999" not found',
+    ],
+)
+@pytest.mark.parametrize("body_format", ["error", "description", "text"])
+def test_missing_component_explains_document_roles(message, body_format):
+    from unittest.mock import Mock
+
+    from efile.services.efsp_errors import error_actions
+
+    response = Mock(status_code=400, text=message)
+    if body_format == "text":
+        response.json.side_effect = ValueError
+    else:
+        response.json.return_value = {body_format: message}
+    result = describe_efsp_error(response)
+    assert "Organize documents" in result
+    assert '"Attachment to: [document name]"' in result
+    assert '"Lead document"' in result
+    assert "save and return to Review" in result
+    assert result.startswith("The court requires a document")
+    assert f"Court details: {message}" in result
+    draft = Mock(pk=42, jurisdiction="illinois")
+    draft.parties.all.return_value = []
+    actions = error_actions(draft, {}, [], message=result)
+    assert len(actions) == 1
+    assert actions[0]["url"] == "/jurisdiction/illinois/organize-documents/?draft=42&return_to=review"
+
+
+def test_component_correction_link_survives_other_errors():
+    from unittest.mock import Mock
+
+    from efile.services.efsp_errors import error_actions
+
+    response = Mock(status_code=400)
+    response.json.return_value = {
+        "errors": [
+            {"description": "required filing component 332 not found"},
+            {"description": "Another court error"},
+        ]
+    }
+    message = describe_efsp_error(response)
+    draft = Mock(pk=42, jurisdiction="illinois")
+    draft.parties.all.return_value = []
+    assert "Another court error" in message
+    assert len(error_actions(draft, {}, [], message=message)) == 1
+    assert error_actions(draft, {}, [{"name": "al_court_bundle"}]) == []

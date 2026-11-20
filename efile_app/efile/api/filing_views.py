@@ -258,7 +258,7 @@ class FilingAPIViews(APIResponseMixin):
                 )
             else:
                 logger.warning("EFSP fee request failed status=%s", response.status_code)
-                error_message = describe_efsp_error(response)
+                error_message = describe_efsp_error(response, payload=efile_data)
 
                 return JsonResponse(
                     {

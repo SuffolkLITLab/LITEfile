@@ -307,11 +307,13 @@ def test_organize_documents_separates_the_main_document_from_court_components(cl
 
     content = client.get(reverse("organize_documents", kwargs={"jurisdiction": "illinois"})).content.decode()
 
-    assert "Document role" not in content
-    assert "How this document is filed" in content
+    assert "Document role" in content
+    assert "A lead document has its own filing code" in content
     assert "This does not change which document we read for case suggestions" in content
-    # The card header says the same thing the question above it said.
-    assert "Lead document" not in content
+    # Case suggestions identify the source PDF, independently of its filing role.
+    header = content.split('<header class="organize-card__header">', 1)[1].split("</header>", 1)[0]
+    assert "Document we read for case suggestions" in header
+    assert "Lead document" not in header
 
 
 @pytest.mark.django_db

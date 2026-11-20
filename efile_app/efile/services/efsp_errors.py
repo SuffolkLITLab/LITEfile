@@ -53,6 +53,21 @@ _OTHER_PARTY_ADDRESS_FIELD = re.compile(r"^other_parties\[(\d+)\]\.address\.(add
 
 _MAX_RAW_BODY = 300
 
+_MISSING_FILING_COMPONENT = re.compile(
+    r"required filing component\s+['\"]?\d+['\"]?\s+(?:was\s+)?not found", re.IGNORECASE
+)
+DOCUMENT_ROLE_GUIDANCE = (
+    'Go to Organize documents. Under Document role, choose "Attachment to: [document name]" '
+    'using the name of the PDF it belongs to. Choose "Lead document" for a PDF '
+    "that should have its own filing code. Check any additional court component choices shown, "
+    "then save and return to Review."
+)
+MISSING_FILING_COMPONENT_MESSAGE = (
+    "The court requires a document that is missing from one of your filings. "
+    "If a required PDF has not been uploaded, add it to the draft first. " + DOCUMENT_ROLE_GUIDANCE
+)
+
+
 # (pattern, hint builder) pairs checked in order against a free-text EFSP
 # message; the first match wins. Each hint tells the filer what to actually do,
 # not just what went wrong. Patterns are deliberately specific substrings of
@@ -125,11 +140,13 @@ def _actionable_hint(message: str) -> str | None:
 
 
 def _with_hint(message: str) -> str:
+    if _MISSING_FILING_COMPONENT.search(message):
+        return f"{MISSING_FILING_COMPONENT_MESSAGE} Court details: {message}"
     hint = _actionable_hint(message)
     return f"{message} {hint}" if hint else message
 
 
-def describe_efsp_error(response) -> str:
+def describe_efsp_error(response, *, payload=None) -> str:
     """Describe why the EFSP refused ``response``'s request.
 
     Never raises: a bad message is still better than a traceback on a path whose
@@ -140,6 +157,8 @@ def describe_efsp_error(response) -> str:
     except (ValueError, json.JSONDecodeError):
         text = (response.text or "").strip()
         if text:
+            if _MISSING_FILING_COMPONENT.search(text):
+                return f"{MISSING_FILING_COMPONENT_MESSAGE} Court details: {text[:_MAX_RAW_BODY]}"
             return f"the court's filing service returned status {response.status_code}: {text[:_MAX_RAW_BODY]}"
         return f"the court's filing service returned status {response.status_code}"
 
@@ -149,15 +168,15 @@ def describe_efsp_error(response) -> str:
     body = _unwrap_error(body)
 
     problems = [
-        *(_describe_var(var, missing=False) for var in _var_list(body, "wrong_vars")),
-        *(_describe_var(var, missing=True) for var in _var_list(body, "required_vars")),
+        *(_describe_var(var, missing=False, payload=payload) for var in _var_list(body, "wrong_vars")),
+        *(_describe_var(var, missing=True, payload=payload) for var in _var_list(body, "required_vars")),
     ]
     problems = [problem for problem in problems if problem]
     if problems:
         return "the court could not accept this filing: " + "; ".join(problems)
 
     if body.get("name"):
-        return _describe_var(body, missing=False)
+        return _describe_var(body, missing=False, payload=payload)
 
     # Some errors do arrive as a plain message.
     error = body.get("error") or body.get("message") or body.get("detail")
@@ -192,7 +211,7 @@ def _var_list(body, key):
     return [var for var in value if isinstance(var, dict)] if isinstance(value, list) else []
 
 
-def _describe_var(var, *, missing: bool) -> str:
+def _describe_var(var, *, missing: bool, payload=None) -> str:
     name = str(var.get("name") or "").strip()
     if not name:
         return ""
@@ -218,7 +237,27 @@ def _describe_var(var, *, missing: bool) -> str:
     match = _BUNDLE_FIELD.match(name)
     if match:
         index, name = match.groups()
+        nested = re.fullmatch(r"elements\[(\d+)\]\.(.+)", name)
         where = f" on document {int(index) + 1}"
+        bundles = (payload or {}).get("al_court_bundle", [])
+        wire = bundles[int(index)] if isinstance(bundles, list) and int(index) < len(bundles) else {}
+        if not isinstance(wire, dict):
+            wire = {}
+        if nested:
+            element_index, name = nested.groups()
+            where = f" on PDF {int(element_index) + 1} of filing {int(index) + 1}"
+            elements = wire.get("elements", [])
+            wire = (
+                elements[int(element_index)]
+                if isinstance(elements, list) and int(element_index) < len(elements)
+                else {}
+            )
+        elif wire.get("elements"):
+            where = f" on filing {int(index) + 1}"
+            elements = wire["elements"]
+            wire = elements[0] if isinstance(elements, list) and elements else {}
+        if isinstance(wire, dict) and wire.get("filename"):
+            where = f" on {wire['filename']}"
     else:
         where = ""
 
@@ -339,6 +378,21 @@ def error_actions(draft, payload, problems, *, message=""):
         if len(locations) == 1:
             candidates.append({"name": locations[0], "message": "Check this party's state or location."})
     actions = []
+    if (
+        MISSING_FILING_COMPONENT_MESSAGE in message
+        or _MISSING_FILING_COMPONENT.search(message)
+        or any(problem.get("code") == "document_role_invalid" for problem in candidates)
+    ):
+        params = {"draft": draft.pk, "return_to": "review"}
+        actions.append(
+            {
+                "url": reverse("organize_documents", kwargs={"jurisdiction": draft.jurisdiction})
+                + "?"
+                + urlencode(params),
+                "label": "Fix document roles in Organize documents",
+                "message": DOCUMENT_ROLE_GUIDANCE,
+            }
+        )
     seen = set()
     for problem in candidates:
         match = _PARTY_FIELD.fullmatch(str(problem.get("name") or ""))

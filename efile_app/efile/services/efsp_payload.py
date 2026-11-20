@@ -158,6 +158,9 @@ def prepare_efile_payload(efile_data, jurisdiction_id, court_id, *, draft=None, 
     reconcile_case_parties(efile_data, draft, jurisdiction_id, court_id)
     normalize_efile_payload(efile_data, jurisdiction_id, court_id, lookups=lookups)
     bind_service(efile_data, draft, lookups=lookups, token=service_token)
+    from efile.services.filing_groups import group_filing_documents
+
+    group_filing_documents(efile_data, draft, lookups=lookups)
     return efile_data
 
 

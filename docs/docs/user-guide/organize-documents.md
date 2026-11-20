@@ -32,14 +32,18 @@ only a guide. It does not mean your filing is complete or correct.
 For each file:
 
 1. **Document name:** Give it a clear name, like *Small Claims Complaint*.
-2. **Type of document (filing code):** Pick the court's name for this kind of paper. In an
+2. **Document role:** Choose **Lead document** for a document with its own filing
+   code, or **Attachment to: [document name]** for a PDF included with that lead
+   document. You can submit multiple lead documents together.
+3. **Type of document (filing code):** Pick the court's name for this kind of paper. In an
    existing case, you can open **Find my document type** and type a word, like
    "appearance."
-3. After choosing a document type, check **Should this document be
-   confidential?** and **How this document is filed**, when offered. Follow
-   your court’s rules. If there is only one allowed setting, LITEfile shows
-   that setting without asking you to choose.
-4. Choose **Save and continue**.
+4. After choosing a document type, check **Should this document be
+   confidential?** and any additional choices required by the court. Follow
+   your court’s rules. LITEfile sets the court’s lead or attachment component
+   automatically from your document role when that determines the setting. If
+   the court offers additional component categories, choose one when prompted.
+5. Choose **Save and continue**.
 
 <img src="/img/user-guide/organize-existing-case.png" alt="Organize your documents page showing the source of case suggestions, document types, Public access, the court’s Lead Document setting, and three certified copies." className="doc-screenshot" width="700" loading="lazy" />
 
@@ -51,6 +55,10 @@ pick its **Type of document (filing code)** right there. You can also open
 **Information from the court about filing rules**. Your saved case answers
 and AI setting do not change.
 
+Attachments use their lead document’s filing code. Choose optional services and
+email copies on the lead document; each attachment can have its own confidentiality
+setting. The Review screen shows which lead document each attachment belongs to.
+
 If you want extras like a certified copy, open **Certified copy and courtesy
 email (optional)**. If you check a service that lets you order more than one,
 enter the **Quantity** (it starts at 1). Check the quantity and fee before
@@ -61,8 +69,11 @@ you submit.
 - **Document we read for case suggestions:** The file LITEfile reads to suggest
   case details. If you pick a different file, LITEfile reads it for new suggestions.
   Answers you already saved will not change unless you edit them.
-- **Lead Document:** The court's label for an important paper. The court may
-  give this label to more than one paper. You usually don't need to change it.
+- **Lead Document:** The main PDF in one filing. You can send several separate
+  filings together, each with its own lead document.
+- **Attachment:** A PDF included under a lead document, such as an exhibit.
+  Choose its lead document; selecting the court’s “Attachments” label alone
+  does not establish that relationship.
 - **Certified copy and courtesy email (optional):** A certified copy is a copy
   the court marks as official. A courtesy email sends a copy to someone. Some
   of these cost money. Most people can skip them.

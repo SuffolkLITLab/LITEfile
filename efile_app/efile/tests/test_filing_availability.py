@@ -185,7 +185,9 @@ def test_outgoing_ids_are_resolved_to_names_before_checking(configure, client, s
     monkeypatch.setattr(
         "efile.services.filing_availability._EfspLookups.get",
         lambda self, url: (
-            [{"code": "Contract", "name": "Contract"}]
+            [{"code": "lead", "name": "Lead Document", "required": True, "efspcode": "LEAD"}]
+            if url.endswith("filing_components")
+            else [{"code": "Contract", "name": "Contract"}]
             if "case_types" in url
             else [{"code": "allowed", "name": "Allowed filing"}, {"code": "blocked", "name": "Blocked filing"}]
         ),
