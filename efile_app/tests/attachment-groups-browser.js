@@ -62,22 +62,44 @@ async function main() {
         await page.goto(`${config.baseUrl}/jurisdiction/illinois/organize-documents/?draft=${config.draft}`);
         const lead = page.locator(`[data-document-id="${config.lead}"]`);
         const child = page.locator(`[data-document-id="${config.child}"]`);
+        const useRadios = config.documentCount <= 5;
+        const chooseRole = value => useRadios ?
+            child.locator(`.attachment-parent-choices input[value="${value}"]`).check() :
+            child.locator(".attachment-parent").selectOption(value);
+        const roleInput = () => child.locator(useRadios ? ".attachment-parent-choices input:checked" : ".attachment-parent");
         await expect(child.locator('.filing-component-options input:checked')).toHaveValue("332");
         await expect(child.locator('.filing-component-options')).toBeHidden();
-        await expect(child.getByLabel("Document role")).toBeVisible();
+        if (useRadios) {
+            await expect(child.getByRole("radiogroup", {
+                name: "Document role"
+            })).toBeVisible();
+            await expect(child.locator(".attachment-parent")).toBeHidden();
+            const leadRadio = child.getByRole("radio", {
+                name: "Lead document",
+                exact: true
+            });
+            await leadRadio.focus();
+            await leadRadio.press("ArrowDown");
+            await expect(child.locator('.filing-component-options input:checked')).toHaveValue("331");
+            await chooseRole("");
+            await expect(child.locator('.filing-component-options input:checked')).toHaveValue("332");
+        } else {
+            await expect(child.locator(".attachment-parent")).toBeVisible();
+            await expect(child.locator(".attachment-parent-choices")).toBeHidden();
+        }
         await expect(child.locator('.attachment-parent option[value=""]')).toHaveText("Lead document");
-        await child.locator(".attachment-parent").selectOption(String(config.lead));
+        await chooseRole(String(config.lead));
         await expect(child.locator('.filing-component-options input:checked')).toHaveValue("331");
         await expect(child.locator('.filing-component-options')).toBeHidden();
         await expect(child.locator(".filing-type")).toBeDisabled();
         await expect(lead.locator(".attachment-parent")).toBeDisabled();
         await expect(child.locator(".courtesy-email")).toHaveValue("");
         await expect(child.locator(".certified-copy-details")).toBeHidden();
-        await child.locator(".attachment-parent").selectOption("");
+        await chooseRole("");
         await expect(child.locator('.filing-component-options input:checked')).toHaveValue("332");
         await expect(child.locator(".filing-type")).toBeEnabled();
         await expect(lead.locator(".attachment-parent")).toBeEnabled();
-        await child.locator(".attachment-parent").selectOption(String(config.lead));
+        await chooseRole(String(config.lead));
         await lead.locator(".document-name").fill("Renamed lead");
         await expect(child.locator(`.attachment-parent option[value="${config.lead}"]`)).toHaveText("Attachment to: Renamed lead");
         await lead.locator(".filing-type").selectOption("exhibit");
@@ -85,26 +107,26 @@ async function main() {
         await expect(child.locator('.filing-component-options input:checked')).toHaveValue("331");
         await expect(page.locator('[data-choices-state="loading"]')).toHaveCount(0);
         componentMode = "lead-only";
-        await child.locator(".attachment-parent").selectOption("");
+        await chooseRole("");
         await expect(child.locator('.filing-component-options input:checked')).toHaveValue("332");
-        await child.locator(".attachment-parent").selectOption(String(config.lead));
+        await chooseRole(String(config.lead));
         await expect(child.locator('.filing-component-options')).toContainText("does not allow attachments");
-        expect(await child.locator(".attachment-parent").evaluate(el => el.checkValidity())).toBe(false);
+        expect(await roleInput().evaluate(el => el.checkValidity())).toBe(false);
         componentMode = "custom";
-        await child.locator(".attachment-parent").selectOption("");
+        await chooseRole("");
         await expect(child.locator('.filing-component-options')).toBeVisible();
         await expect(child.locator('.filing-component-options input[value="333"]')).toHaveCount(1);
-        await child.locator(".attachment-parent").selectOption(String(config.lead));
+        await chooseRole(String(config.lead));
         await expect(child.locator('.filing-component-options input:checked')).toHaveValue("333");
         await expect(child.locator('.filing-component-options input[value="332"]')).toHaveCount(0);
-        expect(await child.locator(".attachment-parent").evaluate(el => el.checkValidity())).toBe(true);
+        expect(await roleInput().evaluate(el => el.checkValidity())).toBe(true);
         componentMode = "standard";
-        await child.locator(".attachment-parent").selectOption("");
+        await chooseRole("");
         await expect(child.locator('.filing-component-options input:checked')).toHaveValue("332");
-        await child.locator(".attachment-parent").selectOption(String(config.lead));
+        await chooseRole(String(config.lead));
         await expect(child.locator('.filing-component-options input:checked')).toHaveValue("331");
         await expect(child.locator('.filing-component-options')).toBeHidden();
-        if (process.env.ATTACHMENT_SCREENSHOT_PATH) {
+        if (useRadios && process.env.ATTACHMENT_SCREENSHOT_PATH) {
             await page.screenshot({
                 path: process.env.ATTACHMENT_SCREENSHOT_PATH,
                 fullPage: true

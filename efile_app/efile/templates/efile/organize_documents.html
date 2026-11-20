@@ -102,8 +102,13 @@
                                 <small class="form-help" id="document-name-help-{{ document.pk }}">{{ document_name_help }}</small>
                             {% endif %}
                             {% if document.role == "lead" %}<p class="filing-suggestion-message" role="status" hidden></p>{% endif %}
-                            <label class="form-field">
+                            <div class="form-field">
                                 <span id="document-role-label-{{ document.pk }}">{% translate "Document role" %}</span>
+                                <div class="compact-choice-list attachment-parent-choices"
+                                     role="radiogroup"
+                                     aria-labelledby="document-role-label-{{ document.pk }}"
+                                     aria-describedby="attachment-help-{{ document.pk }}"
+                                     hidden></div>
                                 <select class="form-select attachment-parent"
                                         aria-labelledby="document-role-label-{{ document.pk }}"
                                         aria-describedby="attachment-help-{{ document.pk }}">
@@ -116,7 +121,7 @@
                                     {% endfor %}
                                 </select>
                                 <small class="form-help" id="attachment-help-{{ document.pk }}">{% translate "A lead document has its own filing code. An attachment is included with the lead document you choose and shares its filing code, optional services, and email copies. You can submit multiple lead documents together." %}</small>
-                            </label>
+                            </div>
                             <label class="form-field">
                                 <span>{% translate "Type of document (filing code)" %}</span>
                                 <select class="form-select filing-type"

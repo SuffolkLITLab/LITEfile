@@ -307,7 +307,7 @@
         const attached = Boolean(roleSelect.value);
         const oppositeRole = attached ? "LEAD" : "ATTACH";
         const choices = components.filter((item) => String(item.efspcode || "").toUpperCase() !== oppositeRole);
-        roleSelect.setCustomValidity("");
+        setAttachmentValidity(card, "");
         // The document role determines ordinary lead/attachment component codes.
         // Keep a court-specific choice only when the role does not resolve it.
         const fieldset = section.closest("fieldset");
@@ -316,7 +316,7 @@
             const message = attached ?
                 gettext("This filing code does not allow attachments. Choose Lead document or attach this PDF to a lead document with a different filing code.") :
                 gettext("This filing code requires an attachment. Choose the lead document this PDF belongs to.");
-            roleSelect.setCustomValidity(message);
+            setAttachmentValidity(card, message);
             setPlaceholder(section, message);
             fieldset.hidden = false;
             return;
@@ -552,6 +552,40 @@
         availability.check();
     }
 
+    function setAttachmentValidity(card, message) {
+        const select = card.querySelector(".attachment-parent");
+        const radios = card.querySelectorAll(".attachment-parent-choices input");
+        select.setCustomValidity(radios.length ? "" : message);
+        radios.forEach((radio) => radio.setCustomValidity(radio.checked ? message : ""));
+    }
+
+    function wireAttachmentChoices(card) {
+        const select = card.querySelector(".attachment-parent");
+        if (select.options.length > 5) return;
+        const group = card.querySelector(".attachment-parent-choices");
+        select.hidden = true;
+        group.hidden = false;
+        Array.from(select.options).forEach((option) => {
+            const label = document.createElement("label");
+            const radio = document.createElement("input");
+            radio.type = "radio";
+            radio.className = "form-check-input";
+            radio.name = `attachment-parent-${card.dataset.documentId}`;
+            radio.value = option.value;
+            radio.checked = option.selected;
+            radio.addEventListener("change", () => {
+                select.value = radio.value;
+                select.dispatchEvent(new Event("change", {
+                    bubbles: true
+                }));
+            });
+            const caption = document.createElement("span");
+            caption.textContent = option.textContent;
+            label.append(radio, caption);
+            group.appendChild(label);
+        });
+    }
+
     function refreshAttachmentParents() {
         const byId = new Map(cards().map((card) => [card.dataset.documentId, card]));
         const parentIds = new Set(cards().map((card) => card.querySelector(".attachment-parent").value));
@@ -563,6 +597,12 @@
                 const parent = byId.get(option.value);
                 option.disabled = Boolean(parent?.querySelector(".attachment-parent").value);
                 if (parent) option.textContent = interpolate(gettext("Attachment to: %s"), [parent.querySelector(".document-name").value]);
+            });
+            card.querySelectorAll(".attachment-parent-choices input").forEach((radio, index) => {
+                const option = select.options[index];
+                radio.checked = option.selected;
+                radio.disabled = select.disabled || option.disabled;
+                radio.nextElementSibling.textContent = option.textContent;
             });
         });
     }
@@ -600,6 +640,7 @@
     }
 
     function wireCard(card) {
+        wireAttachmentChoices(card);
         const filingType = card.querySelector(".filing-type");
         const suggestionMessage = card.querySelector(".filing-suggestion-message");
         card.querySelector(".document-name").addEventListener("input", refreshAttachmentParents);
