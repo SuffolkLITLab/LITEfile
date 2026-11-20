@@ -121,3 +121,22 @@ def test_court_is_asked_before_the_draft_is_locked(confirmed_case):
             confirmed_case_fingerprint=case_fingerprint(confirmed_case),
         )
     assert events[:2] == ["court", "lock"]
+
+
+@pytest.mark.parametrize("existing", [True, False])
+def test_filing_codes_are_alphabetical_and_keep_court_metadata(confirmed_case, existing):
+    from efile.services.document_choices import filing_choices
+
+    if not existing:
+        confirmed_case.existing_case = "new"
+    response = MagicMock()
+    response.json.return_value = [
+        {"code": "z", "name": "Zoning"},
+        {"code": "m", "name": "motion", "amountincontroversy": "Required"},
+        {"code": "a", "name": "Appearance"},
+        {"code": "b", "name": "Bond"},
+    ]
+    with patch("requests.get", return_value=response):
+        choices = filing_choices(confirmed_case)
+    assert [item["value"] for item in choices] == ["a", "b", "m", "z"]
+    assert choices[2]["amountincontroversy"] == "Required"

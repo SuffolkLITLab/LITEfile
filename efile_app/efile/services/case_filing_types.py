@@ -52,4 +52,7 @@ def permitted_filing_types(draft):
             raise ValueError
     except (requests.RequestException, ValueError) as exc:
         raise ValueError("We could not check this case's filing codes. Try again.") from exc
-    return [{**option, "value": str(option["code"]), "text": str(option["name"])} for option in options]
+    return [
+        {**option, "value": str(option["code"]), "text": str(option["name"])}
+        for option in sorted(options, key=lambda choice: (str(choice["name"]).strip().casefold(), str(choice["code"])))
+    ]
