@@ -230,7 +230,15 @@ def test_http_acceptance_resume_and_ownership(draft, storage, client, django_use
     assert result.status_code == 202
     assert result.json()["preparation_pending"]
     page = client.get(url)
-    assert b"Your uploads are saved" in page.content
+    assert "Preparing your documents…" in page.content.decode()
+    assert b"spinner-border" in page.content
+    assert b"this page will update automatically" in page.content
+    from bs4 import BeautifulSoup
+
+    panel = BeautifulSoup(page.content, "html.parser").select_one("#preparation-state")
+    assert panel is not None
+    assert not panel.find_parent("fieldset", disabled=True)
+    assert panel.select_one('[data-action="cancel_preparation"]') is not None
     status_url = reverse("document_extraction_status", kwargs={"jurisdiction": "illinois"})
     assert client.get(status_url).json()["preparation"]["status"] == "pending"
     other = django_user_model.objects.create_user(username="other-preparation", tyler_jurisdiction="illinois")
@@ -518,3 +526,28 @@ def test_successful_retry_cleans_unused_filing_copy(draft, storage, monkeypatch)
     assert orphan not in objects
     document = draft.documents.get()
     assert document.s3_key in objects and document.original_s3_key in objects
+
+
+def test_preparation_publishes_analysis_before_completion_is_visible(draft, storage, monkeypatch, client):
+    from efile.services.document_extractions import queue_document_extraction
+
+    monkeypatch.setattr("efile.services.document_uploads.queue_document_extraction", queue_document_extraction)
+    job = enqueue(draft)
+    claimed = queue.claim_preparation()
+    # The pending analysis must be present in the transaction that publishes
+    # completed preparation, before any on_commit callbacks can run.
+    original_save = DocumentPreparationJob.save
+    observed = []
+
+    def check_save(instance, *args, **kwargs):
+        if instance.status == "complete":
+            observed.append(draft.documents.get(role="lead").extraction.status)
+        return original_save(instance, *args, **kwargs)
+
+    monkeypatch.setattr(DocumentPreparationJob, "save", check_save)
+    queue.process_preparation(job.pk, claimed.claim_token)
+    assert observed == ["pending"]
+    authorize(client, draft)
+    status = client.get(reverse("document_extraction_status", kwargs={"jurisdiction": "illinois"})).json()
+    assert status["ready"] is False
+    assert status["status"] == "pending"

@@ -300,7 +300,12 @@
         updateContinue();
         errorBox.hidden = true;
         state.hidden = false;
+        const spinner = state.querySelector(".spinner-border");
+        if (spinner) spinner.hidden = false;
         updateUploadButton();
+        state.scrollIntoView?.({
+            block: "nearest"
+        });
         stateTitle.textContent = "Uploading your files…";
         stateDetail.textContent = "Keep this page open while we make your PDFs.";
 
@@ -314,9 +319,10 @@
                 },
             });
             const pending = result.preparation_pending || result.extraction_pending;
-            stateTitle.textContent = pending ? "Your documents are uploaded" : "Your documents are ready";
+            stateTitle.textContent = pending ? "Processing your documents…" : "Your documents are ready";
             let pendingDetail = "Please wait while we read your document to suggest answers. You can continue when it is ready.";
-            if (aiIsOff()) pendingDetail = "AI is off. We are looking for form and case numbers.";
+            if (result.preparation_pending) pendingDetail = "Your files are uploaded. Please wait while we prepare the PDFs and check them for case information.";
+            else if (aiIsOff()) pendingDetail = "AI is off. We are looking for form and case numbers.";
             stateDetail.textContent = pending ?
                 pendingDetail :
                 "Review what we found before you continue.";
@@ -327,6 +333,7 @@
             const message = await handleUploadError(error, body);
             if (message === null) return;
             uploading = false;
+            if (spinner) spinner.hidden = analysisReady;
             updateContinue();
             // Go back to the first file's analysis status, including any
             // result that arrived while this upload was running.
@@ -384,7 +391,8 @@
                 return;
             }
 
-            state.querySelector(".spinner-border")?.remove();
+            const spinner = state.querySelector(".spinner-border");
+            if (!uploading && spinner) spinner.hidden = true;
             let readyTitle = "Document analysis is ready";
             if (result.ai_opted_out) readyTitle = "We finished checking your document";
             // Nothing is reviewed on this page: the details are on the next

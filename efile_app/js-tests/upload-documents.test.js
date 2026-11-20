@@ -70,7 +70,9 @@ function uploadPage({
             append() {},
             replaceChildren() {},
             querySelector() {
-                return id === "document-drop-zone" ? node("drop-zone-label") : null;
+                if (id === "document-drop-zone") return node("drop-zone-label");
+                if (id === "upload-state") return node("upload-spinner");
+                return null;
             }
         });
         return nodes.get(id);
@@ -300,6 +302,7 @@ test("an upload failure keeps a ready result that arrived during the upload", as
     await upload;
     assert.equal(page.node("upload-state").hidden, false);
     assert.equal(page.node("upload-state-title").textContent, "Document analysis is ready");
+    assert.equal(page.node("upload-spinner").hidden, true);
     assert.match(page.node("upload-state-detail").textContent, /first 10 of 30 pages/);
     assert.equal(page.node("continue-to-analysis").attributes.get("href"), "/preview/?return_to=review");
 });
@@ -379,3 +382,63 @@ for (const recorded of [true, false]) {
         assert.equal(page.node("documents-input").files[0].name, "petition.pdf");
     });
 }
+for (const preparation of [true, false]) {
+    test(`accepted upload keeps processing visible until reload (preparation: ${preparation})`, async () => {
+        const page = uploadPage({
+            hasLead: false,
+            fetch: async () => reply({
+                preparation_pending: preparation,
+                extraction_pending: !preparation
+            })
+        });
+        await page.submit();
+        assert.equal(page.node("upload-state").hidden, false);
+        assert.equal(page.node("upload-state-title").textContent, "Processing your documents…");
+        assert.equal(page.node("continue-to-analysis").attributes.has("href"), false);
+        assert.equal(page.reloads(), 0);
+        page.timers.find(timer => timer.delay === 300).callback();
+        assert.equal(page.reloads(), 1);
+    });
+}
+test("uploading again restores the activity indicator after analysis completed", async () => {
+    let finishUpload;
+    const page = uploadPage({
+        pending: true,
+        fetch: url => {
+            if (url === "/status/") return Promise.resolve(reply({
+                ready: true,
+                status: "complete"
+            }));
+            return new Promise(resolve => {
+                finishUpload = resolve;
+            });
+        }
+    });
+    await flush();
+    assert.equal(page.node("upload-spinner").hidden, true);
+    const upload = page.submit();
+    assert.equal(page.node("upload-spinner").hidden, false);
+    finishUpload(reply({
+        preparation_pending: true
+    }));
+    await upload;
+});
+
+test("a failed later upload restores the completed analysis indicator", async () => {
+    const page = uploadPage({
+        pending: true,
+        fetch: async url => {
+            if (url === "/status/") return reply({
+                ready: true,
+                status: "complete"
+            });
+            throw new Error("Upload failed");
+        }
+    });
+    await flush();
+    assert.equal(page.node("upload-spinner").hidden, true);
+    await page.submit();
+    assert.equal(page.node("upload-spinner").hidden, true);
+    assert.equal(page.node("upload-state-title").textContent, "Document analysis is ready");
+    assert.equal(page.node("upload-error").hidden, false);
+});
