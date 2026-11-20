@@ -185,7 +185,7 @@ class DropdownAPIViews(APIResponseMixin):
             )
 
             if response.status_code == 200:
-                # Parse the response (expecting list of {name, code}), and put relevant options at the top
+                # Preserve suggestion markers and selection while displaying filing codes alphabetically
                 case_types = prioritize_options(response.json(), guessed_type)
                 return DropdownAPIViews.success_response(case_types)
 
@@ -239,7 +239,7 @@ class DropdownAPIViews(APIResponseMixin):
             )
 
             if response.status_code == 200:
-                # Parse the response (expecting list of {name, code}), and put relevant options at the top
+                # Preserve suggestion markers and selection while displaying filing codes alphabetically
                 filing_types = prioritize_options(response.json(), guessed_filing_type)
                 filing_types.sort(key=lambda item: (item["text"].strip().casefold(), str(item["value"])))
                 return DropdownAPIViews.success_response(filing_types)
