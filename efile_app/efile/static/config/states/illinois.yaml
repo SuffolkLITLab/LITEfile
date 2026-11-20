@@ -37,6 +37,97 @@ jurisdiction:
 # partner wording have been verified in the live Illinois environment.
 submission_notifications:
   enabled: false
+  # Proposed partner copy: https://docs.google.com/document/d/1CTSgHFW5qyGlT7DIQBRMaDw_4JdunZPVXa5FBrEO_Uw/edit
+  # Callback context identifies a filing transaction, not its document type or
+  # envelope number. The authenticated tracker supplies those details.
+  conditional_text:
+    illinois_waiver_note:
+      when: fee_waiver_requested
+      then: "If you applied for a fee waiver, you may need to take extra steps like submitting documentation or attending a hearing."
+  templates:
+    email_confirmation_subject: "Your e-filed court documents have been submitted to the clerk"
+    email_confirmation_contents: |-
+      Dear $recipient_name,
+
+      The documents you submitted{% if case_title %} for case $delivery_case{% endif %} were sent to $delivery_court. They are not officially filed until they are accepted by the clerk.
+
+      Your e-filing Envelope Number (or tracking number) is $envelope_number. It will be used to track your e-filing until it is accepted.
+
+      Note
+      You should also receive emails from Odyssey eFileIL (no-reply@efilingmail.tylertech.cloud) saying your e-filing was submitted. You do not have to take any action or respond to that email. LITEfile will also email you with additional information and where to go for help.
+
+      What’s next?
+      The clerk will review what you filed.
+      If it looks good, they will accept it. We will email you when the clerk accepts your e-filing. You will also receive an email from Odyssey eFileIL saying your e-filing was accepted.
+      If there is something wrong, they will reject it. You will receive emails from Odyssey eFileIL and LITEfile. Check the clerk’s comments and what you need to fix in the tracker.
+      $illinois_waiver_note
+
+      View your documents, filing status, and next steps: $tracker_url
+
+      Need help?
+      Contact the circuit clerk to learn if your e-filing is accepted, if you have upcoming court dates, and what’s next in your case.$local_help_line
+      Call or text Illinois Court Help at 833-411-1121 for help from a trained court guide on court process, next steps, e-filing, and going to court.
+    acceptance_subject: "Your e-filed court document has been accepted by the clerk"
+    acceptance_contents: |-
+      Dear $recipient_name,
+
+      A filing in your submission{% if case_title %} for case $delivery_case{% endif %} has been accepted by the clerk. This update applies to filing transaction $filing_transaction. Other filings in the same envelope may have a different status.
+      View the document and its status: $tracker_url
+
+      Note
+      You should also receive an email from Odyssey eFileIL (no-reply@efilingmail.tylertech.cloud) saying your e-filing was accepted. You do not have to respond to that email.
+
+      What’s next?
+      It depends on your case. You may need to:
+      - Give your documents to the sheriff for service.
+      - Deliver your documents to other parties in your case.
+      - Prepare for upcoming court dates.
+
+      Need help?
+      Contact the circuit clerk.$local_help_line
+      Call or text Illinois Court Help at 833-411-1121 for help from a trained court guide on court process, next steps, e-filing, and going to court.
+    rejected_subject: "Your e-filed court document has been rejected by the clerk"
+    rejected_contents: |-
+      Dear $recipient_name,
+
+      A filing in your submission{% if case_title %} for case $delivery_case{% endif %} has been rejected by the clerk. This update applies to filing transaction $filing_transaction. Other filings in the same envelope may have a different status.
+      View the document and its status: $tracker_url
+
+      Here’s the message from the court:
+      {% if message_text %}$clerk_message{% else %}Check the tracker for the clerk’s comments.{% endif %}
+
+      Note
+      You should also receive an email from Odyssey eFileIL (no-reply@efilingmail.tylertech.cloud) saying your e-filing was rejected. You do not have to respond to that email.
+
+      What’s next?
+      It depends on your case. You may need to:
+      - Fix and re-file your document.
+      - Give your accepted documents to the sheriff for service.
+      - Deliver your accepted documents to other parties in your case.
+      - Prepare for upcoming court dates.
+
+      Need help?
+      Contact the circuit clerk.$local_help_line
+      Call or text Illinois Court Help at 833-411-1121 for help from a trained court guide on court process, next steps, e-filing, and going to court.
+    neutral_subject: "A message about your e-filed court documents"
+    neutral_contents: |-
+      Dear $recipient_name,
+
+      You have a message about a filing in your submission{% if case_title %} for case $delivery_case{% endif %}. This update applies to filing transaction $filing_transaction.
+      View the document and its status: $tracker_url
+
+      Here’s what the message says:
+      {% if message_text %}$clerk_message{% else %}Check the tracker for the latest information from the court.{% endif %}
+      {% if status|lower == "returned" or status|lower == "returned for changes" or status|lower == "returned to filer" %}
+      The filing was returned for changes. Review the clerk’s comments in the tracker, fix the document, and re-file it as needed.
+      {% endif %}
+
+      Note
+      You should also receive an email from Odyssey eFileIL (no-reply@efilingmail.tylertech.cloud) with a message about your e-filing. You do not have to respond to that email.
+
+      Need help?
+      Contact the circuit clerk.$local_help_line
+      Call or text Illinois Court Help at 833-411-1121 for help from a trained court guide on court process, next steps, e-filing, and going to court.
 
 filing_timing:
   timezone: America/Chicago

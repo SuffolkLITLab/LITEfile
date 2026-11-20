@@ -241,3 +241,12 @@ clerk e-filing review availability; all configured Cook codes retain the
 advisory closure note. Calendar overrides deep merge with state settings. Dates remain advisory
 review guidance, not legal deadline adjustments. Only the immediate HTML email
 uses today's closure note; saved later-event templates must not repeat it.
+
+
+## Illinois proposed copy imported for issue 435
+
+The four Illinois templates now follow the [partner proposal](https://docs.google.com/document/d/1CTSgHFW5qyGlT7DIQBRMaDw_4JdunZPVXa5FBrEO_Uw/edit), with LITEfile branding, Odyssey eFileIL explanations, event-specific next steps, local clerk phone/site details, and Illinois Court Help in every message. The existing disabled setting remains in place; importing copy does not establish sender configuration, partner signoff, or live delivery.
+
+The confirmation uses the proxy envelope number. Callback emails identify the individual filing transaction and link to the authenticated tracker for document names and envelope details, because those fields are absent from callback template context. They explicitly allow different outcomes for other filings in the same envelope. Case titles appear only when available; no case number is fabricated. The existing progress graphic reflects known statuses rather than asserting a court decision.
+
+The new delivery placeholders are `$recipient_name`, `$delivery_court`, `$delivery_case`, `$envelope_number` (confirmation only), `$filing_transaction`, and `$clerk_message`. These expand to server-owned proxy expressions; HTML uses the proxy’s `escape` filter, while plain text preserves the original characters. `$local_help_line` includes only configured local clerk name, phone, and website, omitting email and statewide fallback. Illinois Court Help is separately identified. The waiver paragraph appears only when a waiver was requested, without implying approval. Literal returned statuses retain correction guidance in the neutral template.

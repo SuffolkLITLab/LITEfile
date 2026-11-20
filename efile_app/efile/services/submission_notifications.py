@@ -23,6 +23,16 @@ PROXY_EMAIL_FIELDS_REQUIRED = (
 
 PROXY_EMAIL_FIELDS = PROXY_EMAIL_FIELDS_REQUIRED + ("from_email",)
 
+# These values are supplied by EFSPProxy at delivery, not by the browser.
+DELIVERY_VALUES = {
+    "recipient_name": "name",
+    "delivery_court": "court_name",
+    "delivery_case": "case_title",
+    "envelope_number": "envelope_id",
+    "filing_transaction": "transaction_id",
+    "clerk_message": "message_text",
+}
+
 
 def strip_client_email_fields(efile_data):
     """Remove every supported notification field supplied by the browser."""
@@ -49,8 +59,11 @@ def submission_email_fields(request, draft, jurisdiction, config=None):
     values = {
         "tracker_url": _template_value(tracker_url),
         "help_line": _help_line(contact),
+        "local_help_line": _local_help_line(draft, config),
         "waiver_line": _waiver_line(draft, waiver_url),
     }
+    delivery_filter = "|escape" if notification_config.get("format") == "html" else ""
+    values.update({key: "{{ " + value + delivery_filter + " }}" for key, value in DELIVERY_VALUES.items()})
     values.update(_conditional_text(notification_config, draft))
     fields = {
         field: Template(templates[field]).safe_substitute(values).strip() for field in PROXY_EMAIL_FIELDS_REQUIRED
@@ -91,6 +104,15 @@ def _help_line(contact):
     return "\nFor help, " + "; ".join(details) if details else ""
 
 
+def _local_help_line(draft, config):
+    """Local clerk phone/site only; the template names statewide help separately."""
+    court = (config.get("court_specific_requirements") or {}).get(draft.court_code) or {}
+    contact = court.get("contact") or {}
+    if not any(contact.get(key) for key in ("phone", "url")):
+        return ""
+    return _help_line({key: contact[key] for key in ("name", "phone", "url") if contact.get(key)})
+
+
 def _waiver_line(draft, waiver_url):
     if not _fee_waiver_requested(draft):
         return ""
@@ -115,7 +137,7 @@ def _conditional_text(notification_config, draft):
         if (
             not isinstance(name, str)
             or not re.fullmatch(r"[a-z][a-z0-9_]*", name)
-            or name in {"tracker_url", "help_line", "waiver_line"}
+            or name in {"tracker_url", "help_line", "local_help_line", "waiver_line", *DELIVERY_VALUES}
             or not isinstance(block, dict)
             or set(block) - {"when", "then", "otherwise"}
             or block.get("when") != "fee_waiver_requested"
