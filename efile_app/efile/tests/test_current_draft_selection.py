@@ -17,6 +17,7 @@ from efile.workflow import ExistingCase, WorkflowStepKey
 
 OPTIONS_URL = reverse("efile_options", kwargs={"jurisdiction": "illinois"})
 UPLOAD_URL = reverse("upload_documents", kwargs={"jurisdiction": "illinois"})
+EXTRACTION_STATUS_URL = reverse("document_extraction_status", kwargs={"jurisdiction": "illinois"})
 START_FILING_URL = reverse("start_filing", kwargs={"jurisdiction": "illinois"})
 
 
@@ -188,3 +189,48 @@ def test_a_filing_from_another_jurisdiction_is_not_resumed(signed_in, last_month
     page = signed_in.get(f"{UPLOAD_URL}?draft={last_months_filing.pk}")
 
     assert page.status_code == 409
+
+
+@pytest.mark.django_db
+def test_unavailable_draft_returns_json_to_upload_and_status_requests(signed_in, last_months_filing):
+    last_months_filing.status = FilingDraft.Status.SUBMITTED
+    last_months_filing.save(update_fields=["status"])
+    draft_query = f"?draft={last_months_filing.pk}"
+    responses = (
+        signed_in.post(UPLOAD_URL + draft_query, {"action": "ai_preference"}, HTTP_ACCEPT="application/json"),
+        signed_in.get(EXTRACTION_STATUS_URL + draft_query, HTTP_ACCEPT="application/json"),
+    )
+
+    for response in responses:
+        assert response.status_code == 409
+        assert response.json()["error_code"] == "draft_unavailable"
+        assert "My drafts" in response.json()["error"]
+    page = signed_in.get(UPLOAD_URL + draft_query)
+    assert page.status_code == 409
+    assert page.headers["Content-Type"].startswith("text/html")
+
+
+@pytest.mark.django_db
+def test_expired_session_returns_json_to_upload_and_status_requests(client, last_months_filing):
+    draft_query = f"?draft={last_months_filing.pk}"
+    responses = (
+        client.post(UPLOAD_URL + draft_query, {"action": "ai_preference"}, HTTP_ACCEPT="application/json"),
+        client.get(EXTRACTION_STATUS_URL + draft_query, HTTP_ACCEPT="application/json"),
+    )
+
+    for response in responses:
+        assert response.status_code == 401
+        assert response.json()["error"] == "Sign in again to continue."
+
+
+@pytest.mark.django_db
+def test_missing_court_session_returns_json_to_upload_request(signed_in, last_months_filing):
+    session = signed_in.session
+    session.pop("auth_tokens", None)
+    session.save()
+    url = f"{UPLOAD_URL}?draft={last_months_filing.pk}"
+
+    response = signed_in.post(url, {"action": "ai_preference"}, HTTP_ACCEPT="application/json")
+    assert response.status_code == 401
+    assert response.json()["error"] == "Sign in again to continue."
+    assert signed_in.get(url).status_code == 302

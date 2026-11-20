@@ -6,13 +6,10 @@
     let attempt = 0;
     async function poll() {
         try {
-            const response = await fetch(panel.dataset.statusUrl);
-            if (response.redirected) {
-                window.location.assign(response.url);
-                return;
-            }
-            const result = await response.json();
-            if (!response.ok || !result.success) throw new Error("Unable to check preparation. Your saved uploads are retained; reload to try again.");
+            const result = await documentRequests.status(
+                panel.dataset.statusUrl,
+                "We could not check file preparation. We’ll try again shortly."
+            );
             if (!result.preparation || result.preparation.status === "failed") {
                 window.location.reload();
                 return;
@@ -20,6 +17,7 @@
             detail.textContent = result.preparation.delay_message || initialDetail;
         } catch (error) {
             detail.textContent = error.message;
+            if (error.kind !== "uncertain") return;
         }
         // Jitter only spreads status checks; it has no security purpose.
         // eslint-disable-next-line sonarjs/pseudo-random
@@ -33,20 +31,17 @@
                 body.append("action", button.dataset.action);
                 body.append("preparation_job_id", panel.dataset.jobId);
                 body.append("csrfmiddlewaretoken", apiUtils.getCSRFToken());
-                const response = await fetch(window.location.href, {
-                    method: "POST",
-                    body
-                });
-                if (response.redirected) {
-                    window.location.assign(response.url);
-                    return;
-                }
-                const result = await response.json();
-                if (!response.ok || !result.success) throw new Error(result.error || "Unable to update this upload. Try again.");
+                await documentRequests.json(
+                    window.location.href,
+                    "We could not confirm the change. Reload this page to check your upload.", {
+                        method: "POST",
+                        body
+                    }
+                );
                 window.location.reload();
             } catch (error) {
                 detail.textContent = error.message;
-                button.disabled = false;
+                button.disabled = error.kind !== "rejected";
             }
         });
     });
