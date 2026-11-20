@@ -330,7 +330,7 @@
                    href="{% url 'case_review' jurisdiction %}"><i class="fa-solid fa-arrow-left" aria-hidden="true"></i> {% translate "Back to review" %}</a>
             {% else %}
                 <a class="btn btn-outline-secondary"
-                   href="{% url 'your_information' jurisdiction %}"><i class="fa-solid fa-arrow-left" aria-hidden="true"></i> {% translate "Back" %}</a>
+                   href="{% url 'your_information' jurisdiction %}?edit=1"><i class="fa-solid fa-arrow-left" aria-hidden="true"></i> {% translate "Back" %}</a>
             {% endif %}
             {% comment %}
             Carries the role form's answer, so a filer who chose a role and went
