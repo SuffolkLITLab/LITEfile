@@ -2,6 +2,9 @@
 testing/docker-compose.yml
 testing/volume
 
+# Generated Supabase CLI project metadata
+/supabase/.temp/
+
 # macOS
 .DS_Store
 .AppleDouble
