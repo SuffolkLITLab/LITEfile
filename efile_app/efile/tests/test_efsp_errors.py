@@ -277,9 +277,30 @@ def test_missing_component_explains_document_roles(message, body_format):
     assert '"Attachment to: [document name]"' in result
     assert '"Lead document"' in result
     assert "save and return to Review" in result
-    assert "couldn't get back filing ID" not in result
+    assert result.startswith("The court requires a document")
+    assert f"Court details: {message}" in result
     draft = Mock(pk=42, jurisdiction="illinois")
     draft.parties.all.return_value = []
     actions = error_actions(draft, {}, [], message=result)
     assert len(actions) == 1
     assert actions[0]["url"] == "/jurisdiction/illinois/organize-documents/?draft=42&return_to=review"
+
+
+def test_component_correction_link_survives_other_errors():
+    from unittest.mock import Mock
+
+    from efile.services.efsp_errors import error_actions
+
+    response = Mock(status_code=400)
+    response.json.return_value = {
+        "errors": [
+            {"description": "required filing component 332 not found"},
+            {"description": "Another court error"},
+        ]
+    }
+    message = describe_efsp_error(response)
+    draft = Mock(pk=42, jurisdiction="illinois")
+    draft.parties.all.return_value = []
+    assert "Another court error" in message
+    assert len(error_actions(draft, {}, [], message=message)) == 1
+    assert error_actions(draft, {}, [{"name": "al_court_bundle"}]) == []

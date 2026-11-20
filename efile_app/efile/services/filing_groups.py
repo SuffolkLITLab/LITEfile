@@ -116,7 +116,7 @@ def _validate_components(lead, members, components):
         raise PayloadValidationError(
             f"{lead.get('filename', 'This PDF')} is marked as an attachment but has no lead document. "
             + DOCUMENT_ROLE_GUIDANCE,
-            problems=[{"name": "al_court_bundle"}],
+            problems=[{"name": "al_court_bundle", "code": "document_role_invalid"}],
         )
     missing = [
         item.get("name", code)
@@ -125,8 +125,9 @@ def _validate_components(lead, members, components):
     ]
     if missing:
         raise PayloadValidationError(
-            f"{lead.get('filename', 'This filing')} needs {', '.join(missing)}. " + DOCUMENT_ROLE_GUIDANCE,
-            problems=[{"name": "al_court_bundle"}],
+            f"{lead.get('filename', 'This filing')} needs {', '.join(missing)}. "
+            "If a required PDF has not been uploaded, add it to the draft first. " + DOCUMENT_ROLE_GUIDANCE,
+            problems=[{"name": "al_court_bundle", "code": "document_role_invalid"}],
         )
     if any(
         str(choices[str(member.get("filing_component") or "")].get("efspcode", "")).upper() == "LEAD"

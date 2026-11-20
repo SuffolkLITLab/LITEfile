@@ -58,12 +58,13 @@ _MISSING_FILING_COMPONENT = re.compile(
 )
 DOCUMENT_ROLE_GUIDANCE = (
     'Go to Organize documents. Under Document role, choose "Attachment to: [document name]" '
-    'for each attachment and select its lead document. Choose "Lead document" for a PDF '
-    "that should have its own filing code. Check any additional court component choices, "
+    'using the name of the PDF it belongs to. Choose "Lead document" for a PDF '
+    "that should have its own filing code. Check any additional court component choices shown, "
     "then save and return to Review."
 )
 MISSING_FILING_COMPONENT_MESSAGE = (
-    "The court requires a document that is missing from one of your filings. " + DOCUMENT_ROLE_GUIDANCE
+    "The court requires a document that is missing from one of your filings. "
+    "If a required PDF has not been uploaded, add it to the draft first. " + DOCUMENT_ROLE_GUIDANCE
 )
 
 
@@ -140,7 +141,7 @@ def _actionable_hint(message: str) -> str | None:
 
 def _with_hint(message: str) -> str:
     if _MISSING_FILING_COMPONENT.search(message):
-        return MISSING_FILING_COMPONENT_MESSAGE
+        return f"{MISSING_FILING_COMPONENT_MESSAGE} Court details: {message}"
     hint = _actionable_hint(message)
     return f"{message} {hint}" if hint else message
 
@@ -157,7 +158,7 @@ def describe_efsp_error(response, *, payload=None) -> str:
         text = (response.text or "").strip()
         if text:
             if _MISSING_FILING_COMPONENT.search(text):
-                return MISSING_FILING_COMPONENT_MESSAGE
+                return f"{MISSING_FILING_COMPONENT_MESSAGE} Court details: {text[:_MAX_RAW_BODY]}"
             return f"the court's filing service returned status {response.status_code}: {text[:_MAX_RAW_BODY]}"
         return f"the court's filing service returned status {response.status_code}"
 
@@ -378,9 +379,9 @@ def error_actions(draft, payload, problems, *, message=""):
             candidates.append({"name": locations[0], "message": "Check this party's state or location."})
     actions = []
     if (
-        message == MISSING_FILING_COMPONENT_MESSAGE
+        MISSING_FILING_COMPONENT_MESSAGE in message
         or _MISSING_FILING_COMPONENT.search(message)
-        or any(problem.get("name") == "al_court_bundle" for problem in candidates)
+        or any(problem.get("code") == "document_role_invalid" for problem in candidates)
     ):
         params = {"draft": draft.pk, "return_to": "review"}
         actions.append(
