@@ -333,6 +333,7 @@
             const message = await handleUploadError(error, body);
             if (message === null) return;
             uploading = false;
+            if (spinner) spinner.hidden = analysisReady;
             updateContinue();
             // Go back to the first file's analysis status, including any
             // result that arrived while this upload was running.

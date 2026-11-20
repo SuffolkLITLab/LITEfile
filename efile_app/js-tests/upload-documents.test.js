@@ -302,6 +302,7 @@ test("an upload failure keeps a ready result that arrived during the upload", as
     await upload;
     assert.equal(page.node("upload-state").hidden, false);
     assert.equal(page.node("upload-state-title").textContent, "Document analysis is ready");
+    assert.equal(page.node("upload-spinner").hidden, true);
     assert.match(page.node("upload-state-detail").textContent, /first 10 of 30 pages/);
     assert.equal(page.node("continue-to-analysis").attributes.get("href"), "/preview/?return_to=review");
 });
@@ -421,4 +422,23 @@ test("uploading again restores the activity indicator after analysis completed",
         preparation_pending: true
     }));
     await upload;
+});
+
+test("a failed later upload restores the completed analysis indicator", async () => {
+    const page = uploadPage({
+        pending: true,
+        fetch: async url => {
+            if (url === "/status/") return reply({
+                ready: true,
+                status: "complete"
+            });
+            throw new Error("Upload failed");
+        }
+    });
+    await flush();
+    assert.equal(page.node("upload-spinner").hidden, true);
+    await page.submit();
+    assert.equal(page.node("upload-spinner").hidden, true);
+    assert.equal(page.node("upload-state-title").textContent, "Document analysis is ready");
+    assert.equal(page.node("upload-error").hidden, false);
 });
