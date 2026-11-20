@@ -291,6 +291,7 @@ def test_legacy_pdf_is_flattened_and_cannot_be_acknowledged_after_preparation_fa
     assert doc.s3_key == "flat.pdf"
     assert doc.original_s3_key == "retained.pdf"
     assert doc.preparation_reviewed_at is None
+    DocumentExtraction.objects.filter(document=doc).update(status="complete")
     # A structurally valid response that drops text remains blocked.
     doc.preparation = ""
     doc.preparation_reviewed_at = None
