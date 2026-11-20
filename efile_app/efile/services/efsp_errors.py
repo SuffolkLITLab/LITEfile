@@ -129,7 +129,7 @@ def _with_hint(message: str) -> str:
     return f"{message} {hint}" if hint else message
 
 
-def describe_efsp_error(response) -> str:
+def describe_efsp_error(response, *, payload=None) -> str:
     """Describe why the EFSP refused ``response``'s request.
 
     Never raises: a bad message is still better than a traceback on a path whose
@@ -149,15 +149,15 @@ def describe_efsp_error(response) -> str:
     body = _unwrap_error(body)
 
     problems = [
-        *(_describe_var(var, missing=False) for var in _var_list(body, "wrong_vars")),
-        *(_describe_var(var, missing=True) for var in _var_list(body, "required_vars")),
+        *(_describe_var(var, missing=False, payload=payload) for var in _var_list(body, "wrong_vars")),
+        *(_describe_var(var, missing=True, payload=payload) for var in _var_list(body, "required_vars")),
     ]
     problems = [problem for problem in problems if problem]
     if problems:
         return "the court could not accept this filing: " + "; ".join(problems)
 
     if body.get("name"):
-        return _describe_var(body, missing=False)
+        return _describe_var(body, missing=False, payload=payload)
 
     # Some errors do arrive as a plain message.
     error = body.get("error") or body.get("message") or body.get("detail")
@@ -192,7 +192,7 @@ def _var_list(body, key):
     return [var for var in value if isinstance(var, dict)] if isinstance(value, list) else []
 
 
-def _describe_var(var, *, missing: bool) -> str:
+def _describe_var(var, *, missing: bool, payload=None) -> str:
     name = str(var.get("name") or "").strip()
     if not name:
         return ""
@@ -218,7 +218,27 @@ def _describe_var(var, *, missing: bool) -> str:
     match = _BUNDLE_FIELD.match(name)
     if match:
         index, name = match.groups()
+        nested = re.fullmatch(r"elements\[(\d+)\]\.(.+)", name)
         where = f" on document {int(index) + 1}"
+        bundles = (payload or {}).get("al_court_bundle", [])
+        wire = bundles[int(index)] if isinstance(bundles, list) and int(index) < len(bundles) else {}
+        if not isinstance(wire, dict):
+            wire = {}
+        if nested:
+            element_index, name = nested.groups()
+            where = f" on PDF {int(element_index) + 1} of filing {int(index) + 1}"
+            elements = wire.get("elements", [])
+            wire = (
+                elements[int(element_index)]
+                if isinstance(elements, list) and int(element_index) < len(elements)
+                else {}
+            )
+        elif wire.get("elements"):
+            where = f" on filing {int(index) + 1}"
+            elements = wire["elements"]
+            wire = elements[0] if isinstance(elements, list) and elements else {}
+        if isinstance(wire, dict) and wire.get("filename"):
+            where = f" on {wire['filename']}"
     else:
         where = ""
 

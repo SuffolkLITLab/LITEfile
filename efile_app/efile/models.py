@@ -545,6 +545,11 @@ class FilingDocument(models.Model):
     document_type_name = models.CharField(max_length=255, blank=True)
     filing_component_code = models.CharField(max_length=100, blank=True)
     filing_component_name = models.CharField(max_length=255, blank=True)
+    # Independent of role: role selects the PDF used for case suggestions.
+    # An attachment belongs to one lead filing, never to another attachment.
+    attached_to = models.ForeignKey(
+        "self", null=True, blank=True, on_delete=models.SET_NULL, related_name="filing_attachments"
+    )
     # The court's own "amountincontroversy" flag for this document's filing
     # type (from the filing-types codes API) is "Required" for some case
     # types. Recorded per document, since each can carry a different filing

@@ -530,6 +530,16 @@ def write_upload_data(
             lead.save()
 
     if "supporting" in files:
+        # Legacy upload saves replace supporting rows. Preserve explicit filing
+        # groups by storage key, including when the parent is a supporting row.
+        attachment_parents = {
+            document.s3_key: document.attached_to.s3_key
+            for document in FilingDocument.objects.filter(draft=draft)
+            .select_related("attached_to")
+            .exclude(attached_to=None)
+            .exclude(s3_key="")
+            .exclude(attached_to__s3_key="")
+        }
         supporting_files = files.get("supporting") or []
         supporting_configs = data.get("supporting_documents") or []
         # Supporting rows are rebuilt from the blob, so anything the browser
@@ -577,6 +587,14 @@ def write_upload_data(
             if document.s3_key in previous_ids:
                 moved[previous_ids[document.s3_key]] = document.pk
         old_keys = [key for document in previous for key in (document.s3_key, document.original_s3_key)]
+        by_key = {
+            document.s3_key: document for document in FilingDocument.objects.filter(draft=draft).exclude(s3_key="")
+        }
+        for key, parent_key in attachment_parents.items():
+            if key in by_key and parent_key in by_key:
+                document = by_key[key]
+                document.attached_to = by_key[parent_key]
+                document.save(update_fields=["attached_to", "updated_at"])
         transaction.on_commit(lambda: cleanup_unreferenced_uploads(old_keys), robust=True)
         if moved:
             from efile.services.handoff import carry_document_paths

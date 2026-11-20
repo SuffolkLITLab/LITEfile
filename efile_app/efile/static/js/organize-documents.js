@@ -307,13 +307,10 @@
         const fieldName = `filing-component-${card.dataset.documentId}`;
         let savedComponent = card.dataset.filingComponent;
         if (!savedComponent && components.length) {
-            // Each document goes to the court as its own filing, under its own
-            // filing type, so each one needs that filing type's *required*
-            // component -- the lead document. Defaulting a supporting document
-            // to "Attachments" leaves its filing with no lead document at all,
-            // which the court rejects ("Required filing component '332' not
-            // found") long after the filer has left this screen.
-            const preferred = components.find(isRequiredOption) ||
+            const attached = Boolean(card.querySelector(".attachment-parent").value);
+            const preferred = attached ?
+                components.find((item) => String(item.efspcode || "").toUpperCase() === "ATTACH") :
+                components.find(isRequiredOption) ||
                 components.find((item) => String(item.efspcode || "").toUpperCase() === "LEAD");
             savedComponent = optionValue(preferred || components[0]);
         }
@@ -329,6 +326,13 @@
             text.no_filing_components,
             text.filing_component_required_note,
         );
+        const saved = components.find((item) => optionValue(item) === savedComponent);
+        if (!card.querySelector(".attachment-parent").value && String(saved?.efspcode || "").toUpperCase() === "ATTACH") {
+            const warning = document.createElement("p");
+            warning.className = "alert alert-warning";
+            warning.textContent = gettext("This attachment needs a lead document. Choose Attach to above, or choose Lead Document to file it separately.");
+            section.appendChild(warning);
+        }
     }
 
     function loadFilingComponents(card, filingType) {
@@ -545,16 +549,67 @@
         availability.check();
     }
 
+    function refreshAttachmentParents() {
+        const byId = new Map(cards().map((card) => [card.dataset.documentId, card]));
+        const parentIds = new Set(cards().map((card) => card.querySelector(".attachment-parent").value));
+        cards().forEach((card) => {
+            const select = card.querySelector(".attachment-parent");
+            select.disabled = parentIds.has(card.dataset.documentId);
+            Array.from(select.options).forEach((option) => {
+                if (!option.value) return;
+                const parent = byId.get(option.value);
+                option.disabled = Boolean(parent?.querySelector(".attachment-parent").value);
+                if (parent) option.textContent = interpolate(gettext("Attach to: %s"), [parent.querySelector(".document-name").value]);
+            });
+        });
+    }
+
+    async function syncAttachment(card, changed = false) {
+        const parentId = card.querySelector(".attachment-parent").value;
+        const parent = cards().find((item) => item.dataset.documentId === parentId);
+        const filingType = card.querySelector(".filing-type");
+        filingType.disabled = Boolean(parentId);
+        const finder = card.querySelector(".filing-type-finder");
+        if (finder) finder.hidden = Boolean(parentId);
+        card.querySelector(".certified-copy-details").hidden = Boolean(parentId);
+        if (changed) {
+            card.dataset.filingComponent = "";
+            if (parentId) {
+                card.dataset.optionalServices = "[]";
+                card.querySelector(".courtesy-copy-toggle").checked = false;
+                card.querySelector(".courtesy-email").value = "";
+                card.querySelector(".courtesy-email").required = false;
+                card.querySelector(".courtesy-email-wrap").hidden = true;
+            }
+        }
+        if (parent && filingType.value !== parent.querySelector(".filing-type").value) {
+            const parentType = parent.querySelector(".filing-type");
+            if (parentType.value && !Array.from(filingType.options).some((option) => option.value === parentType.value)) {
+                filingType.appendChild(parentType.selectedOptions[0].cloneNode(true));
+            }
+            filingType.value = parentType.value;
+            card.dataset.documentType = "";
+            card.dataset.filingComponent = "";
+            changed = true;
+        }
+        if (changed) await loadDependentOptions(card, filingType.value);
+        refreshAttachmentParents();
+    }
+
     function wireCard(card) {
         const filingType = card.querySelector(".filing-type");
         const suggestionMessage = card.querySelector(".filing-suggestion-message");
+        card.querySelector(".document-name").addEventListener("input", refreshAttachmentParents);
         filingType.addEventListener("change", () => {
             if (suggestionMessage && filingType.value) suggestionMessage.hidden = true;
             availability.check(filingType.closest(".form-field") || filingType.parentElement);
             card.dataset.documentType = "";
             card.dataset.filingComponent = "";
             loadDependentOptions(card, filingType.value);
+            cards().filter((child) => child.querySelector(".attachment-parent").value === card.dataset.documentId)
+                .forEach((child) => syncAttachment(child, true));
         });
+        card.querySelector(".attachment-parent").addEventListener("change", () => syncAttachment(card, true));
 
         const checkbox = card.querySelector(".courtesy-copy-toggle");
         const emailWrap = card.querySelector(".courtesy-email-wrap");
@@ -648,6 +703,7 @@
                 });
             return {
                 id: Number(card.dataset.documentId),
+                attached_to: Number(card.querySelector(".attachment-parent").value) || null,
                 name: card.querySelector(".document-name").value,
                 filing_type: filingType.value,
                 filing_type_name: apiUtils.cleanOptionText(filingType.selectedOptions[0]?.text),
@@ -656,7 +712,7 @@
                 filing_component: component?.value || "",
                 filing_component_name: component?.dataset.optionText || "",
                 courtesy_copy_email: courtesyEmail,
-                requested_optional_services: requestedOptionalServices,
+                requested_optional_services: card.querySelector(".attachment-parent").value ? [] : requestedOptionalServices,
                 requires_amount_in_controversy: filingType.selectedOptions[0]?.dataset.amountInControversyRequired === "true",
             };
         });
@@ -695,6 +751,7 @@
     cards().forEach(wireCard);
     updatePositions();
     Promise.all(cards().map(loadCardFilingTypes))
+        .then(() => Promise.all(cards().map((card) => syncAttachment(card))))
         .then(() => availability.check())
         .catch((error) => showError(error.message));
 })();

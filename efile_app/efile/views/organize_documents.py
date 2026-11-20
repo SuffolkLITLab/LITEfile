@@ -20,6 +20,7 @@ from efile.services.document_extractions import queue_document_extraction
 from efile.services.drafts import draft_snapshot
 from efile.services.existing_cases import import_ready
 from efile.services.filing_availability import draft_unavailable_message
+from efile.services.filing_groups import validate_relationships
 from efile.utils.config_loader import config_loader
 from efile.utils.ui_text import get_texts
 from efile.workflow import (
@@ -118,6 +119,12 @@ def _save_locked_document_details(draft, document_details, main_document_id, per
         raise ValueError("The document list changed. Refresh the page and try again.")
     if main_document_id not in documents:
         raise ValueError("Choose the document we should read for case suggestions.")
+    # Older tabs do not know about grouping. They must not silently detach PDFs.
+    document_details = [
+        {**item, "attached_to": item.get("attached_to", documents[item["id"]].attached_to_id)}
+        for item in document_details
+    ]
+    validate_relationships(document_details)
 
     # Move every document out of the final ranges before changing the main
     # document or order, so role/order swaps cannot trip the uniqueness rule.
@@ -156,6 +163,7 @@ def _save_locked_document_details(draft, document_details, main_document_id, per
         document.document_type_confirmed = True
         document.filing_component_code = str(item.get("filing_component") or "")[:100]
         document.filing_component_name = str(item.get("filing_component_name") or "")[:255]
+        document.attached_to_id = item.get("attached_to")
         courtesy_copy_email = str(item.get("courtesy_copy_email") or "").strip()[:254]
         if courtesy_copy_email:
             try:

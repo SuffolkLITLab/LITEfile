@@ -45,6 +45,8 @@ def fee_inputs(draft: FilingDraft, *, payment_account_id: str | None = None) -> 
             "filing_type": document.filing_type_code,
             "document_type": document.document_type_code,
             "component": document.filing_component_code,
+            "document_id": document.pk,
+            "attached_to": document.attached_to_id,
             "optional_services": sorted(
                 json.dumps(service, sort_keys=True, default=str)
                 for service in (document.requested_optional_services or [])

@@ -59,6 +59,7 @@
                              data-filing-type-name="{{ document.filing_type_name }}"
                              data-document-type="{{ document.document_type_code }}"
                              data-filing-component="{{ document.filing_component_code }}"
+                             data-attached-to="{{ document.attached_to_id|default:'' }}"
                              data-optional-services="{{ document.optional_services_json }}">
                         <header class="organize-card__header">
                             <span class="organize-card__icon"><i class="fa-solid fa-file-pdf" aria-hidden="true"></i></span>
@@ -101,6 +102,20 @@
                                 <small class="form-help" id="document-name-help-{{ document.pk }}">{{ document_name_help }}</small>
                             {% endif %}
                             {% if document.role == "lead" %}<p class="filing-suggestion-message" role="status" hidden></p>{% endif %}
+                            <label class="form-field">
+                                <span>{% translate "File separately or attach to another document?" %}</span>
+                                <select class="form-select attachment-parent"
+                                        aria-describedby="attachment-help-{{ document.pk }}">
+                                    <option value="">{% translate "File separately (lead document)" %}</option>
+                                    {% for parent in documents %}
+                                        {% if parent.pk != document.pk %}
+                                            <option value="{{ parent.pk }}"
+                                                    {% if document.attached_to_id == parent.pk %}selected{% endif %}>{% blocktranslate with name=parent.name %}Attach to: {{ name }}{% endblocktranslate %}</option>
+                                        {% endif %}
+                                    {% endfor %}
+                                </select>
+                            </label>
+                            <small class="form-help" id="attachment-help-{{ document.pk }}">{% translate "Attachments share their lead document's filing code, optional services, and email copies. Choose those services on the lead document." %}</small>
                             <label class="form-field">
                                 <span>{% translate "Type of document (filing code)" %}</span>
                                 <select class="form-select filing-type"

@@ -242,3 +242,12 @@ def test_nameless_var_is_ignored_rather_than_described_as_blank():
     message = describe_efsp_error(FakeResponse(400, {"wrong_vars": [{"currentVal": ""}]}))
 
     assert "400" in message
+
+
+def test_nested_attachment_error_names_the_actual_pdf():
+    response = FakeResponse(
+        400, {"required_vars": [{"name": "al_court_bundle.elements[0].elements[1].filing_component"}]}
+    )
+    payload = {"al_court_bundle": [{"elements": [{"filename": "Complaint.pdf"}, {"filename": "Exhibit.pdf"}]}]}
+    assert "no filing component was given on Exhibit.pdf" in describe_efsp_error(response, payload=payload)
+    assert "on PDF 2 of filing 1" in describe_efsp_error(response)

@@ -678,6 +678,13 @@ def create_correction(draft, detail, fields=()):
                 **model_to_dict(row, fields=COPY_DOCUMENT_FIELDS if relation == "documents" else COPY_PARTY_FIELDS),
             )
             mapping[f"{relation}.{old_id}"] = f"{relation}.{row.pk}"
+    # Relationships must point at the copied documents, never the source draft.
+    for document in original.documents.exclude(attached_to=None):
+        new_id = mapping[f"documents.{document.pk}"].split(".")[1]
+        parent_path = mapping.get(f"documents.{document.attached_to_id}")
+        if parent_path is None:
+            raise HandoffError("An attachment's lead document is missing from this filing.")
+        revision.documents.filter(pk=new_id).update(attached_to_id=parent_path.split(".")[1])
     for event in original.metadata_events.all():
         path = event.path
         for old, new in mapping.items():
