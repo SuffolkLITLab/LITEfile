@@ -379,3 +379,21 @@ for (const recorded of [true, false]) {
         assert.equal(page.node("documents-input").files[0].name, "petition.pdf");
     });
 }
+for (const preparation of [true, false]) {
+    test(`accepted upload keeps processing visible until reload (preparation: ${preparation})`, async () => {
+        const page = uploadPage({
+            hasLead: false,
+            fetch: async () => reply({
+                preparation_pending: preparation,
+                extraction_pending: !preparation
+            })
+        });
+        await page.submit();
+        assert.equal(page.node("upload-state").hidden, false);
+        assert.equal(page.node("upload-state-title").textContent, "Processing your documents…");
+        assert.equal(page.node("continue-to-analysis").attributes.has("href"), false);
+        assert.equal(page.reloads(), 0);
+        page.timers.find(timer => timer.delay === 300).callback();
+        assert.equal(page.reloads(), 1);
+    });
+}

@@ -230,7 +230,9 @@ def test_http_acceptance_resume_and_ownership(draft, storage, client, django_use
     assert result.status_code == 202
     assert result.json()["preparation_pending"]
     page = client.get(url)
-    assert b"Your uploads are saved" in page.content
+    assert "Preparing your documents…" in page.content.decode()
+    assert b"spinner-border" in page.content
+    assert b"this page will update automatically" in page.content
     status_url = reverse("document_extraction_status", kwargs={"jurisdiction": "illinois"})
     assert client.get(status_url).json()["preparation"]["status"] == "pending"
     other = django_user_model.objects.create_user(username="other-preparation", tyler_jurisdiction="illinois")
