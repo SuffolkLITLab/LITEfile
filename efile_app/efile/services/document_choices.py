@@ -27,7 +27,12 @@ def filing_choices(draft):
         choices = response.json()
         if not isinstance(choices, list):
             raise ValueError
-        return [{**item, "value": str(item["code"]), "text": str(item["name"])} for item in choices]
+        return [
+            {**item, "value": str(item["code"]), "text": str(item["name"])}
+            for item in sorted(
+                choices, key=lambda choice: (str(choice["name"]).strip().casefold(), str(choice["code"]))
+            )
+        ]
     except (requests.RequestException, ValueError, KeyError, TypeError) as exc:
         raise ValueError("We could not check the document types. Try again.") from exc
 

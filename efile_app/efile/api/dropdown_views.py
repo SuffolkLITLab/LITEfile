@@ -241,6 +241,7 @@ class DropdownAPIViews(APIResponseMixin):
             if response.status_code == 200:
                 # Parse the response (expecting list of {name, code}), and put relevant options at the top
                 filing_types = prioritize_options(response.json(), guessed_filing_type)
+                filing_types.sort(key=lambda item: (item["text"].strip().casefold(), str(item["value"])))
                 return DropdownAPIViews.success_response(filing_types)
             else:
                 return DropdownAPIViews.error_response(f"API request failed with status {response.status_code}")
