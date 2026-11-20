@@ -573,7 +573,7 @@ def test_generic_waiver_notification_requires_explicit_purpose(payment_draft):
     config["submission_notifications"]["enabled"] = True
     request = RequestFactory().get("/", HTTP_HOST="testserver")
     before = submission_email_fields(request, payment_draft, "illinois", config)
-    assert "If you requested a fee waiver" not in before["email_confirmation_contents"]
+    assert "If you applied for a fee waiver" not in before["email_confirmation_contents"]
     record_waiver_upload(document)
     after = submission_email_fields(request, payment_draft, "illinois", config)
-    assert "If you requested a fee waiver" in after["email_confirmation_contents"]
+    assert "If you applied for a fee waiver" in after["email_confirmation_contents"]
