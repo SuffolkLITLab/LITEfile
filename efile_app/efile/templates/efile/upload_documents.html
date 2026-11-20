@@ -271,7 +271,13 @@
             {% else %}
                 <div class="document-list__empty">
                     <i class="fa-regular fa-file-lines" aria-hidden="true"></i>
-                    <p>{% translate "No documents uploaded yet." %}</p>
+                    <p>
+                        {% if preparation_job %}
+                            {% translate "Your uploaded files will appear here when preparation finishes." %}
+                        {% else %}
+                            {% translate "No documents uploaded yet." %}
+                        {% endif %}
+                    </p>
                 </div>
             {% endif %}
         </section>

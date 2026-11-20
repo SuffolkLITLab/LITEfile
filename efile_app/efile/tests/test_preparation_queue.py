@@ -236,6 +236,7 @@ def test_http_acceptance_resume_and_ownership(draft, storage, client, django_use
     from bs4 import BeautifulSoup
 
     panel = BeautifulSoup(page.content, "html.parser").select_one("#preparation-state")
+    assert panel is not None
     assert not panel.find_parent("fieldset", disabled=True)
     assert panel.select_one('[data-action="cancel_preparation"]') is not None
     status_url = reverse("document_extraction_status", kwargs={"jurisdiction": "illinois"})
