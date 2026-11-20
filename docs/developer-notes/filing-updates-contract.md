@@ -241,3 +241,14 @@ clerk e-filing review availability; all configured Cook codes retain the
 advisory closure note. Calendar overrides deep merge with state settings. Dates remain advisory
 review guidance, not legal deadline adjustments. Only the immediate HTML email
 uses today's closure note; saved later-event templates must not repeat it.
+
+
+## Illinois proposed copy imported for issue 435
+
+The four Illinois templates now follow the [partner proposal](https://docs.google.com/document/d/1CTSgHFW5qyGlT7DIQBRMaDw_4JdunZPVXa5FBrEO_Uw/edit), with LITEfile branding, Odyssey eFileIL explanations, event-specific next steps, local clerk phone/site details, and Illinois Court Help in every message. The existing disabled setting remains in place; importing copy does not establish sender configuration, partner signoff, or live delivery.
+
+The confirmation uses the proxy envelope number. Callback emails identify the individual filing transaction and link to the authenticated tracker for document names and envelope details, because those fields are absent from callback template context. They explicitly allow different outcomes for other filings in the same envelope. Case titles appear only when available; no case number is fabricated. The existing progress graphic reflects known statuses rather than asserting a court decision.
+
+The delivery placeholders are `$envelope_number` (confirmation only) and `$filing_transaction`, which refer to proxy-generated identifiers. `$case_description` and `$court_description` are escaped submission-time snapshots, not callback-supplied text. The real proxy Jinjava test demonstrated recursive interpretation of template syntax inside delivery values, even with the HTML `escape` filter. Consequently the imported copy uses a generic greeting and directs the filer to the tracker for clerk comments; it does not interpolate the proxy’s recipient name, case title, court name, or free-text message. This is a deliberate adaptation of the proposal until upstream literal-value rendering is available.
+
+`$local_help_line` includes only configured local clerk name, phone, and website, omitting email and statewide fallback. Illinois Court Help is separately identified. The waiver paragraph appears only when a waiver was requested, without implying approval. Literal returned statuses retain correction guidance in the neutral template.

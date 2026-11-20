@@ -23,6 +23,12 @@ PROXY_EMAIL_FIELDS_REQUIRED = (
 
 PROXY_EMAIL_FIELDS = PROXY_EMAIL_FIELDS_REQUIRED + ("from_email",)
 
+# These values are supplied by EFSPProxy at delivery, not by the browser.
+DELIVERY_VALUES = {
+    "envelope_number": "envelope_id",
+    "filing_transaction": "transaction_id",
+}
+
 
 def strip_client_email_fields(efile_data):
     """Remove every supported notification field supplied by the browser."""
@@ -43,14 +49,30 @@ def submission_email_fields(request, draft, jurisdiction, config=None):
     ):
         return {}
 
+    for field, template in templates.items():
+        if not isinstance(template, str):
+            continue
+        identifiers = set(Template(template).get_identifiers())
+        if "envelope_number" in identifiers and field != "email_confirmation_contents":
+            raise ImproperlyConfigured("envelope_number is available only in submission confirmation emails")
+        if not field.endswith("_contents") and identifiers.intersection(DELIVERY_VALUES):
+            raise ImproperlyConfigured("Delivery placeholders are available only in email bodies")
+
     tracker_url = request.build_absolute_uri(reverse("submission_tracker", kwargs={"public_id": draft.public_id}))
     contact = court_contact(jurisdiction, draft.court_code, config)
     waiver_url = (config.get("fee_waiver") or {}).get("source_url")
     values = {
         "tracker_url": _template_value(tracker_url),
         "help_line": _help_line(contact),
+        "local_help_line": _local_help_line(draft, config),
+        "case_description": _template_value(
+            " for case " + draft.case_title if getattr(draft, "case_title", "") else ""
+        ),
+        "court_description": _template_value(getattr(draft, "court_name", "") or "the court"),
         "waiver_line": _waiver_line(draft, waiver_url),
     }
+    delivery_filter = "|escape" if notification_config.get("format") == "html" else ""
+    values.update({key: "{{ " + value + delivery_filter + " }}" for key, value in DELIVERY_VALUES.items()})
     values.update(_conditional_text(notification_config, draft))
     fields = {
         field: Template(templates[field]).safe_substitute(values).strip() for field in PROXY_EMAIL_FIELDS_REQUIRED
@@ -91,6 +113,15 @@ def _help_line(contact):
     return "\nFor help, " + "; ".join(details) if details else ""
 
 
+def _local_help_line(draft, config):
+    """Local clerk phone/site only; the template names statewide help separately."""
+    court = (config.get("court_specific_requirements") or {}).get(draft.court_code) or {}
+    contact = court.get("contact") or {}
+    if not any(contact.get(key) for key in ("phone", "url")):
+        return ""
+    return _help_line({key: contact[key] for key in ("name", "phone", "url") if contact.get(key)})
+
+
 def _waiver_line(draft, waiver_url):
     if not _fee_waiver_requested(draft):
         return ""
@@ -115,7 +146,16 @@ def _conditional_text(notification_config, draft):
         if (
             not isinstance(name, str)
             or not re.fullmatch(r"[a-z][a-z0-9_]*", name)
-            or name in {"tracker_url", "help_line", "waiver_line"}
+            or name
+            in {
+                "tracker_url",
+                "help_line",
+                "local_help_line",
+                "waiver_line",
+                "case_description",
+                "court_description",
+                *DELIVERY_VALUES,
+            }
             or not isinstance(block, dict)
             or set(block) - {"when", "then", "otherwise"}
             or block.get("when") != "fee_waiver_requested"

@@ -47,13 +47,14 @@ public class RenderContract {
     Jinjava jinjava = new Jinjava();
     Map<String, Object> context =
         Map.of(
-            "name", "ATTACKED",
-            "court_name", "ATTACKED",
-            "case_title", "ATTACKED",
+            "name", "UNTRUSTED_RECIPIENT <script>bad</script> {{ status }}",
+            "court_name", "Test court",
+            "case_title", "Test v. Example",
             "case_type", "ATTACKED",
-            "transaction_id", "ATTACKED",
-            "message_text", "ATTACKED",
-            "status", "Returned");
+            "transaction_id", "transaction-123",
+            "message_text", "UNTRUSTED_MESSAGE <b>message</b> {{ status }}",
+            "status", "Returned",
+            "envelope_id", "envelope-456");
 
     Map<String, String> renderedBodies = new LinkedHashMap<>();
     Map<String, String> unchangedSubjects = new LinkedHashMap<>();
@@ -69,6 +70,18 @@ public class RenderContract {
         }
         if (!rendered.contains("/submissions/6b0f2a8e-6d0c-4f1e-9a51-0c2b9f3c1a7d/")) {
           throw new AssertionError("Missing UUID tracker link in " + field);
+        }
+        if (rendered.contains("<script>") || rendered.contains("<b>message</b>")) {
+          throw new AssertionError("Unescaped delivery HTML in " + field);
+        }
+        if (rendered.contains("UNTRUSTED_RECIPIENT") || rendered.contains("UNTRUSTED_MESSAGE")) {
+          throw new AssertionError("Unsafe delivery text was interpolated in " + field);
+        }
+        if (value.contains("{{ envelope_id") && !rendered.contains("envelope-456")) {
+          throw new AssertionError("Missing envelope number in " + field);
+        }
+        if (value.contains("{{ transaction_id") && !rendered.contains("transaction-123")) {
+          throw new AssertionError("Missing filing transaction in " + field);
         }
         if (rendered.contains("ATTACKED")) {
           throw new AssertionError("A configured value became template syntax in " + field);
@@ -101,7 +114,7 @@ public class RenderContract {
       returnedOutputs.put(status, rendered);
     }
     String unknown = jinjava.render(neutralBody, Map.of("status", "future court status")).strip();
-    if (!unknown.contains("changed status") || unknown.contains("returned for changes")) {
+    if (!(unknown.contains("changed status") || unknown.contains("You have a message about a filing")) || unknown.contains("returned for changes")) {
       throw new AssertionError("Unknown status did not keep generic copy: " + unknown);
     }
     if (unknown.contains("aria-label=\"Filing progress\"")) {
