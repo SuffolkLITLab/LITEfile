@@ -300,6 +300,8 @@
         updateContinue();
         errorBox.hidden = true;
         state.hidden = false;
+        const spinner = state.querySelector(".spinner-border");
+        if (spinner) spinner.hidden = false;
         updateUploadButton();
         state.scrollIntoView?.({
             block: "nearest"
@@ -388,7 +390,8 @@
                 return;
             }
 
-            if (!uploading) state.querySelector(".spinner-border")?.remove();
+            const spinner = state.querySelector(".spinner-border");
+            if (!uploading && spinner) spinner.hidden = true;
             let readyTitle = "Document analysis is ready";
             if (result.ai_opted_out) readyTitle = "We finished checking your document";
             // Nothing is reviewed on this page: the details are on the next

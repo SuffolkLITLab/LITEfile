@@ -70,7 +70,9 @@ function uploadPage({
             append() {},
             replaceChildren() {},
             querySelector() {
-                return id === "document-drop-zone" ? node("drop-zone-label") : null;
+                if (id === "document-drop-zone") return node("drop-zone-label");
+                if (id === "upload-state") return node("upload-spinner");
+                return null;
             }
         });
         return nodes.get(id);
@@ -397,3 +399,26 @@ for (const preparation of [true, false]) {
         assert.equal(page.reloads(), 1);
     });
 }
+test("uploading again restores the activity indicator after analysis completed", async () => {
+    let finishUpload;
+    const page = uploadPage({
+        pending: true,
+        fetch: url => {
+            if (url === "/status/") return Promise.resolve(reply({
+                ready: true,
+                status: "complete"
+            }));
+            return new Promise(resolve => {
+                finishUpload = resolve;
+            });
+        }
+    });
+    await flush();
+    assert.equal(page.node("upload-spinner").hidden, true);
+    const upload = page.submit();
+    assert.equal(page.node("upload-spinner").hidden, false);
+    finishUpload(reply({
+        preparation_pending: true
+    }));
+    await upload;
+});
