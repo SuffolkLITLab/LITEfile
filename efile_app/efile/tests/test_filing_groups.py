@@ -212,7 +212,7 @@ def test_deleting_parent_does_not_promote_attachment_silently(grouped, monkeypat
     lead.delete()
     child.refresh_from_db()
     assert child.attached_to_id is None
-    with pytest.raises(PayloadValidationError, match="needs Lead Document"):
+    with pytest.raises(PayloadValidationError, match="is marked as an attachment but has no lead document"):
         group_filing_documents(payload(draft, monkeypatch), draft, lookups=Mock(get=Mock(return_value=COMPONENTS)))
 
 
@@ -268,3 +268,22 @@ def test_legacy_rebuild_remaps_a_supporting_parent(grouped):
     rebuilt_parent = draft.documents.get(s3_key="owned/other.pdf")
     assert rebuilt_parent.pk != parent.pk
     assert rebuilt_child.attached_to_id == rebuilt_parent.pk
+
+
+def test_orphan_attachment_names_pdf_and_links_to_correction(grouped, monkeypatch):
+    from efile.services.efsp_errors import error_actions
+
+    draft, lead, child = grouped
+    child.attached_to = None
+    child.save()
+    data = payload(draft, monkeypatch)
+    with pytest.raises(PayloadValidationError) as caught:
+        group_filing_documents(data, draft, lookups=Mock(get=Mock(return_value=COMPONENTS)))
+    message = str(caught.value)
+    assert child.name in message
+    assert '"Attachment to: [document name]"' in message
+    assert '"Lead document"' in message
+    assert isinstance(caught.value, PayloadValidationError)
+    actions = error_actions(draft, data, caught.value.problems)
+    assert actions[0]["label"] == "Fix document roles in Organize documents"
+    assert f"draft={draft.pk}&return_to=review" in actions[0]["url"]

@@ -8,6 +8,7 @@ from collections import Counter
 
 from django.conf import settings
 
+from efile.services.efsp_errors import DOCUMENT_ROLE_GUIDANCE
 from efile.services.efsp_payload import PayloadValidationError, _efsp_flag
 from efile.utils.efsp_security import validated_code
 
@@ -110,6 +111,13 @@ def _validate_components(lead, members, components):
             raise PayloadValidationError(
                 "This filing has too many documents of the same component type. Check Organize documents."
             )
+    lead_choice = choices[str(lead.get("filing_component") or "")]
+    if str(lead_choice.get("efspcode", "")).upper() == "ATTACH":
+        raise PayloadValidationError(
+            f"{lead.get('filename', 'This PDF')} is marked as an attachment but has no lead document. "
+            + DOCUMENT_ROLE_GUIDANCE,
+            problems=[{"name": "al_court_bundle"}],
+        )
     missing = [
         item.get("name", code)
         for code, item in choices.items()
@@ -117,12 +125,9 @@ def _validate_components(lead, members, components):
     ]
     if missing:
         raise PayloadValidationError(
-            f"{lead.get('filename', 'This filing')} needs {', '.join(missing)}. "
-            "In Organize documents, check each PDF's document role and any court component choices."
+            f"{lead.get('filename', 'This filing')} needs {', '.join(missing)}. " + DOCUMENT_ROLE_GUIDANCE,
+            problems=[{"name": "al_court_bundle"}],
         )
-    lead_choice = choices[str(lead.get("filing_component") or "")]
-    if str(lead_choice.get("efspcode", "")).upper() == "ATTACH":
-        raise PayloadValidationError("Choose which lead document this attachment belongs to in Organize documents.")
     if any(
         str(choices[str(member.get("filing_component") or "")].get("efspcode", "")).upper() == "LEAD"
         for member in members[1:]

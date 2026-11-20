@@ -53,6 +53,20 @@ _OTHER_PARTY_ADDRESS_FIELD = re.compile(r"^other_parties\[(\d+)\]\.address\.(add
 
 _MAX_RAW_BODY = 300
 
+_MISSING_FILING_COMPONENT = re.compile(
+    r"required filing component\s+['\"]?\d+['\"]?\s+(?:was\s+)?not found", re.IGNORECASE
+)
+DOCUMENT_ROLE_GUIDANCE = (
+    'Go to Organize documents. Under Document role, choose "Attachment to: [document name]" '
+    'for each attachment and select its lead document. Choose "Lead document" for a PDF '
+    "that should have its own filing code. Check any additional court component choices, "
+    "then save and return to Review."
+)
+MISSING_FILING_COMPONENT_MESSAGE = (
+    "The court requires a document that is missing from one of your filings. " + DOCUMENT_ROLE_GUIDANCE
+)
+
+
 # (pattern, hint builder) pairs checked in order against a free-text EFSP
 # message; the first match wins. Each hint tells the filer what to actually do,
 # not just what went wrong. Patterns are deliberately specific substrings of
@@ -125,6 +139,8 @@ def _actionable_hint(message: str) -> str | None:
 
 
 def _with_hint(message: str) -> str:
+    if _MISSING_FILING_COMPONENT.search(message):
+        return MISSING_FILING_COMPONENT_MESSAGE
     hint = _actionable_hint(message)
     return f"{message} {hint}" if hint else message
 
@@ -140,6 +156,8 @@ def describe_efsp_error(response, *, payload=None) -> str:
     except (ValueError, json.JSONDecodeError):
         text = (response.text or "").strip()
         if text:
+            if _MISSING_FILING_COMPONENT.search(text):
+                return MISSING_FILING_COMPONENT_MESSAGE
             return f"the court's filing service returned status {response.status_code}: {text[:_MAX_RAW_BODY]}"
         return f"the court's filing service returned status {response.status_code}"
 
@@ -359,6 +377,21 @@ def error_actions(draft, payload, problems, *, message=""):
         if len(locations) == 1:
             candidates.append({"name": locations[0], "message": "Check this party's state or location."})
     actions = []
+    if (
+        message == MISSING_FILING_COMPONENT_MESSAGE
+        or _MISSING_FILING_COMPONENT.search(message)
+        or any(problem.get("name") == "al_court_bundle" for problem in candidates)
+    ):
+        params = {"draft": draft.pk, "return_to": "review"}
+        actions.append(
+            {
+                "url": reverse("organize_documents", kwargs={"jurisdiction": draft.jurisdiction})
+                + "?"
+                + urlencode(params),
+                "label": "Fix document roles in Organize documents",
+                "message": DOCUMENT_ROLE_GUIDANCE,
+            }
+        )
     seen = set()
     for problem in candidates:
         match = _PARTY_FIELD.fullmatch(str(problem.get("name") or ""))
