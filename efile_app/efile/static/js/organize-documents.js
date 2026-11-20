@@ -339,6 +339,7 @@
     }
 
     function loadFilingComponents(card, filingType) {
+        setAttachmentValidity(card, "");
         const section = card.querySelector(".filing-component-options");
         section.closest("fieldset").hidden = !filingType;
         if (!filingType) {
@@ -616,6 +617,7 @@
         if (finder) finder.hidden = Boolean(parentId);
         card.querySelector(".certified-copy-details").hidden = Boolean(parentId);
         if (changed) {
+            setAttachmentValidity(card, "");
             card.dataset.filingComponent = "";
             if (parentId) {
                 card.dataset.optionalServices = "[]";
@@ -793,6 +795,7 @@
     });
 
     cards().forEach(wireCard);
+    refreshAttachmentParents();
     updatePositions();
     Promise.all(cards().map(loadCardFilingTypes))
         .then(() => Promise.all(cards().map((card) => syncAttachment(card))))

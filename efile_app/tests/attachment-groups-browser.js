@@ -112,6 +112,13 @@ async function main() {
         await chooseRole(String(config.lead));
         await expect(child.locator('.filing-component-options')).toContainText("does not allow attachments");
         expect(await roleInput().evaluate(el => el.checkValidity())).toBe(false);
+        await lead.locator(".filing-type").selectOption("");
+        await expect(child.locator(".filing-type")).toHaveValue("");
+        expect(await child.locator(".attachment-parent-choices input, .attachment-parent").evaluateAll(
+            inputs => inputs.every(input => input.validity.valid)
+        )).toBe(true);
+        await lead.locator(".filing-type").selectOption("exhibit");
+        await expect(child.locator('.filing-component-options')).toContainText("does not allow attachments");
         componentMode = "custom";
         await chooseRole("");
         await expect(child.locator('.filing-component-options')).toBeVisible();
