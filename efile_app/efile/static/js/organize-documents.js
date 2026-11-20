@@ -303,36 +303,39 @@
     }
 
     function showFilingComponents(card, section, components) {
-        section.closest("fieldset").hidden = components.length === 0;
-        const fieldName = `filing-component-${card.dataset.documentId}`;
-        let savedComponent = card.dataset.filingComponent;
-        if (!savedComponent && components.length) {
-            const attached = Boolean(card.querySelector(".attachment-parent").value);
-            const preferred = attached ?
-                components.find((item) => String(item.efspcode || "").toUpperCase() === "ATTACH") :
-                components.find(isRequiredOption) ||
-                components.find((item) => String(item.efspcode || "").toUpperCase() === "LEAD");
-            savedComponent = optionValue(preferred || components[0]);
-        }
-        if (components.length === 1) {
-            setFixedOption(section, components[0], fieldName);
+        const roleSelect = card.querySelector(".attachment-parent");
+        const attached = Boolean(roleSelect.value);
+        const oppositeRole = attached ? "LEAD" : "ATTACH";
+        const choices = components.filter((item) => String(item.efspcode || "").toUpperCase() !== oppositeRole);
+        roleSelect.setCustomValidity("");
+        // The document role determines ordinary lead/attachment component codes.
+        // Keep a court-specific choice only when the role does not resolve it.
+        const fieldset = section.closest("fieldset");
+        fieldset.hidden = choices.length <= 1;
+        if (components.length && !choices.length) {
+            const message = attached ?
+                gettext("This filing code does not allow attachments. Choose Lead document or attach this PDF to a lead document with a different filing code.") :
+                gettext("This filing code requires an attachment. Choose the lead document this PDF belongs to.");
+            roleSelect.setCustomValidity(message);
+            setPlaceholder(section, message);
+            fieldset.hidden = false;
             return;
         }
+        const fieldName = `filing-component-${card.dataset.documentId}`;
+        if (choices.length === 1) {
+            setFixedOption(section, choices[0], fieldName);
+            return;
+        }
+        const savedComponent = choices.some((item) => optionValue(item) === card.dataset.filingComponent) ?
+            card.dataset.filingComponent : optionValue(choices.find(isRequiredOption) || choices[0] || {});
         setRadioOptions(
             section,
-            components,
+            choices,
             savedComponent,
             fieldName,
             text.no_filing_components,
             text.filing_component_required_note,
         );
-        const saved = components.find((item) => optionValue(item) === savedComponent);
-        if (!card.querySelector(".attachment-parent").value && String(saved?.efspcode || "").toUpperCase() === "ATTACH") {
-            const warning = document.createElement("p");
-            warning.className = "alert alert-warning";
-            warning.textContent = gettext("This attachment needs a lead document. Choose Attach to above, or choose Lead Document to file it separately.");
-            section.appendChild(warning);
-        }
     }
 
     function loadFilingComponents(card, filingType) {
@@ -559,7 +562,7 @@
                 if (!option.value) return;
                 const parent = byId.get(option.value);
                 option.disabled = Boolean(parent?.querySelector(".attachment-parent").value);
-                if (parent) option.textContent = interpolate(gettext("Attach to: %s"), [parent.querySelector(".document-name").value]);
+                if (parent) option.textContent = interpolate(gettext("Attachment to: %s"), [parent.querySelector(".document-name").value]);
             });
         });
     }

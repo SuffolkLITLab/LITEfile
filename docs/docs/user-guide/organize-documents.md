@@ -32,15 +32,17 @@ only a guide. It does not mean your filing is complete or correct.
 For each file:
 
 1. **Document name:** Give it a clear name, like *Small Claims Complaint*.
-2. **File separately or attach to another document?** Choose a separate filing for
-   a lead document. For an attachment, choose the document it belongs to.
+2. **Document role:** Choose **Lead document** for a document with its own filing
+   code, or **Attachment to: [document name]** for a PDF included with that lead
+   document. You can submit multiple lead documents together.
 3. **Type of document (filing code):** Pick the court's name for this kind of paper. In an
    existing case, you can open **Find my document type** and type a word, like
    "appearance."
 4. After choosing a document type, check **Should this document be
-   confidential?** and **How this document is filed**, when offered. Follow
-   your court’s rules. If there is only one allowed setting, LITEfile shows
-   that setting without asking you to choose.
+   confidential?** and any additional choices required by the court. Follow
+   your court’s rules. LITEfile sets the court’s lead or attachment component
+   automatically from your document role when that determines the setting. If
+   the court offers additional component categories, choose one when prompted.
 5. Choose **Save and continue**.
 
 <img src="/img/user-guide/organize-existing-case.png" alt="Organize your documents page showing the source of case suggestions, document types, Public access, the court’s Lead Document setting, and three certified copies." className="doc-screenshot" width="700" loading="lazy" />

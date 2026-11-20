@@ -103,19 +103,20 @@
                             {% endif %}
                             {% if document.role == "lead" %}<p class="filing-suggestion-message" role="status" hidden></p>{% endif %}
                             <label class="form-field">
-                                <span>{% translate "File separately or attach to another document?" %}</span>
+                                <span id="document-role-label-{{ document.pk }}">{% translate "Document role" %}</span>
                                 <select class="form-select attachment-parent"
+                                        aria-labelledby="document-role-label-{{ document.pk }}"
                                         aria-describedby="attachment-help-{{ document.pk }}">
-                                    <option value="">{% translate "File separately (lead document)" %}</option>
+                                    <option value="">{% translate "Lead document" %}</option>
                                     {% for parent in documents %}
                                         {% if parent.pk != document.pk %}
                                             <option value="{{ parent.pk }}"
-                                                    {% if document.attached_to_id == parent.pk %}selected{% endif %}>{% blocktranslate with name=parent.name %}Attach to: {{ name }}{% endblocktranslate %}</option>
+                                                    {% if document.attached_to_id == parent.pk %}selected{% endif %}>{% blocktranslate with name=parent.name %}Attachment to: {{ name }}{% endblocktranslate %}</option>
                                         {% endif %}
                                     {% endfor %}
                                 </select>
+                                <small class="form-help" id="attachment-help-{{ document.pk }}">{% translate "A lead document has its own filing code. An attachment is included with the lead document you choose and shares its filing code, optional services, and email copies. You can submit multiple lead documents together." %}</small>
                             </label>
-                            <small class="form-help" id="attachment-help-{{ document.pk }}">{% translate "Attachments share their lead document's filing code, optional services, and email copies. Choose those services on the lead document." %}</small>
                             <label class="form-field">
                                 <span>{% translate "Type of document (filing code)" %}</span>
                                 <select class="form-select filing-type"

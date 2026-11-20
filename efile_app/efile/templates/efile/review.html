@@ -144,7 +144,7 @@
                                 {% if document.attached_to_id %}
                                     <span class="review-document-tag">{% blocktranslate with name=document.attached_to.name %}Attachment to: {{ name }}{% endblocktranslate %}</span>
                                 {% else %}
-                                    <span class="review-document-tag">{% translate "Separate filing (lead document)" %}</span>
+                                    <span class="review-document-tag">{% translate "Lead document" %}</span>
                                 {% endif %}
                                 <small>
                                     {% if document.role == "lead" %}

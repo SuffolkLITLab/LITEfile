@@ -118,7 +118,7 @@ def _validate_components(lead, members, components):
     if missing:
         raise PayloadValidationError(
             f"{lead.get('filename', 'This filing')} needs {', '.join(missing)}. "
-            "In Organize documents, attach it to a lead document or choose the required component for a separate filing."
+            "In Organize documents, check each PDF's document role and any court component choices."
         )
     lead_choice = choices[str(lead.get("filing_component") or "")]
     if str(lead_choice.get("efspcode", "")).upper() == "ATTACH":
