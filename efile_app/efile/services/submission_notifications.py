@@ -49,11 +49,14 @@ def submission_email_fields(request, draft, jurisdiction, config=None):
     ):
         return {}
 
-    if any(
-        "$envelope_number" in templates[field]
-        for field in ("acceptance_contents", "rejected_contents", "neutral_contents")
-    ):
-        raise ImproperlyConfigured("envelope_number is available only in submission confirmation emails")
+    for field, template in templates.items():
+        if not isinstance(template, str):
+            continue
+        identifiers = set(Template(template).get_identifiers())
+        if "envelope_number" in identifiers and field != "email_confirmation_contents":
+            raise ImproperlyConfigured("envelope_number is available only in submission confirmation emails")
+        if not field.endswith("_contents") and identifiers.intersection(DELIVERY_VALUES):
+            raise ImproperlyConfigured("Delivery placeholders are available only in email bodies")
 
     tracker_url = request.build_absolute_uri(reverse("submission_tracker", kwargs={"public_id": draft.public_id}))
     contact = court_contact(jurisdiction, draft.court_code, config)

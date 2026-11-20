@@ -483,11 +483,23 @@ def test_illinois_local_help_excludes_email_and_never_uses_statewide_as_clerk(em
                 assert "<img src=x>" not in body and "&lt;img src=x&gt;" in body
 
 
-def test_envelope_number_is_not_available_to_callback_templates():
+@pytest.mark.parametrize("placeholder", ["$envelope_number", "${envelope_number}"])
+def test_envelope_number_is_not_available_to_callback_templates(placeholder):
     from django.core.exceptions import ImproperlyConfigured
 
     config = deepcopy(config_loader.load_jurisdiction_config("illinois"))
     config["submission_notifications"]["enabled"] = True
-    config["submission_notifications"]["templates"]["acceptance_contents"] = "Envelope $envelope_number"
+    config["submission_notifications"]["templates"]["acceptance_contents"] = "Envelope " + placeholder
     with pytest.raises(ImproperlyConfigured, match="only in submission confirmation"):
+        submission_email_fields(RequestFactory().get("/"), fake_draft(), "illinois", config)
+
+
+@pytest.mark.parametrize("field", ["acceptance_subject", "from_email"])
+def test_delivery_placeholders_are_rejected_outside_email_bodies(field):
+    from django.core.exceptions import ImproperlyConfigured
+
+    config = deepcopy(config_loader.load_jurisdiction_config("illinois"))
+    config["submission_notifications"]["enabled"] = True
+    config["submission_notifications"]["templates"][field] = "${filing_transaction}"
+    with pytest.raises(ImproperlyConfigured, match="only in email bodies"):
         submission_email_fields(RequestFactory().get("/"), fake_draft(), "illinois", config)

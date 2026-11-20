@@ -62,7 +62,7 @@ submission_notifications:
       If there is something wrong, they will reject it. You will receive emails from Odyssey eFileIL and LITEfile. Check the clerk’s comments and what you need to fix in the tracker.
       $illinois_waiver_note
 
-      View your documents, filing status, and next steps: $tracker_url
+      Filing details: $tracker_url
 
       Need help?
       Contact the circuit clerk to learn if your e-filing is accepted, if you have upcoming court dates, and what’s next in your case.$local_help_line
@@ -72,7 +72,7 @@ submission_notifications:
       Hello,
 
       A filing in your submission$case_description has been accepted by the clerk. This update applies to filing transaction $filing_transaction. Other filings in the same envelope may have a different status.
-      View the document and its status: $tracker_url
+      Filing details: $tracker_url
 
       Note
       You should also receive an email from Odyssey eFileIL (no-reply@efilingmail.tylertech.cloud) saying your e-filing was accepted. You do not have to respond to that email.
@@ -91,7 +91,7 @@ submission_notifications:
       Hello,
 
       A filing in your submission$case_description has been rejected by the clerk. This update applies to filing transaction $filing_transaction. Other filings in the same envelope may have a different status.
-      View the document and its status: $tracker_url
+      Filing details: $tracker_url
 
       Here’s the message from the court:
       Read the clerk’s comments in the tracker.
@@ -114,7 +114,7 @@ submission_notifications:
       Hello,
 
       You have a message about a filing in your submission$case_description. This update applies to filing transaction $filing_transaction.
-      View the document and its status: $tracker_url
+      Filing details: $tracker_url
 
       Here’s what the message says:
       Read the message and latest information from the court in the tracker.

@@ -47,12 +47,12 @@ public class RenderContract {
     Jinjava jinjava = new Jinjava();
     Map<String, Object> context =
         Map.of(
-            "name", "Jordan <script>bad</script> {{ status }}",
+            "name", "UNTRUSTED_RECIPIENT <script>bad</script> {{ status }}",
             "court_name", "Test court",
             "case_title", "Test v. Example",
             "case_type", "ATTACKED",
             "transaction_id", "transaction-123",
-            "message_text", "Clerk <b>message</b> {{ status }}",
+            "message_text", "UNTRUSTED_MESSAGE <b>message</b> {{ status }}",
             "status", "Returned",
             "envelope_id", "envelope-456");
 
@@ -74,7 +74,16 @@ public class RenderContract {
         if (rendered.contains("<script>") || rendered.contains("<b>message</b>")) {
           throw new AssertionError("Unescaped delivery HTML in " + field);
         }
-      if (rendered.contains("ATTACKED")) {
+        if (rendered.contains("UNTRUSTED_RECIPIENT") || rendered.contains("UNTRUSTED_MESSAGE")) {
+          throw new AssertionError("Unsafe delivery text was interpolated in " + field);
+        }
+        if (value.contains("{{ envelope_id") && !rendered.contains("envelope-456")) {
+          throw new AssertionError("Missing envelope number in " + field);
+        }
+        if (value.contains("{{ transaction_id") && !rendered.contains("transaction-123")) {
+          throw new AssertionError("Missing filing transaction in " + field);
+        }
+        if (rendered.contains("ATTACKED")) {
           throw new AssertionError("A configured value became template syntax in " + field);
         }
         if (value.contains("%7B%7B") && !rendered.contains("%7B%7B")) {
