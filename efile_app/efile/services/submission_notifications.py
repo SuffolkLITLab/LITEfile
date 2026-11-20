@@ -25,12 +25,8 @@ PROXY_EMAIL_FIELDS = PROXY_EMAIL_FIELDS_REQUIRED + ("from_email",)
 
 # These values are supplied by EFSPProxy at delivery, not by the browser.
 DELIVERY_VALUES = {
-    "recipient_name": "name",
-    "delivery_court": "court_name",
-    "delivery_case": "case_title",
     "envelope_number": "envelope_id",
     "filing_transaction": "transaction_id",
-    "clerk_message": "message_text",
 }
 
 
@@ -53,6 +49,12 @@ def submission_email_fields(request, draft, jurisdiction, config=None):
     ):
         return {}
 
+    if any(
+        "$envelope_number" in templates[field]
+        for field in ("acceptance_contents", "rejected_contents", "neutral_contents")
+    ):
+        raise ImproperlyConfigured("envelope_number is available only in submission confirmation emails")
+
     tracker_url = request.build_absolute_uri(reverse("submission_tracker", kwargs={"public_id": draft.public_id}))
     contact = court_contact(jurisdiction, draft.court_code, config)
     waiver_url = (config.get("fee_waiver") or {}).get("source_url")
@@ -60,6 +62,10 @@ def submission_email_fields(request, draft, jurisdiction, config=None):
         "tracker_url": _template_value(tracker_url),
         "help_line": _help_line(contact),
         "local_help_line": _local_help_line(draft, config),
+        "case_description": _template_value(
+            " for case " + draft.case_title if getattr(draft, "case_title", "") else ""
+        ),
+        "court_description": _template_value(getattr(draft, "court_name", "") or "the court"),
         "waiver_line": _waiver_line(draft, waiver_url),
     }
     delivery_filter = "|escape" if notification_config.get("format") == "html" else ""
@@ -137,7 +143,16 @@ def _conditional_text(notification_config, draft):
         if (
             not isinstance(name, str)
             or not re.fullmatch(r"[a-z][a-z0-9_]*", name)
-            or name in {"tracker_url", "help_line", "local_help_line", "waiver_line", *DELIVERY_VALUES}
+            or name
+            in {
+                "tracker_url",
+                "help_line",
+                "local_help_line",
+                "waiver_line",
+                "case_description",
+                "court_description",
+                *DELIVERY_VALUES,
+            }
             or not isinstance(block, dict)
             or set(block) - {"when", "then", "otherwise"}
             or block.get("when") != "fee_waiver_requested"

@@ -19,7 +19,7 @@ django.setup()
 from django.test import RequestFactory  # noqa: E402
 
 from efile.services.submission_notifications import (  # noqa: E402
-    PROXY_EMAIL_FIELDS,
+    PROXY_EMAIL_FIELDS_REQUIRED,
     submission_email_fields,
 )
 from efile.utils.config_loader import config_loader  # noqa: E402
@@ -37,6 +37,9 @@ def main() -> None:
     if not isinstance(config, dict):
         parser.error(f"No configuration found for jurisdiction {args.jurisdiction!r}")
     config["submission_notifications"]["enabled"] = True
+    config.setdefault("court_specific_requirements", {})["notification-contract-test-court"] = {
+        "contact": {"name": "{{name}}", "url": "https://help.example.test/{{status}}"}
+    }
     config.setdefault("fee_waiver", {})["source_url"] = "https://source.example.test/{{transaction_id}}"
 
     request = RequestFactory().get("/", HTTP_HOST=args.host)
@@ -45,6 +48,8 @@ def main() -> None:
         public_id=UUID("6b0f2a8e-6d0c-4f1e-9a51-0c2b9f3c1a7d"),
         selected_payment_account_type="WV",
         court_code="notification-contract-test-court",
+        case_title="Jordan <script>bad</script> {{status}}",
+        court_name="Test court {{name}}",
     )
 
     # Probe untrusted configuration values through the same interpolation path
@@ -55,8 +60,8 @@ def main() -> None:
     ):
         fields = submission_email_fields(request, draft, args.jurisdiction, config)
 
-    if set(fields) != set(PROXY_EMAIL_FIELDS):
-        raise SystemExit(f"Expected proxy fields {sorted(PROXY_EMAIL_FIELDS)}, got {sorted(fields)}")
+    if set(fields) != set(PROXY_EMAIL_FIELDS_REQUIRED):
+        raise SystemExit(f"Expected proxy fields {sorted(PROXY_EMAIL_FIELDS_REQUIRED)}, got {sorted(fields)}")
     args.output.parent.mkdir(parents=True, exist_ok=True)
     payload = {
         "fields": fields,

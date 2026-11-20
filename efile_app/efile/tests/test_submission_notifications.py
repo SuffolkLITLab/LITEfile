@@ -423,7 +423,14 @@ def test_illinois_delivery_values_are_escaped_for_the_transport(email_format):
 
     config = deepcopy(config_loader.load_jurisdiction_config("illinois"))
     config["submission_notifications"].update(enabled=True, format=email_format)
-    fields = submission_email_fields(RequestFactory().get("/"), fake_draft(court_code="winnebago"), "illinois", config)
+    fields = submission_email_fields(
+        RequestFactory().get("/"),
+        fake_draft(
+            court_code="winnebago", case_title="Jordan <script>bad</script> {{status}}", court_name="Test court"
+        ),
+        "illinois",
+        config,
+    )
     delivery = {
         "name": "Jordan <script>bad</script>",
         "court_name": "Test court",
@@ -448,16 +455,19 @@ def test_illinois_delivery_values_are_escaped_for_the_transport(email_format):
             assert "<b>message</b>" not in body
         else:
             assert "Jordan <script>bad</script>" in body
+        assert "%7B%7Bstatus%7D%7D" in body
+        assert "Clerk <b>message</b>" not in body
     assert "$envelope_number" not in fields["acceptance_contents"]
     assert "Other filings in the same envelope may have a different status" in fields["acceptance_contents"]
 
 
-def test_illinois_local_help_excludes_email_and_never_uses_statewide_as_clerk():
+@pytest.mark.parametrize("email_format", ["html", "plain_text"])
+def test_illinois_local_help_excludes_email_and_never_uses_statewide_as_clerk(email_format):
     config = deepcopy(config_loader.load_jurisdiction_config("illinois"))
-    config["submission_notifications"].update(enabled=True, format="plain_text")
+    config["submission_notifications"].update(enabled=True, format=email_format)
     config["court_specific_requirements"]["test"] = {
         "contact": {
-            "name": "Test clerk {{name}}",
+            "name": "Test clerk <img src=x> {{name}}",
             "phone": "555-0100",
             "url": "https://example.test",
             "email": "omit@example.test",
@@ -469,3 +479,15 @@ def test_illinois_local_help_excludes_email_and_never_uses_statewide_as_clerk():
             assert "555-0100" in body and "833-411-1121" in body
             assert "omit@example.test" not in body
             assert "%7B%7Bname%7D%7D" in body
+            if email_format == "html":
+                assert "<img src=x>" not in body and "&lt;img src=x&gt;" in body
+
+
+def test_envelope_number_is_not_available_to_callback_templates():
+    from django.core.exceptions import ImproperlyConfigured
+
+    config = deepcopy(config_loader.load_jurisdiction_config("illinois"))
+    config["submission_notifications"]["enabled"] = True
+    config["submission_notifications"]["templates"]["acceptance_contents"] = "Envelope $envelope_number"
+    with pytest.raises(ImproperlyConfigured, match="only in submission confirmation"):
+        submission_email_fields(RequestFactory().get("/"), fake_draft(), "illinois", config)
