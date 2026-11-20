@@ -12,6 +12,11 @@
         <h1>{% translate "Organize your documents" %}</h1>
         {% include "efile/partials/filing_guidance.html" %}
         <p class="workflow-lede">{% translate "Check the document type (filing code) for each file. The court may send your filing back if the code is wrong." %}</p>
+        <p>
+            <a href="{% url 'upload_documents' jurisdiction %}{% if return_to %}?return_to={{ return_to }}{% endif %}"
+               id="change-uploaded-documents">{% translate "Add, remove, or replace documents" %}</a>
+            {% translate "You can change each document name below." %}
+        </p>
         {% if organize_context.guessed_filing_type %}
             <div class="extraction-page-help">
                 <span>{% translate "A * marks a choice suggested from your document." %}</span>
