@@ -7,18 +7,19 @@
     <section class="workflow-card workflow-card--narrow">
         <h1>{% translate "Receive future service by email" %}</h1>
         <p>{% translate "Add yourself to this case's service contacts so other filers can select you for electronic service. This does not send your documents to anyone." %}</p>
-        <p>{{ draft.court_name }}{% if draft.case_title %} — {{ draft.case_title }}{% endif %}</p>
+        <p>{{ draft.court_name|default:draft.court_code }}{% if draft.case_title %} — {{ draft.case_title }}{% endif %}</p>
         {% if registration_error %}<p class="alert alert-danger" role="alert">{{ registration_error }}</p>{% endif %}
-        {% if registered %}
-            <p class="alert alert-success" role="status">{% blocktranslate with email=account_email %}You are registered for future service at {{ email }}.{% endblocktranslate %}</p>
-        {% elif not case_ready %}
+        {% if not case_ready %}
             <p>{% translate "This filing has no case ID available for registration. Use the court’s e-filing system to manage your service contacts." %}</p>
+        {% elif not account_email %}
+            <p>{% translate "Your account needs an email address before you can register. Update it in the court’s e-filing system, then sign in again." %}</p>
         {% else %}
             <form method="post">
                 {% csrf_token %}
                 <div class="form-field">
-                    <label for="first-name">{% translate "Your first name" %}</label>
+                    <label for="first-name" class="form-label">{% translate "Your first name" %}</label>
                     <input id="first-name"
+                           class="form-control"
                            name="first_name"
                            value="{{ first_name }}"
                            maxlength="100"
@@ -26,8 +27,9 @@
                            required />
                 </div>
                 <div class="form-field">
-                    <label for="last-name">{% translate "Your last name" %}</label>
+                    <label for="last-name" class="form-label">{% translate "Your last name" %}</label>
                     <input id="last-name"
+                           class="form-control"
                            name="last_name"
                            value="{{ last_name }}"
                            maxlength="100"

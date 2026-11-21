@@ -44,8 +44,7 @@ from .views.payment import efile_payment
 from .views.public_pages import about_page, terms_of_service_page
 from .views.register import efile_register
 from .views.review import case_review
-from .views.self_service_contact import self_service_contact
-from .views.service_contacts import service, update_service_contacts
+from .views.service_contacts import self_service_contact, service, update_service_contacts
 from .views.session_api import (
     api_save_case_data,
     clear_session_data,
