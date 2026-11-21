@@ -380,7 +380,7 @@ def test_vermont_upload_page_gives_its_document_rules_before_the_drop_zone(clien
     help_at = content.index('id="upload-help"')
     assert help_at < content.index('id="document-drop-zone"')
     assert "needs to be its own PDF" in content
-    assert "Add your most important document first" in content
+    assert "we will ask which is the main document" in content
     assert 'aria-describedby="upload-help upload-requirements upload-preparation"' in content
     # The rules link sits in the court-rules box, outside the clickable drop zone.
     assert "e-filing questions and answers (opens in a new tab)</a>" in content

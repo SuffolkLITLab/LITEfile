@@ -134,7 +134,7 @@ def test_real_conversion_and_browser_previews(
         patch("efile.services.document_uploads.S3UploadHandler", return_value=handler),
         patch("efile.views.document_previews.S3UploadHandler", return_value=handler),
         patch("efile.views.extraction_review.S3UploadHandler", return_value=handler),
-        patch("efile.services.document_uploads.queue_document_extraction"),
+        patch("efile.services.document_uploads.queue_document_extraction") as extract,
         patch("efile.services.people.get_party_types", return_value=[]),
         patch("efile.views.payment.estimate_fees", return_value={}),
     ):
@@ -158,6 +158,9 @@ def test_real_conversion_and_browser_previews(
     print(result.stdout)
     assert result.returncode == 0, result.stdout + result.stderr
     assert draft.documents.count() == 2
+    lead = draft.documents.get(role="lead")
+    assert lead.original_filename == "multiline.pdf"
+    assert extract.call_args.args[0].pk == lead.pk
     for doc in draft.documents.all():
         assert doc.original_s3_key
         assert doc.preparation_reviewed_at is not None
