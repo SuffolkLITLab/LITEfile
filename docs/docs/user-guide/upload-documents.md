@@ -25,9 +25,12 @@ description: Add your finished forms to your filing.
 
 ## Which file goes first?
 
-Upload your **main document** first. This is the form that asks the court to
-do something, like a complaint, petition, motion or appearance. LITEfile reads
-the first file to fill in some answers for you.
+If you choose several files for your first upload, LITEfile asks **Which is
+the main document?** Choose the document that asks the court to do something,
+like a complaint, petition, motion or answer. Then choose **Upload documents**.
+LITEfile reads your chosen document first to suggest answers.
+
+If you upload just one file, that file is your main document.
 
 You can add more papers later, such as a fee waiver form or exhibits.
 

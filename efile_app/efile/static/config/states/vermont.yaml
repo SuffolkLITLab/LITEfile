@@ -72,8 +72,8 @@ text:
       Sign your documents where needed. The court will reject a document that
       is missing a signature.
     order_help: >-
-      Add your most important document first, like a complaint, answer or
-      motion. Then add the rest.
+      If you upload several documents together, we will ask which is the
+      main document, like a complaint, answer or motion.
   terms:
     # Vermont courts call the document that opens a case a complaint.
     starting_document_example: "complaint"

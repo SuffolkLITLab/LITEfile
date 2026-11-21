@@ -93,7 +93,7 @@ CONFIG_STRINGS = [
     # Translators: Shown above the upload area when set. Tells filers to add their main document first, because the first file uploaded becomes the main document.
     pgettext_lazy(
         "upload_documents.order_help",
-        "Add your most important document first, like a complaint, answer or motion. Then add the rest.",
+        "If you upload several documents together, we will ask which is the main document, like a complaint, answer or motion.",
     ),
     # Translators: Preparation guidance when flatten_pdf_forms is enabled. May link to state-specific requirements.
     pgettext_lazy(
