@@ -6,6 +6,7 @@
 {% block workflow_content %}
     <section class="workflow-card workflow-card--narrow">
         <h1>{% translate "Receive future service by email" %}</h1>
+        {% include "efile/partials/filing_guidance.html" %}
         <p>{% translate "Add yourself to this case's service contacts so other filers can select you for electronic service. This does not send your documents to anyone." %}</p>
         <p>{{ draft.court_name|default:draft.court_code }}{% if draft.case_title %} — {{ draft.case_title }}{% endif %}</p>
         {% if registration_error %}<p class="alert alert-danger" role="alert">{{ registration_error }}</p>{% endif %}
