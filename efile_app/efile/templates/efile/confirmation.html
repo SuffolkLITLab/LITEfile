@@ -67,6 +67,8 @@
             </div>
         </div>
         <div class="confirmation-actions">
+            <a href="{% url 'self_service_contact' draft.public_id %}"
+               class="btn btn-outline-secondary">{% translate "Receive future service by email" %}</a>
             <a href="{% url 'filing_statuses' jurisdiction %}"
                class="btn btn-primary">
                 <i class="fas fa-list-check me-2" aria-hidden="true"></i>{% translate "View filing status" %}
