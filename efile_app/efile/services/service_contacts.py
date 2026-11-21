@@ -38,6 +38,8 @@ def proxy_request(draft, token, path, *, body=None, method=None, timeout=15):
     try:
         if method == "GET":
             response = requests.get(url, headers=headers, json=body, timeout=timeout)
+        elif method == "PUT":
+            response = requests.put(url, headers=headers, json=body, timeout=timeout)
         elif body is None:
             response = requests.get(url, headers=headers, timeout=15)
         else:
@@ -51,6 +53,8 @@ def proxy_request(draft, token, path, *, body=None, method=None, timeout=15):
         if response.status_code == 400 and body is not None:
             raise ServiceContactError("The court could not add this contact. Check the name and email address.")
         response.raise_for_status()
+        if method == "PUT" and response.status_code in {201, 204}:
+            return None
         return response.json()
     except ServiceContactError:
         raise
@@ -228,6 +232,11 @@ def create_contact(draft, token, data):
         raise ServiceContactError(
             "This court does not allow new service contacts when starting a case. Choose an existing contact."
         )
+    return get_or_create_contact(draft, token, data)
+
+
+def get_or_create_contact(draft, token, data):
+    """Reuse a firm contact or create one; callers decide the permitted use."""
     first = data.get("contact_first_name", "").strip()
     last = data.get("contact_last_name", "").strip()
     email = data.get("contact_email", "").strip()
@@ -243,7 +252,7 @@ def create_contact(draft, token, data):
     for contact in existing:
         if (
             contact["email"].casefold() == email.casefold()
-            and contact["name"].casefold() == f"{first} {last}".casefold()
+            and " ".join(contact["name"].split()).casefold() == f"{first} {last}".casefold()
         ):
             return contact["contact_id"]
     contact_id = proxy_request(

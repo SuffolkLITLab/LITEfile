@@ -44,6 +44,7 @@ from .views.payment import efile_payment
 from .views.public_pages import about_page, terms_of_service_page
 from .views.register import efile_register
 from .views.review import case_review
+from .views.self_service_contact import self_service_contact
 from .views.service_contacts import service, update_service_contacts
 from .views.session_api import (
     api_save_case_data,
@@ -77,6 +78,7 @@ urlpatterns = [
     path("jurisdiction/<str:jurisdiction>/service-contacts/", update_service_contacts, name="update_service_contacts"),
     path("favicon.ico", lambda request: redirect(static("img/favicon.ico")), name="favicon"),
     path("submissions/<uuid:public_id>/", submission_tracker, name="submission_tracker"),
+    path("submissions/<uuid:public_id>/service-contact/", self_service_contact, name="self_service_contact"),
     path(f"{settings.LITEFILE_STAFF_PATH}/", staff_site.urls),
     path("api/handoffs/v1/", external_handoff, name="external_handoff"),
     path("api/handoffs/v1/documents/", replace_documents, name="handoff_replace_documents"),

@@ -73,6 +73,7 @@ USER_GUIDE_PAGES = {
     "case_questions": "people",
     "service": "serve-papers",
     "update_service_contacts": "serve-papers",
+    "self_service_contact": "serve-papers#receive-future-service-by-email",
     "payment": "fees",
     "waiver_documents": "fees#ask-for-a-fee-waiver",
     "case_review": "review-submit",

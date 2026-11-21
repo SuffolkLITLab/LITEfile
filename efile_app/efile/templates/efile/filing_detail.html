@@ -28,6 +28,9 @@
         <div class="container">
             <div class="row justify-content-center">
                 <div class="col-xl-7">
+                    {% if local_draft and local_draft.user_id == request.user.pk %}
+                        <p><a href="{% url 'self_service_contact' local_draft.public_id %}">{% translate "Receive future service by email" %}</a></p>
+                    {% endif %}
                     {% if correction_action %}
                         <section class="option-card" aria-label="Correct this filing">
                             {% if correction_action.create %}

@@ -1,0 +1,48 @@
+{% extends "efile/workflow_base.html" %}
+{% load i18n %}
+{% block title %}
+    {% translate "Receive future service by email" %}
+{% endblock title %}
+{% block workflow_content %}
+    <section class="workflow-card workflow-card--narrow">
+        <h1>{% translate "Receive future service by email" %}</h1>
+        <p>{% translate "Add yourself to this case's service contacts so other filers can select you for electronic service. This does not send your documents to anyone." %}</p>
+        <p>{{ draft.court_name }}{% if draft.case_title %} — {{ draft.case_title }}{% endif %}</p>
+        {% if registration_error %}<p class="alert alert-danger" role="alert">{{ registration_error }}</p>{% endif %}
+        {% if registered %}
+            <p class="alert alert-success" role="status">{% blocktranslate with email=account_email %}You are registered for future service at {{ email }}.{% endblocktranslate %}</p>
+        {% elif not case_ready %}
+            <p>{% translate "This filing has no case ID available for registration. Use the court’s e-filing system to manage your service contacts." %}</p>
+        {% else %}
+            <form method="post">
+                {% csrf_token %}
+                <div class="form-field">
+                    <label for="first-name">{% translate "Your first name" %}</label>
+                    <input id="first-name"
+                           name="first_name"
+                           value="{{ first_name }}"
+                           maxlength="100"
+                           autocomplete="given-name"
+                           required />
+                </div>
+                <div class="form-field">
+                    <label for="last-name">{% translate "Your last name" %}</label>
+                    <input id="last-name"
+                           name="last_name"
+                           value="{{ last_name }}"
+                           maxlength="100"
+                           autocomplete="family-name"
+                           required />
+                </div>
+                <p>{% translate "Your account email:" %} <strong>{{ account_email }}</strong></p>
+                <label>
+                    <input type="checkbox" name="consent" value="yes" required />
+                    {% translate "Add me as a service contact for this case at this email address." %}
+                </label>
+                <p>{% translate "This is separate from filing-status notifications and courtesy copies. Register only for yourself. You can manage your service contacts in the court's e-filing system." %}</p>
+                <button class="btn btn-primary" type="submit">{% translate "Register for future service" %}</button>
+            </form>
+        {% endif %}
+        <p><a href="{% url 'submission_tracker' draft.public_id %}">{% translate "Back to filing status" %}</a></p>
+    </section>
+{% endblock workflow_content %}
