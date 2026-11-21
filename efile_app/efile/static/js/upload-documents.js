@@ -40,6 +40,10 @@
     const aiRemember = document.getElementById("ai-remember");
     const aiRememberChoice = document.getElementById("ai-remember-choice");
     const selectedFiles = new Map();
+    const mainDialog = document.getElementById("main-document-dialog");
+    const mainChoices = document.getElementById("main-document-choices");
+    const mainChoiceForm = document.getElementById("main-document-choice-form");
+    let mainFileKey = null;
     let nextSelectionId = 0;
     let uploading = false;
     let uploadBlocked = false;
@@ -218,6 +222,42 @@
             "Choose PDFs or Word documents, or drag them here";
     }
 
+    function askForMainDocument() {
+        mainChoices.replaceChildren();
+        let number = 0;
+        selectedFiles.forEach((file, key) => {
+            const label = document.createElement("label");
+            const radio = document.createElement("input");
+            radio.type = "radio";
+            radio.name = "main_file";
+            radio.value = key;
+            radio.required = true;
+            const name = document.createElement("span");
+            name.textContent = `${++number}. ${file.name}`;
+            label.append(radio, name);
+            mainChoices.append(label);
+        });
+        mainDialog.showModal();
+    }
+
+    mainChoiceForm.addEventListener("submit", (event) => {
+        event.preventDefault();
+        const key = mainChoiceForm.querySelector('input[name="main_file"]:checked')?.value;
+        if (!selectedFiles.has(key)) return;
+        const mainFile = selectedFiles.get(key);
+        selectedFiles.delete(key);
+        const ordered = [
+            [key, mainFile], ...selectedFiles
+        ];
+        selectedFiles.clear();
+        ordered.forEach(([fileKey, file]) => selectedFiles.set(fileKey, file));
+        mainFileKey = key;
+        syncFiles();
+        mainDialog.close();
+        form.requestSubmit();
+    });
+    document.getElementById("main-document-cancel").addEventListener("click", () => mainDialog.close());
+
     function addFiles(files) {
         if (files.length && form.dataset.workerPrewake === "true") {
             const body = new FormData();
@@ -233,6 +273,7 @@
         // the same PDF. Removal uses its selection ID, never its filename.
         const merged = mergeFiles(selectedFiles.values(), files);
         selectedFiles.clear();
+        mainFileKey = null;
         merged.forEach((file) => selectedFiles.set(String(++nextSelectionId), file));
         syncFiles();
     }
@@ -296,6 +337,10 @@
     form.addEventListener("submit", async (event) => {
         event.preventDefault();
         if (uploading || uploadBlocked || selectedFiles.size === 0) return;
+        if (!hasLead && selectedFiles.size > 1 && !selectedFiles.has(mainFileKey)) {
+            askForMainDocument();
+            return;
+        }
         uploading = true;
         updateContinue();
         errorBox.hidden = true;

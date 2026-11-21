@@ -54,12 +54,42 @@ async function main() {
         });
     try {
         await page.goto(config.baseUrl + config.uploadUrl);
-        await page.locator("#documents-input").setInputFiles(config.files);
+        await page.locator("#documents-input").setInputFiles([...config.files].reverse());
         await screenshot("01-upload-selection.png");
         await page.locator("#upload-button").click();
-        await page.waitForResponse(
+        const mainDialog = page.getByRole("dialog", {
+            name: "Which is the main document?"
+        });
+        await mainDialog.waitFor();
+        assert.equal(await mainDialog.locator("input:checked").count(), 0);
+        await screenshot("01-main-document-desktop.png");
+        await page.keyboard.press("Escape");
+        assert.equal(await mainDialog.isVisible(), false);
+        assert.equal(await page.locator(".pending-file-row").count(), 2);
+        await page.locator("#upload-button").click();
+        await page.setViewportSize({
+            width: 390,
+            height: 844
+        });
+        await screenshot("01-main-document-mobile.png");
+        assert.equal(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth), true);
+        const modalAccessibility = await new AxeBuilder({
+            page
+        }).include("#main-document-dialog").analyze();
+        assert.deepEqual(modalAccessibility.violations.map(item => item.id), []);
+        await mainDialog.getByRole("radio").nth(1).check();
+        const uploaded = page.waitForResponse(
             (response) => response.url().includes("upload-documents") && response.request().method() === "POST"
         );
+        await mainDialog.getByRole("button", {
+            name: "Upload documents",
+            exact: true
+        }).click();
+        await uploaded;
+        await page.setViewportSize({
+            width: 1280,
+            height: 1000
+        });
         await page.locator("#continue-to-analysis:not(.disabled)").waitFor();
         await page.waitForFunction(() => document.querySelectorAll(".document-row").length === 2);
         await page.locator("#continue-to-analysis").click();

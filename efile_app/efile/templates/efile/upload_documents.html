@@ -300,6 +300,25 @@
             <a class="btn btn-primary {% if not has_lead_document or extraction_wait_seconds %}disabled{% endif %}" id="continue-to-analysis" data-continue-url="{% url 'extraction_review' jurisdiction %}{% if return_to %}?return_to={{ return_to }}{% endif %}" {% if not has_lead_document or extraction_wait_seconds %}aria-disabled="true" tabindex="-1"{% else %}href="{% url 'extraction_review' jurisdiction %}{% if return_to %}?return_to={{ return_to }}{% endif %}"{% endif %}>{% translate "Confirm information" %} <i class="fa-solid fa-arrow-right" aria-hidden="true"></i></a>
         </div>
     </section>
+    <dialog id="main-document-dialog"
+            class="main-document-dialog"
+            aria-labelledby="main-document-title"
+            aria-describedby="main-document-help">
+        <form id="main-document-choice-form" method="dialog">
+            <h2 id="main-document-title">{% translate "Which is the main document?" %}</h2>
+            <p id="main-document-help">{% translate "Choose the document that tells the court what you are asking for, such as a complaint, petition, motion, or answer. We will read this document first to suggest case information." %}</p>
+            <fieldset>
+                <legend class="visually-hidden">{% translate "Choose your main document" %}</legend>
+                <div id="main-document-choices" class="compact-choice-list"></div>
+            </fieldset>
+            <div class="workflow-actions">
+                <button type="button"
+                        id="main-document-cancel"
+                        class="btn btn-outline-secondary">{% translate "Cancel" %}</button>
+                <button type="submit" class="btn btn-primary">{% translate "Upload documents" %}</button>
+            </div>
+        </form>
+    </dialog>
 {% endblock workflow_content %}
 {% block extra_js %}
     <script src="{% static 'js/document-requests.js' %}"></script>

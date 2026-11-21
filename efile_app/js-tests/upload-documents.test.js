@@ -53,6 +53,7 @@ function uploadPage({
             dataset: {},
             attributes: new Map(),
             listeners: {},
+            children: [],
             classList: {
                 toggle() {},
                 add() {},
@@ -67,9 +68,25 @@ function uploadPage({
             removeAttribute(name) {
                 this.attributes.delete(name);
             },
-            append() {},
-            replaceChildren() {},
+            append(...children) {
+                this.children.push(...children);
+            },
+            replaceChildren() {
+                this.children = [];
+            },
+            showModal() {
+                this.open = true;
+            },
+            close() {
+                this.open = false;
+            },
+            requestSubmit() {
+                this.submission = this.listeners.submit({
+                    preventDefault() {}
+                });
+            },
             querySelector() {
+                if (id === "main-document-choice-form") return node("main-document-choices").children.map(label => label.children[0]).find(radio => radio.checked);
                 if (id === "document-drop-zone") return node("drop-zone-label");
                 if (id === "upload-state") return node("upload-spinner");
                 return null;
@@ -118,6 +135,9 @@ function uploadPage({
             };
         },
         FormData: class {
+            constructor() {
+                this.files = [...(node("documents-input").files || [])];
+            }
             get() {
                 return "b65359a8-c34b-44a7-8d2e-3422f765e71a";
             }
@@ -441,4 +461,99 @@ test("a failed later upload restores the completed analysis indicator", async ()
     assert.equal(page.node("upload-spinner").hidden, true);
     assert.equal(page.node("upload-state-title").textContent, "Document analysis is ready");
     assert.equal(page.node("upload-error").hidden, false);
+});
+
+test("multiple initial files wait for an explicit main-document choice", async () => {
+    const sent = [];
+    const page = uploadPage({
+        hasLead: false,
+        fetch: async (_url, options) => {
+            sent.push(options.body.files);
+            return reply({
+                preparation_pending: true
+            });
+        }
+    });
+    const input = page.node("documents-input");
+    input.files = [pdf("exhibit.pdf", 100, 1), pdf("petition.pdf", 200, 2), pdf("waiver.pdf", 300, 3)];
+    input.listeners.change();
+    await page.submit();
+    assert.equal(sent.length, 0);
+    assert.equal(page.node("main-document-dialog").open, true);
+    const radios = page.node("main-document-choices").children.map(label => label.children[0]);
+    assert.equal(radios.length, 3);
+    assert.ok(radios.every(radio => radio.required && !radio.checked));
+    await page.node("main-document-choice-form").listeners.submit({
+        preventDefault() {}
+    });
+    assert.equal(sent.length, 0);
+    radios[1].checked = true;
+    page.node("main-document-choice-form").listeners.submit({
+        preventDefault() {}
+    });
+    await page.node("document-upload-form").submission;
+    assert.equal(page.node("main-document-dialog").open, false);
+    assert.deepEqual(Array.from(sent[0], file => file.name), ["petition.pdf", "exhibit.pdf", "waiver.pdf"]);
+});
+
+test("cancel keeps selected files and asks again without starting an upload", async () => {
+    let uploads = 0;
+    const page = uploadPage({
+        hasLead: false,
+        fetch: async () => {
+            uploads++;
+            return reply({});
+        }
+    });
+    const input = page.node("documents-input");
+    input.files = [pdf("one.pdf", 100, 1), pdf("two.pdf", 200, 2)];
+    input.listeners.change();
+    await page.submit();
+    page.node("main-document-cancel").listeners.click();
+    assert.equal(page.node("main-document-dialog").open, false);
+    assert.equal(input.files.length, 2);
+    assert.equal(uploads, 0);
+    await page.submit();
+    assert.equal(page.node("main-document-dialog").open, true);
+});
+
+test("identical filenames still select the intended file by identity", async () => {
+    let sent;
+    const page = uploadPage({
+        hasLead: false,
+        fetch: async (_url, options) => {
+            sent = options.body.files;
+            return reply({});
+        }
+    });
+    const input = page.node("documents-input");
+    input.files = [pdf("same.pdf", 100, 1), pdf("same.pdf", 200, 2)];
+    input.listeners.change();
+    await page.submit();
+    page.node("main-document-choices").children[1].children[0].checked = true;
+    page.node("main-document-choice-form").listeners.submit({
+        preventDefault() {}
+    });
+    await page.node("document-upload-form").submission;
+    assert.deepEqual(Array.from(sent, file => file.size), [200, 100]);
+});
+
+test("a single file or an existing main document does not require a new choice", async () => {
+    for (const hasLead of [false, true]) {
+        let uploads = 0;
+        const page = uploadPage({
+            hasLead,
+            fetch: async () => {
+                uploads++;
+                return reply({});
+            }
+        });
+        const input = page.node("documents-input");
+        input.files = [pdf("one.pdf", 100, 1)];
+        if (hasLead) input.files.push(pdf("two.pdf", 200, 2));
+        input.listeners.change();
+        await page.submit();
+        assert.equal(uploads, 1);
+        assert.ok(!page.node("main-document-dialog").open);
+    }
 });
