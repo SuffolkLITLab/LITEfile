@@ -17,8 +17,11 @@ description: Add your finished forms to your filing.
 1. Choose **Choose PDF or Word files or drag them here**.
 2. Pick your files. You can pick more than one.
 3. Choose **Upload selected files**.
-4. Wait while LITEfile reads your first file.
-5. When each file says **Ready**, choose **Confirm information**.
+4. A window shows each step: uploading your files, preparing the PDFs, then
+   reading your main document. Keep the page open. The window stays until
+   everything is done.
+5. When the window says **Your documents are ready**, choose
+   **Confirm information**. Or choose **Close** to add more files first.
 
 <img src="/img/user-guide/upload-ready.png" alt="Upload your documents page. One file, small-claims-complaint.pdf, is listed as Ready. A Confirm information button is at the bottom." className="doc-screenshot" width="700" loading="lazy" />
 <p className="screenshot-caption">Each file shows Ready when it is uploaded. Choose View PDF to see it.</p>
@@ -57,6 +60,10 @@ Your files listed under **Your documents**, each marked **Ready**.
 - **Wrong file:** Choose **Remove** next to it. Then upload the right one.
 - **Need to swap a file:** Open **Replace a document**, pick the old file, then
   upload the new one.
+- **Reading takes a long time:** After a while, the window lets you go on and
+  type the case details yourself.
+- **"Your documents need attention":** Choose **Retry preparation**, or
+  **Remove this upload** and try again.
 - **File won't upload:** Check it is a PDF or Word file under 10 MB with no
   password.
 - **"Print your file to PDF and upload that copy":** Open the file, choose

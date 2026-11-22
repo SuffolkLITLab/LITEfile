@@ -1,9 +1,6 @@
 (function() {
     const panel = document.getElementById("preparation-state");
     if (!panel) return;
-    panel.scrollIntoView({
-        block: "nearest"
-    });
     const detail = document.getElementById("preparation-detail");
     const initialDetail = detail.textContent.trim();
     let attempt = 0;
@@ -41,6 +38,8 @@
                         body
                     }
                 );
+                // A removed upload has nothing left to report as ready.
+                if (button.dataset.action === "cancel_preparation") window.UploadProgress?.forget();
                 window.location.reload();
             } catch (error) {
                 detail.textContent = error.message;

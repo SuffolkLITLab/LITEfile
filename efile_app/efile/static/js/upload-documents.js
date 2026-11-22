@@ -43,6 +43,102 @@
     const mainDialog = document.getElementById("main-document-dialog");
     const mainChoices = document.getElementById("main-document-choices");
     const mainChoiceForm = document.getElementById("main-document-choice-form");
+    const processingDialog = document.getElementById("processing-dialog");
+    const processingClose = document.getElementById("processing-close");
+    const processingContinue = document.getElementById("processing-continue");
+    const PHASES = ["uploading", "preparing", "reading", "ready"];
+    const STEP_STATES = {
+        done: "Done",
+        active: "In progress",
+        failed: "Needs attention",
+        waiting: "Not started"
+    };
+    // An upload ends in a page refresh, so remember for this tab that one was
+    // started; the window can then say "ready" for an upload that never needs
+    // reading (a supporting document) instead of silently disappearing.
+    const progressKey = `litefile-upload-progress:${new URL(window.location.href).searchParams.get("draft") || "current"}`;
+
+    function rememberUpload(reading) {
+        try {
+            window.sessionStorage?.setItem(progressKey, JSON.stringify({
+                reading
+            }));
+        } catch {
+            // Storage can be unavailable; the window then only follows this page.
+        }
+    }
+
+    function recalledUpload() {
+        try {
+            return JSON.parse(window.sessionStorage?.getItem(progressKey) || "null");
+        } catch {
+            return null;
+        }
+    }
+
+    function forgetUpload() {
+        try {
+            window.sessionStorage?.removeItem(progressKey);
+        } catch {
+            // Nothing to forget.
+        }
+    }
+
+    function processingPhase() {
+        return processingDialog?.dataset.phase || "";
+    }
+
+    // The window stays up while anything is still running. Only a finished,
+    // failed or overdue job lets the filer dismiss it.
+    function processingClosable() {
+        const phase = processingPhase();
+        return phase === "ready" || phase === "failed" || (phase === "reading" && waitOver);
+    }
+
+    function refreshProcessingActions() {
+        if (!processingDialog) return;
+        if (processingClose) processingClose.hidden = !processingClosable();
+        if (processingContinue) {
+            const show = processingPhase() !== "failed" && canContinue();
+            processingContinue.hidden = !show;
+            if (show) processingContinue.setAttribute("href", continueButton.dataset.continueUrl);
+        }
+        const actions = document.getElementById("processing-actions");
+        if (actions) actions.hidden = Boolean(processingClose?.hidden && processingContinue?.hidden);
+    }
+
+    function setProcessingPhase(phase, {
+        reading = true
+    } = {}) {
+        if (!processingDialog) return;
+        processingDialog.dataset.phase = phase;
+        const current = phase === "failed" ? PHASES.indexOf("preparing") : PHASES.indexOf(phase);
+        (processingDialog.querySelectorAll?.(".processing-steps li") || []).forEach((step) => {
+            const index = PHASES.indexOf(step.dataset.step);
+            let stepState = "waiting";
+            if (index < current) stepState = "done";
+            else if (index === current) stepState = phase === "failed" ? "failed" : "active";
+            step.dataset.state = stepState;
+            if (step.dataset.step === "reading") step.hidden = !reading && phase !== "reading";
+            const label = step.querySelector(".processing-steps__state");
+            if (label) label.textContent = STEP_STATES[stepState];
+            if (stepState === "active") step.setAttribute("aria-current", "step");
+            else step.removeAttribute("aria-current");
+        });
+        // Ready is the end: nothing to reopen after another refresh.
+        if (phase === "ready" && !uploading) forgetUpload();
+        refreshProcessingActions();
+        if (!processingDialog.open) processingDialog.showModal?.();
+    }
+
+    function closeProcessing() {
+        if (processingDialog?.open) processingDialog.close();
+    }
+
+    processingDialog?.addEventListener("cancel", (event) => {
+        if (!processingClosable()) event.preventDefault();
+    });
+    processingClose?.addEventListener("click", closeProcessing);
     let mainFileKey = null;
     let nextSelectionId = 0;
     let uploading = false;
@@ -100,6 +196,7 @@
             continueButton.removeAttribute("tabindex");
             continueButton.setAttribute("href", continueButton.dataset.continueUrl);
         }
+        refreshProcessingActions();
     }
 
     continueButton.addEventListener("click", (event) => {
@@ -175,6 +272,12 @@
             const optedOut = aiOptOut.checked;
             if (aiNoteOn) aiNoteOn.hidden = optedOut;
             if (aiNoteOff) aiNoteOff.hidden = !optedOut;
+            document.querySelectorAll(".processing-steps__reading-ai").forEach((label) => {
+                label.hidden = optedOut;
+            });
+            document.querySelectorAll(".processing-steps__reading-rules").forEach((label) => {
+                label.hidden = !optedOut;
+            });
             aiChoiceTouched = true;
             if (aiRemember) aiRemember.open = true;
             saveAiPreference();
@@ -345,11 +448,12 @@
         updateContinue();
         errorBox.hidden = true;
         state.hidden = false;
-        const spinner = state.querySelector(".spinner-border");
-        if (spinner) spinner.hidden = false;
         updateUploadButton();
-        state.scrollIntoView?.({
-            block: "nearest"
+        // Only the first upload's main document is read for suggestions.
+        const reading = !hasLead;
+        rememberUpload(reading);
+        setProcessingPhase("uploading", {
+            reading
         });
         stateTitle.textContent = "Uploading your files…";
         stateDetail.textContent = "Keep this page open while we make your PDFs.";
@@ -364,6 +468,12 @@
                 },
             });
             const pending = result.preparation_pending || result.extraction_pending;
+            let nextPhase = "ready";
+            if (result.preparation_pending) nextPhase = "preparing";
+            else if (result.extraction_pending) nextPhase = "reading";
+            setProcessingPhase(nextPhase, {
+                reading
+            });
             stateTitle.textContent = pending ? "Processing your documents…" : "Your documents are ready";
             let pendingDetail = "Please wait while we read your document to suggest answers. You can continue when it is ready.";
             if (result.preparation_pending) pendingDetail = "Your files are uploaded. Please wait while we prepare the PDFs and check them for case information.";
@@ -378,7 +488,8 @@
             const message = await handleUploadError(error, body);
             if (message === null) return;
             uploading = false;
-            if (spinner) spinner.hidden = analysisReady;
+            forgetUpload();
+            closeProcessing();
             updateContinue();
             // Go back to the first file's analysis status, including any
             // result that arrived while this upload was running.
@@ -422,7 +533,7 @@
     }
 
     async function pollExtraction() {
-        if (!form.dataset.extractionStatusUrl || state.hidden) return;
+        if (!form.dataset.extractionStatusUrl || form.dataset.extractionPending !== "true") return;
         try {
             const result = await documentRequests.status(
                 form.dataset.extractionStatusUrl,
@@ -436,8 +547,6 @@
                 return;
             }
 
-            const spinner = state.querySelector(".spinner-border");
-            if (!uploading && spinner) spinner.hidden = true;
             let readyTitle = "Document analysis is ready";
             if (result.ai_opted_out) readyTitle = "We finished checking your document";
             // Nothing is reviewed on this page: the details are on the next
@@ -451,6 +560,7 @@
                 nextPageNudge
             );
             updateContinue();
+            if (!uploading && processingPhase() === "reading") setProcessingPhase("ready");
             const analyzingPill = document.querySelector(".status-pill--analyzing");
             if (analyzingPill) {
                 analyzingPill.classList.replace("status-pill--analyzing", "status-pill--ready");
@@ -463,6 +573,29 @@
             window.setTimeout(pollExtraction, extractionPollDelay(pollAttempt++));
         }
     }
+
+    window.UploadProgress = {
+        forget: forgetUpload
+    };
+    // Reopen the window after the refresh that follows each step.
+    function reopenProcessing() {
+        const recalled = recalledUpload();
+        const serverPhase = processingPhase();
+        if (serverPhase) {
+            setProcessingPhase(serverPhase, {
+                reading: recalled?.reading ?? true
+            });
+        } else if (recalled) {
+            stateTitle.textContent = "Your documents are ready";
+            stateDetail.textContent = hasLead ?
+                "Your files are uploaded. Review the information carefully on the next page." :
+                "Your files are uploaded.";
+            setProcessingPhase("ready", {
+                reading: recalled.reading
+            });
+        }
+    }
+    reopenProcessing();
 
     pollExtraction();
 })();
