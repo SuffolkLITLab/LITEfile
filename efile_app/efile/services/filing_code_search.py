@@ -1537,6 +1537,9 @@ def validate_path(path):
         options["case_type"] = catalog.types(court["code"], category["code"], path.initial)
         case_type = find(options["case_type"], "case_type")
         options["filing_type"] = catalog.filings(court["code"], category["code"], case_type["code"], path.initial)
+        options["filing_type"] = sorted(
+            options["filing_type"], key=lambda item: (str(item["name"]).strip().casefold(), str(item["code"]))
+        )
         filing = find(options["filing_type"], "filing_type")
     finally:
         catalog.close()
