@@ -57,14 +57,14 @@ def test_plain_text_fallback_links_to_tracker_and_waiver_source():
     assert set(fields) == set(PROXY_EMAIL_FIELDS)
     assert "noreply@example.com" in fields["from_email"]
     assert tracker_url in fields["email_confirmation_contents"]
-    assert "https://example.test/waiver" in fields["email_confirmation_contents"]
-    assert "If you requested a fee waiver, check the court’s decision" in fields["email_confirmation_contents"]
+    assert "submitting documentation or attending a hearing" in fields["email_confirmation_contents"]
+    assert "If you applied for a fee waiver" in fields["email_confirmation_contents"]
     assert "Illinois Court Help" in fields["email_confirmation_contents"]
     assert "833-411-1121" in fields["email_confirmation_contents"]
     assert "\n" in fields["email_confirmation_contents"]
     assert all("<" not in value and ">" not in value for value in fields.values())
     assert fields["email_confirmation_contents"].count(tracker_url) == 1
-    assert "accepted by the court" in fields["acceptance_contents"]
+    assert "accepted by the clerk" in fields["acceptance_contents"]
     assert "A filing in your submission" in fields["acceptance_contents"]
     neutral = fields["neutral_contents"]
     assert 'status|lower == "returned"' in neutral
@@ -89,13 +89,13 @@ def test_html_notifications_include_progress_and_escape_contact_markup():
     from bs4 import BeautifulSoup
 
     request = RequestFactory().get("/", HTTP_HOST="testserver")
-    config = deepcopy(config_loader.load_jurisdiction_config("illinois"))
+    config = deepcopy(config_loader.load_jurisdiction_config("massachusetts"))
     config["submission_notifications"]["enabled"] = True
     with patch(
         "efile.services.submission_notifications.court_contact",
         return_value={"name": '<img src=x onerror="alert(1)"> {{name}} & help'},
     ):
-        fields = submission_email_fields(request, fake_draft(), "illinois", config)
+        fields = submission_email_fields(request, fake_draft(), "massachusetts", config)
     for field, outcome in (
         ("email_confirmation_contents", "Received"),
         ("acceptance_contents", "Accepted"),
@@ -149,7 +149,7 @@ def test_waiver_document_counts_as_a_waiver_request():
     with patch("efile.services.submission_notifications.has_waiver_document", return_value=True):
         fields = submission_email_fields(request, fake_draft(), "illinois", config)
 
-    assert "If you requested a fee waiver" in fields["email_confirmation_contents"]
+    assert "If you applied for a fee waiver" in fields["email_confirmation_contents"]
 
 
 def test_default_templates_are_available_for_another_enabled_jurisdiction():
@@ -181,12 +181,12 @@ def test_client_cannot_supply_proxy_email_templates_or_change_other_data():
 def test_notification_copy_escapes_template_injection_in_configured_values():
     request = RequestFactory().get("/", HTTP_HOST="testserver")
     draft = fake_draft(selected_payment_account_type="WV", court_code="unknown")
-    config = deepcopy(config_loader.load_jurisdiction_config("illinois"))
+    config = deepcopy(config_loader.load_jurisdiction_config("massachusetts"))
     config["submission_notifications"]["enabled"] = True
     config["fee_waiver"]["source_url"] = "https://example.test/{{name}}"
 
     with patch("efile.services.submission_notifications.court_contact", return_value={"name": "{{name}}"}):
-        fields = submission_email_fields(request, draft, "illinois", config)
+        fields = submission_email_fields(request, draft, "massachusetts", config)
 
     assert all("{{" not in value and "}}" not in value for value in fields.values())
     assert "%7B%7Bname%7D%7D" in fields["email_confirmation_contents"]
@@ -328,8 +328,7 @@ def test_verified_court_contact_in_all_email_events(email_format, court, phone):
     for field, body in fields.items():
         if field.endswith("_contents"):
             assert phone in body
-            if court != "unknown":
-                assert "833-411-1121" not in body
+            assert "833-411-1121" in body
 
 
 @pytest.mark.parametrize("email_format", ["html", "plain_text"])
@@ -416,3 +415,91 @@ def test_cook_pulaski_closure_appears_only_in_immediate_email():
     assert "Casimir Pulaski Day" in fields["email_confirmation_contents"]
     for event in ("acceptance_contents", "rejected_contents", "neutral_contents"):
         assert "Casimir Pulaski Day" not in fields[event]
+
+
+@pytest.mark.parametrize("email_format", ["html", "plain_text"])
+def test_illinois_delivery_values_are_escaped_for_the_transport(email_format):
+    from django.template import Context, Engine
+
+    config = deepcopy(config_loader.load_jurisdiction_config("illinois"))
+    config["submission_notifications"].update(enabled=True, format=email_format)
+    fields = submission_email_fields(
+        RequestFactory().get("/"),
+        fake_draft(
+            court_code="winnebago", case_title="Jordan <script>bad</script> {{status}}", court_name="Test court"
+        ),
+        "illinois",
+        config,
+    )
+    delivery = {
+        "name": "Jordan <script>bad</script>",
+        "court_name": "Test court",
+        "case_title": "Test v. Example",
+        "transaction_id": "filing-123",
+        "envelope_id": "envelope-456",
+        "message_text": "Clerk <b>message</b>",
+        "status": "Returned",
+    }
+    # Exercise the second rendering pass with the same condition/filter syntax.
+    engine = Engine(autoescape=False)
+    for field, text in fields.items():
+        if not field.endswith("_contents"):
+            continue
+        assert "$" not in text
+        body = engine.from_string(text).render(Context(delivery, autoescape=False))
+        assert "{{" not in body and "{%" not in body
+        assert "Illinois Court Help" in body
+        assert "833-411-1121" in body
+        if email_format == "html":
+            assert "<script>" not in body and "&lt;script&gt;" in body
+            assert "<b>message</b>" not in body
+        else:
+            assert "Jordan <script>bad</script>" in body
+        assert "%7B%7Bstatus%7D%7D" in body
+        assert "Clerk <b>message</b>" not in body
+    assert "$envelope_number" not in fields["acceptance_contents"]
+    assert "Other filings in the same envelope may have a different status" in fields["acceptance_contents"]
+
+
+@pytest.mark.parametrize("email_format", ["html", "plain_text"])
+def test_illinois_local_help_excludes_email_and_never_uses_statewide_as_clerk(email_format):
+    config = deepcopy(config_loader.load_jurisdiction_config("illinois"))
+    config["submission_notifications"].update(enabled=True, format=email_format)
+    config["court_specific_requirements"]["test"] = {
+        "contact": {
+            "name": "Test clerk <img src=x> {{name}}",
+            "phone": "555-0100",
+            "url": "https://example.test",
+            "email": "omit@example.test",
+        }
+    }
+    fields = submission_email_fields(RequestFactory().get("/"), fake_draft(court_code="test"), "illinois", config)
+    for key, body in fields.items():
+        if key.endswith("_contents"):
+            assert "555-0100" in body and "833-411-1121" in body
+            assert "omit@example.test" not in body
+            assert "%7B%7Bname%7D%7D" in body
+            if email_format == "html":
+                assert "<img src=x>" not in body and "&lt;img src=x&gt;" in body
+
+
+@pytest.mark.parametrize("placeholder", ["$envelope_number", "${envelope_number}"])
+def test_envelope_number_is_not_available_to_callback_templates(placeholder):
+    from django.core.exceptions import ImproperlyConfigured
+
+    config = deepcopy(config_loader.load_jurisdiction_config("illinois"))
+    config["submission_notifications"]["enabled"] = True
+    config["submission_notifications"]["templates"]["acceptance_contents"] = "Envelope " + placeholder
+    with pytest.raises(ImproperlyConfigured, match="only in submission confirmation"):
+        submission_email_fields(RequestFactory().get("/"), fake_draft(), "illinois", config)
+
+
+@pytest.mark.parametrize("field", ["acceptance_subject", "from_email"])
+def test_delivery_placeholders_are_rejected_outside_email_bodies(field):
+    from django.core.exceptions import ImproperlyConfigured
+
+    config = deepcopy(config_loader.load_jurisdiction_config("illinois"))
+    config["submission_notifications"]["enabled"] = True
+    config["submission_notifications"]["templates"][field] = "${filing_transaction}"
+    with pytest.raises(ImproperlyConfigured, match="only in email bodies"):
+        submission_email_fields(RequestFactory().get("/"), fake_draft(), "illinois", config)
