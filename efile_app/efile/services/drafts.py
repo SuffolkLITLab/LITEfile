@@ -20,6 +20,9 @@ ACTIVE_DRAFT_STATUSES = (FilingDraft.Status.DRAFT, FilingDraft.Status.ERROR)
 # A draft mid-submission is still the user's current draft (so the submit flow can
 # read its own data), but it is not offered for resume in listings.
 CURRENT_DRAFT_STATUSES = (*ACTIVE_DRAFT_STATUSES, FilingDraft.Status.SUBMITTING)
+# Review asks for any of these after a submit request fails, to learn whether the
+# filing reached the court before telling the filer anything.
+SUBMISSION_OUTCOME_STATUSES = (*CURRENT_DRAFT_STATUSES, FilingDraft.Status.SUBMITTED)
 
 
 def active_drafts_for(user, *, jurisdiction: str | None = None) -> QuerySet[FilingDraft]:

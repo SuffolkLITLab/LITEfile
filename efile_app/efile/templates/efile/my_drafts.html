@@ -59,6 +59,12 @@
                                         ·
                                         {% blocktranslate with when=entry.draft.updated_at|date:"j F Y, g:i a" %}Last worked on {{ when }}{% endblocktranslate %}
                                     </p>
+                                    {% if entry.draft.status == "error" %}
+                                        <p class="list-card__detail">
+                                            <strong>{% translate "We are not sure whether this filing reached the court." %}</strong>
+                                            {% translate "Do not submit it again. Check My filings. If it is not listed there, contact us for help." %}
+                                        </p>
+                                    {% endif %}
                                 </div>
                                 {% if entry.is_current %}
                                     <span class="list-card__badge">{% translate "The one you are in" %}</span>
@@ -73,15 +79,20 @@
                                             name="action"
                                             value="resume">{% translate "Continue this filing" %}</button>
                                 </form>
-                                <form method="post"
-                                      onsubmit="return confirm('{% translate "Throw this draft away? The documents you uploaded to it go too." %}')">
-                                    {% csrf_token %}
-                                    <input type="hidden" name="draft_id" value="{{ entry.draft.pk }}" />
-                                    <button class="btn btn-outline-danger btn-sm"
-                                            type="submit"
-                                            name="action"
-                                            value="delete">{% translate "Throw this draft away" %}</button>
-                                </form>
+                                {% if entry.draft.status == "error" %}
+                                    <a class="btn btn-outline-secondary btn-sm"
+                                       href="{% url 'filing_statuses' jurisdiction=jurisdiction %}">{% translate "Open My filings" %}</a>
+                                {% else %}
+                                    <form method="post"
+                                          onsubmit="return confirm('{% translate "Throw this draft away? The documents you uploaded to it go too." %}')">
+                                        {% csrf_token %}
+                                        <input type="hidden" name="draft_id" value="{{ entry.draft.pk }}" />
+                                        <button class="btn btn-outline-danger btn-sm"
+                                                type="submit"
+                                                name="action"
+                                                value="delete">{% translate "Throw this draft away" %}</button>
+                                    </form>
+                                {% endif %}
                             </div>
                         </section>
                     {% empty %}

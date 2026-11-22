@@ -16,6 +16,7 @@ from efile.models import FilingCodeJob
 from efile.services.filing_code_copy import rebuild, run_jobs
 from efile.services.filing_code_labels import build_labels
 from efile.services.filing_code_search import current_index, refresh_index, rules
+from efile.utils.worker_signals import stop_on_sigterm
 
 # How often the daily worker checks for staff-requested jobs between runs.
 JOB_POLL_SECONDS = 30
@@ -75,6 +76,7 @@ class Command(BaseCommand):
         )
 
     def handle(self, *args, **options):
+        stop_on_sigterm()
         interval = options["interval"]
         if interval < 0:
             raise CommandError("Interval must be nonnegative")

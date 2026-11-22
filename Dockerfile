@@ -52,4 +52,4 @@ ENV LITEFILE_COMMIT_SHA=${LITEFILE_COMMIT_SHA} \
 EXPOSE 8000
 
 # Use Gunicorn with Uvicorn workers (ASGI) and log to stdout/stderr (debug level)
-CMD ["uv", "run", "gunicorn", "efile.asgi:application", "-k", "uvicorn.workers.UvicornWorker", "--bind", "0.0.0.0:8000", "--workers", "2", "--timeout", "60", "--access-logfile", "-", "--error-logfile", "-", "--log-level", "debug", "--access-logformat", "%(h)s - %(l)s %(u)s [%(t)s] \"%(r)s\" %(s)s %(b)s \"%(f)s\" \"%(a)s\" in %(L)ss"]
+CMD ["uv", "run", "gunicorn", "efile.asgi:application", "-k", "uvicorn.workers.UvicornWorker", "--bind", "0.0.0.0:8000", "--workers", "2", "--timeout", "60", "--graceful-timeout", "290", "--access-logfile", "-", "--error-logfile", "-", "--log-level", "debug", "--access-logformat", "%(h)s - %(l)s %(u)s [%(t)s] \"%(r)s\" %(s)s %(b)s \"%(f)s\" \"%(a)s\" in %(L)ss"]

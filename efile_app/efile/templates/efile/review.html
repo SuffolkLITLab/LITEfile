@@ -416,7 +416,7 @@
             <div class="spinner-border text-primary" role="status">
                 <span class="visually-hidden">{% translate "Submitting" %}</span>
             </div>
-            <p class="mt-2">{% translate "We are sending your filing to the court. Do not close this page." %}</p>
+            <p class="mt-2" id="loadingSpinnerText">{% translate "We are sending your filing to the court. Do not close this page." %}</p>
         </div>
         <div class="workflow-actions">
             <a class="btn btn-outline-secondary" href="{{ workflow_previous_url }}"><i class="fa-solid fa-arrow-left" aria-hidden="true"></i> {% translate "Back" %}</a>
@@ -438,6 +438,7 @@
     {{ draft.selected_payment_account_id|json_script:"payment-account-id" }}
     {{ fee_quote.state|json_script:"fee-quote-state" }}
     {{ fee_inputs_token|json_script:"fee-inputs-token" }}
+    {{ submission_outcome_unknown|json_script:"submission-outcome-unknown" }}
 {% endblock workflow_content %}
 {% block extra_js %}
     <script src="{% static 'js/filing-error-actions.js' %}"></script>

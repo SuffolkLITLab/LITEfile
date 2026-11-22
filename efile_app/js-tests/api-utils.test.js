@@ -210,6 +210,8 @@ test("a failure with no parseable body still reports the status", async () => {
         () => client.post("/api/payment-fees/", {}),
         (error) => {
             assert.match(error.message, /Server error/);
+            // Callers still need the status to tell a refusal from no answer.
+            assert.strictEqual(error.status, 500);
             return true;
         },
     );
@@ -263,4 +265,25 @@ test("long-running EFSP calls use endpoint-specific request timeouts", async () 
 
     assert.strictEqual(seenTimeout, ApiUtils.SUBMISSION_TIMEOUT_MS);
     assert.ok(ApiUtils.SUBMISSION_TIMEOUT_MS > 300000, "must outlast the server's default read timeout");
+});
+test("a plain-text refusal keeps its 4xx status", async () => {
+    const response = {
+        ok: false,
+        status: 403,
+        json: async () => {
+            throw new Error("not JSON");
+        },
+    };
+    response.clone = () => response;
+    const client = stubFetch(response);
+
+    await assert.rejects(
+        () => client.post("/api/submit-final-filing/", {}),
+        (error) => {
+            assert.match(error.message, /Access denied/);
+            assert.strictEqual(error.status, 403);
+            assert.strictEqual(error.serverMessage, undefined);
+            return true;
+        },
+    );
 });

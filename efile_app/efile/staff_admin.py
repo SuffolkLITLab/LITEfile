@@ -26,6 +26,7 @@ from django_otp.plugins.otp_totp.models import TOTPDevice
 from efile.models import FilingCodeJob, FilingDraft, PrivacyRequest, StaffRoleGrant, UserProfile
 from efile.services.analytics import collection_health, report_rows
 from efile.services.privacy import account_sessions, audit, create_request, preview, process_request, verify_request
+from efile.services.submission_outcomes import unconfirmed_submissions
 from efile.staff_security import StaffLoginForm, jurisdictions_for, require_scope
 
 
@@ -116,6 +117,13 @@ class StaffSite(OTPAdminSite):
             }
         )
         return context
+
+    def index(self, request, extra_context=None):
+        # Filings whose outcome is unknown need a person to check the court's
+        # records (#445). Account managers can find them in Account lookup.
+        scopes = jurisdictions_for(request.user, "accounts")
+        unconfirmed = unconfirmed_submissions(scopes).count() if scopes else 0
+        return super().index(request, {**(extra_context or {}), "unconfirmed_submissions": unconfirmed})
 
     def get_urls(self):
         extra = [

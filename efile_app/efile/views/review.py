@@ -2,7 +2,7 @@ from django.contrib import messages
 from django.shortcuts import redirect, render
 
 from efile.api.suffolk_api_views import get_tyler_token
-from efile.models import FilingDocument, FilingParty
+from efile.models import FilingDocument, FilingDraft, FilingParty
 from efile.services.appeals import LOWER_COURT_FIELDS, appeal_answers_complete
 from efile.services.current_drafts import ensure_current_draft
 from efile.services.disclaimers import disclaimer_context
@@ -126,6 +126,9 @@ def case_review(request, jurisdiction):
         "upload_data": read_upload_data(draft),
         "filing_draft": draft_snapshot(draft),
         "draft": draft,
+        # A submit may have reached the court (#445): ERROR after an unclear
+        # reply, or SUBMITTING when opened from the session without ?draft=.
+        "submission_outcome_unknown": draft.status in (FilingDraft.Status.ERROR, FilingDraft.Status.SUBMITTING),
         "fee_quote": fee_quote_summary(draft),
         "waiver_exemption": matching_exemption(
             config_loader.load_jurisdiction_config(jurisdiction).get("fee_estimates", {}).get("surcharges", {}), draft

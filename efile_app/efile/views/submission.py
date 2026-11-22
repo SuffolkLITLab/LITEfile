@@ -2,17 +2,21 @@ import json
 import logging
 import uuid
 
-from django.db import transaction
+from django.core.cache import caches
+from django.db import DatabaseError, transaction
 from django.http import JsonResponse
+from django.urls import reverse
 from django.utils import timezone
 from django.views.decorators.http import require_http_methods
 
 from efile.api.suffolk_api_views import get_tyler_token
 from efile.models import FilingDraft
 from efile.services.court_payments import payment_error, validate_filing_payment
-from efile.services.current_drafts import clear_current_draft, get_current_draft
+from efile.services.current_drafts import clear_current_draft, get_current_draft, resolve_explicit_draft
 from efile.services.disclaimers import validate_acceptance
 from efile.services.document_previews import require_document_previews
+from efile.services.draft_urls import draft_url
+from efile.services.drafts import SUBMISSION_OUTCOME_STATUSES
 from efile.services.fee_quotes import fee_fingerprint, fee_quote_is_usable
 from efile.services.filing_availability import draft_unavailable_message
 from efile.services.filing_plans import mark_attached_items_filed
@@ -29,6 +33,13 @@ logger = logging.getLogger(__name__)
 # a retry after an ambiguous outcome could file a second time. Those states require
 # manual review instead.
 _CLAIMABLE_STATUSES = (FilingDraft.Status.DRAFT,)
+
+# Shared by every machine, so any one can answer the status check. Longer than
+# any submit request can run (court read timeout plus the checks before it); a
+# marker left by a machine stopped mid-request only delays "not sent".
+shared_cache = caches["shared"]
+SUBMIT_REQUEST_MARKER_SECONDS = 600
+SUBMIT_REQUEST_SLOTS = 4
 
 
 @transaction.atomic
@@ -113,6 +124,58 @@ def submit_final_filing(request):
             {"success": False, "error": "Open your filing and review it before submitting."}, status=400
         )
 
+    # Checks before the claim (payment account, a correction's original filings)
+    # call the court and can take a while. Until this request ends, the status
+    # check must not call the draft "not sent", or a filer whose connection
+    # dropped would be told to try again while this request can still file.
+    marker = _mark_submit_request(draft.pk)
+    try:
+        return _submit_draft(request, draft)
+    finally:
+        _clear_submit_request(marker)
+
+
+def _submit_request_keys(draft_id) -> list[str]:
+    return [f"submit-request:{draft_id}:{slot}" for slot in range(SUBMIT_REQUEST_SLOTS)]
+
+
+def _mark_submit_request(draft_id) -> tuple[str, str] | None:
+    """Record this request as running, in a slot no overlapping request shares.
+
+    Each request has its own slot, so one that ends (say, a second tab's
+    submit that fails a check) cannot clear the mark of one still running.
+    ``add`` inserts only if the slot is free, which the database makes atomic.
+    """
+    token = uuid.uuid4().hex
+    for key in _submit_request_keys(draft_id):
+        if shared_cache.add(key, token, SUBMIT_REQUEST_MARKER_SECONDS):
+            return key, token
+    # Every slot is held by overlapping requests, which keep the draft "pending".
+    return None
+
+
+def _clear_submit_request(marker) -> None:
+    if marker is None:
+        return
+    key, token = marker
+    try:
+        if shared_cache.get(key) == token:
+            shared_cache.delete(key)
+    except DatabaseError:
+        # Never let cleanup replace the response. A mark left behind only keeps
+        # the status check at "pending" until it expires, the cautious answer.
+        logger.warning("Could not clear the submit marker for %s", key)
+
+
+def _submit_request_running(draft_id) -> bool:
+    try:
+        return bool(shared_cache.get_many(_submit_request_keys(draft_id)))
+    except DatabaseError:
+        # Unsure means a request may be running: never say "not sent" then.
+        return True
+
+
+def _submit_draft(request, draft):
     try:
         submission_data = json.loads(request.body)
     except (ValueError, UnicodeDecodeError):
@@ -210,7 +273,11 @@ def submit_final_filing(request):
         return JsonResponse({"success": False, "error": str(error)}, status=412)
     if not claimed:
         return JsonResponse(
-            {"success": False, "error": "This filing can't be submitted again automatically."},
+            {
+                "success": False,
+                "error_code": "submission_claimed",
+                "error": "This filing can't be submitted again automatically.",
+            },
             status=409,
         )
 
@@ -238,3 +305,37 @@ def submit_final_filing(request):
         draft.mark_error({"status_code": response.status_code, "response": payload})
 
     return response
+
+
+@require_http_methods(["GET"])
+def submission_status(request):
+    """Report whether a submit reached the court, from this app's own records.
+
+    Review asks after any failed submit request. The answer can be lost between
+    the server and the browser (a proxy error, or a machine stopped mid-request)
+    after the filing was already sent, so the browser's error alone never means
+    "nothing was filed". Only a draft returned to DRAFT is safe to submit again.
+    This reads the database only; it never contacts the court.
+    """
+    if not request.user.is_authenticated:
+        return JsonResponse({"success": False, "error": "Sign in again to check this filing."}, status=401)
+    draft = resolve_explicit_draft(request, statuses=SUBMISSION_OUTCOME_STATUSES)
+    if draft is None:
+        return JsonResponse({"success": False, "error": "Open the filing you submitted to check it."}, status=400)
+
+    if draft.status == FilingDraft.Status.SUBMITTED:
+        # A GET changes nothing: the confirmation page reads the draft from the URL.
+        confirmation = reverse("filing_confirmation", kwargs={"jurisdiction": draft.jurisdiction})
+        return JsonResponse(
+            {"success": True, "outcome": "submitted", "redirect_url": draft_url(confirmation, draft.pk)}
+        )
+    if draft.status == FilingDraft.Status.DRAFT:
+        if _submit_request_running(draft.pk):
+            # A submit request is still running its checks and may yet claim it.
+            return JsonResponse({"success": True, "outcome": "pending"})
+        # The submit view releases its claim only when nothing reached the court.
+        return JsonResponse({"success": True, "outcome": "not_sent"})
+    if draft.status == FilingDraft.Status.SUBMITTING:
+        # Still claimed: the request may be finishing, or it was cut off.
+        return JsonResponse({"success": True, "outcome": "pending"})
+    return JsonResponse({"success": True, "outcome": "unknown"})

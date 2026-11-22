@@ -76,6 +76,14 @@ def my_drafts(request, jurisdiction):
                 return redirect("handoff_review", draft_id=draft.pk)
             resume_url = get_resume_step_url(draft.current_step, jurisdiction, draft_id=draft.pk)
             return redirect(resume_url or reverse("efile_options", kwargs={"jurisdiction": jurisdiction}))
+        elif action == "delete" and draft.status == FilingDraft.Status.ERROR:
+            # The filing may be with the court (#445). Keep it for staff to check;
+            # throwing it away would also hide it from that check.
+            messages.error(
+                request,
+                "We are not sure whether this filing reached the court, so it can't be thrown away. "
+                "Check My filings, or contact us for help.",
+            )
         elif action == "delete":
             from efile.services.analytics import record_event
 

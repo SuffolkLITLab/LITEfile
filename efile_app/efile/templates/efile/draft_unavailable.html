@@ -4,11 +4,20 @@
     {% translate "Draft unavailable" %}
 {% endblock title %}
 {% block public_content %}
-    <h1>{% translate "This draft is no longer available here" %}</h1>
-    <p>{% translate "It may have been submitted or deleted, or belong to a different account. Open My drafts to choose a filing, or start a new one." %}</p>
-    {% if jurisdiction %}
-        <a href="{% url 'my_drafts' jurisdiction=jurisdiction %}">{% translate "Open My drafts" %}</a>
+    {% if submission_pending and jurisdiction %}
+        {# Cut off while being sent: it may be with the court already (#445). #}
+        <h1>{% translate "We are checking whether this filing reached the court" %}</h1>
+        <p>
+            {% translate "Something interrupted this filing while it was being sent. It may already be with the court. Do not start it again. Check My filings in a few minutes. If it is not listed there, contact us for help." %}
+        </p>
+        <a href="{% url 'filing_statuses' jurisdiction=jurisdiction %}">{% translate "Open My filings" %}</a>
     {% else %}
-        <a href="{% url 'efile_choose_jurisdiction' %}">{% translate "Choose a jurisdiction" %}</a>
+        <h1>{% translate "This draft is no longer available here" %}</h1>
+        <p>{% translate "It may have been submitted or deleted, or belong to a different account. Open My drafts to choose a filing, or start a new one." %}</p>
+        {% if jurisdiction %}
+            <a href="{% url 'my_drafts' jurisdiction=jurisdiction %}">{% translate "Open My drafts" %}</a>
+        {% else %}
+            <a href="{% url 'efile_choose_jurisdiction' %}">{% translate "Choose a jurisdiction" %}</a>
+        {% endif %}
     {% endif %}
 {% endblock public_content %}
