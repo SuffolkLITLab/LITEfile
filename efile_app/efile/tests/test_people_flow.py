@@ -916,3 +916,32 @@ def test_party_details_removes_the_party_and_keeps_the_review_detour(client, peo
     assert path == parties_url
     assert "return_to=review" in query
     assert not FilingParty.objects.filter(pk=party.pk).exists()
+
+
+@pytest.mark.django_db
+def test_people_back_link_does_not_skip_complete_contact_details(client, people_draft):
+    from bs4 import BeautifulSoup
+
+    FilingParty.objects.create(
+        draft=people_draft,
+        role="filer",
+        first_name="Jamie",
+        last_name="Rivera",
+        address_line_1="100 State Street",
+        city="Chicago",
+        state="IL",
+        zip_code="60601",
+        email="jamie@example.com",
+        phone="312-555-0100",
+    )
+    with patch("efile.views.parties.get_party_types", return_value=PARTY_TYPES):
+        page = client.get(reverse("parties", kwargs={"jurisdiction": "illinois"}))
+    soup = BeautifulSoup(page.content, "html.parser")
+    back = next(a for a in soup.select(".workflow-actions a") if a.get_text(strip=True) == "Back")
+    assert "edit=1" in back["href"]
+    with patch("efile.views.your_information.cached_account_profile", return_value=None):
+        response = client.get(back["href"])
+    assert response.status_code == 200
+    soup = BeautifulSoup(response.content, "html.parser")
+    back = next(a for a in soup.select(".workflow-actions a") if a.get_text(strip=True) == "Back")
+    assert reverse("organize_documents", kwargs={"jurisdiction": "illinois"}) in back["href"]

@@ -131,7 +131,8 @@
                     <details>
                         <summary>{% translate "Document options" %}</summary>
                         <a href="{% url 'organize_documents' jurisdiction %}?return_to=review"
-                           aria-label="{% translate "Edit documents" %}">{% translate "Edit" %}</a>
+                           aria-label="{% translate "Edit documents" %}">{% translate "Edit document names and filing codes" %}</a>
+                        <a href="{% url 'upload_documents' jurisdiction %}?return_to=review">{% translate "Add, remove, or replace documents" %}</a>
                     </details>
                 </header>
                 {% include "efile/partials/correction_section_issues.html" with section="documents" %}
