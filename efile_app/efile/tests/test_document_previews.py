@@ -6,7 +6,7 @@ from django.core.files.uploadedfile import SimpleUploadedFile
 from django.urls import reverse
 from django.utils import timezone
 
-from efile.models import FilingDocument, FilingDraft
+from efile.models import DocumentExtraction, FilingDocument, FilingDraft
 from efile.services.document_previews import preview_fingerprint
 from efile.services.document_uploads import upload_files
 from efile.services.drafts import read_upload_data, write_upload_data
@@ -240,7 +240,7 @@ def test_legacy_rows_and_changed_preparation_cannot_bypass_submission(client, pr
     forward.assert_not_called()
 
 
-def test_extraction_callback_is_discarded_when_outer_transaction_rolls_back(preview_draft):
+def test_extraction_job_is_discarded_when_outer_transaction_rolls_back(preview_draft):
     from django.db import transaction
 
     preview_draft.documents.all().delete()
@@ -249,14 +249,13 @@ def test_extraction_callback_is_discarded_when_outer_transaction_rolls_back(prev
     handler.get_public_url.return_value = "https://synthetic.invalid/new.pdf"
     with (
         patch("efile.services.document_uploads.S3UploadHandler", return_value=handler),
-        patch("efile.services.document_uploads.queue_document_extraction") as queue,
     ):
         with pytest.raises(RuntimeError):
             with transaction.atomic():
                 upload_files(preview_draft, [SimpleUploadedFile("new.pdf", pdf_bytes())], "vermont")
-                queue.assert_not_called()
+                assert DocumentExtraction.objects.filter(document__draft=preview_draft).exists()
                 raise RuntimeError("Rollback")
-    queue.assert_not_called()
+    assert not DocumentExtraction.objects.filter(document__draft=preview_draft).exists()
     assert not preview_draft.documents.exists()
 
 
@@ -283,12 +282,16 @@ def test_legacy_pdf_is_flattened_and_cannot_be_acknowledged_after_preparation_fa
             return_value=service_response(pdf_bytes("Stored answer")),
         ),
     ):
-        assert client.get(url("extraction_review", preview_draft)).status_code == 200
+        response = client.get(url("extraction_review", preview_draft))
+        assert response.status_code == 302
+        assert "/upload-documents/" in response.url
+        assert DocumentExtraction.objects.get(document=doc).status == "pending"
     doc.refresh_from_db()
     assert doc.preparation == "flattened"
     assert doc.s3_key == "flat.pdf"
     assert doc.original_s3_key == "retained.pdf"
     assert doc.preparation_reviewed_at is None
+    DocumentExtraction.objects.filter(document=doc).update(status="complete")
     # A structurally valid response that drops text remains blocked.
     doc.preparation = ""
     doc.preparation_reviewed_at = None

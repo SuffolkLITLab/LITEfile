@@ -209,6 +209,11 @@ def upload_documents(request, jurisdiction):
                         "success": True,
                         "preparation_job_id": job.pk,
                         "preparation_pending": job.status in {"pending", "processing", "failed"},
+                        "extraction_pending": DocumentExtraction.objects.filter(
+                            document__draft=draft,
+                            document__role=FilingDocument.Role.LEAD,
+                            status__in=[DocumentExtraction.Status.PENDING, DocumentExtraction.Status.PROCESSING],
+                        ).exists(),
                     },
                     status=202,
                 )

@@ -95,7 +95,7 @@ def upload_files(
                             draft.extracted_guesses = {}
                             draft.extraction_review_fingerprint = ""
                             draft.filing_type_proposal = {}
-                            transaction.on_commit(partial(queue_document_extraction, replacement), robust=True)
+                            queue_document_extraction(replacement)
                         continue
                     is_lead = not has_lead
                     document = FilingDocument.objects.create(
@@ -107,7 +107,7 @@ def upload_files(
                     if is_lead:
                         has_lead = True
                         draft.extracted_guesses = {}
-                        transaction.on_commit(partial(queue_document_extraction, document), robust=True)
+                        queue_document_extraction(document)
                     else:
                         order += 1
                 draft.current_step = str(current_step)
@@ -158,7 +158,7 @@ def prepare_stored_documents(draft, handler):
                 document.save()
                 if document.role == FilingDocument.Role.LEAD:
                     locked.extracted_guesses = {}
-                    transaction.on_commit(partial(queue_document_extraction, document), robust=True)
+                    queue_document_extraction(document)
             invalidate_fee_quote(locked, save=False)
             locked.save()
             transaction.on_commit(partial(cleanup_unreferenced_uploads, old_keys, handler), robust=True)

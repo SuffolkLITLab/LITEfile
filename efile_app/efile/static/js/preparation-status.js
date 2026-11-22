@@ -1,6 +1,9 @@
 (function() {
     const panel = document.getElementById("preparation-state");
     if (!panel) return;
+    panel.scrollIntoView({
+        block: "nearest"
+    });
     const detail = document.getElementById("preparation-detail");
     const initialDetail = detail.textContent.trim();
     let attempt = 0;

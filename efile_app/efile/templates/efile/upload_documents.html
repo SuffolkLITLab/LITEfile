@@ -40,37 +40,6 @@
                 </span>
             </p>
         {% endif %}
-        {% if preparation_job %}
-            <div class="alert alert-info"
-                 id="preparation-state"
-                 role="status"
-                 data-status="{{ preparation_job.status }}"
-                 data-job-id="{{ preparation_job.pk }}"
-                 data-status-url="{% url 'document_extraction_status' jurisdiction %}">
-                <strong>
-                    {% if preparation_job.originals_ready %}
-                        {% translate "Your uploads are saved" %}
-                    {% else %}
-                        {% translate "Your upload is not finished" %}
-                    {% endif %}
-                </strong>
-                <p id="preparation-detail">
-                    {% if preparation_job.status == "failed" %}
-                        {{ preparation_job.error }}
-                    {% elif preparation_job.status == "uploading" %}
-                        {% translate "Receiving your files. Keep the upload tab open until it finishes." %}
-                    {% else %}
-                        {% translate "We are preparing your filing copies. You can leave and return to this filing while we work. Review the PDFs when they are ready." %}
-                    {% endif %}
-                </p>
-                {% if preparation_job.status == "failed" and preparation_job.originals_ready %}
-                    <button type="button" class="btn btn-primary" data-action="retry_preparation">{% translate "Retry preparation" %}</button>
-                {% endif %}
-                <button type="button"
-                        class="btn btn-outline-secondary"
-                        data-action="cancel_preparation">{% translate "Remove this upload" %}</button>
-            </div>
-        {% endif %}
         <form id="document-upload-form"
               enctype="multipart/form-data"
               data-extraction-status-url="{% url 'document_extraction_status' jurisdiction %}"
@@ -138,6 +107,44 @@
                     </div>
                     <div id="pending-file-list"></div>
                 </section>
+            </fieldset>
+            {% if preparation_job %}
+                <div class="alert alert-info"
+                     id="preparation-state"
+                     role="status"
+                     data-status="{{ preparation_job.status }}"
+                     data-job-id="{{ preparation_job.pk }}"
+                     data-status-url="{% url 'document_extraction_status' jurisdiction %}">
+                    {% if preparation_job.status != "failed" %}
+                        <div class="spinner-border spinner-border-sm me-2" aria-hidden="true"></div>
+                    {% endif %}
+                    <strong>
+                        {% if preparation_job.status == "failed" %}
+                            {% translate "Your documents need attention" %}
+                        {% elif preparation_job.originals_ready %}
+                            {% translate "Preparing your documents…" %}
+                        {% else %}
+                            {% translate "Your upload is not finished" %}
+                        {% endif %}
+                    </strong>
+                    <p id="preparation-detail">
+                        {% if preparation_job.status == "failed" %}
+                            {{ preparation_job.error }}
+                        {% elif preparation_job.status == "uploading" %}
+                            {% translate "Receiving your files. Keep the upload tab open until it finishes." %}
+                        {% else %}
+                            {% translate "Your files are uploaded. We are preparing the PDFs, then checking them for case information. Please wait; this page will update automatically." %}
+                        {% endif %}
+                    </p>
+                    {% if preparation_job.status == "failed" and preparation_job.originals_ready %}
+                        <button type="button" class="btn btn-primary" data-action="retry_preparation">{% translate "Retry preparation" %}</button>
+                    {% endif %}
+                    <button type="button"
+                            class="btn btn-outline-secondary"
+                            data-action="cancel_preparation">{% translate "Remove this upload" %}</button>
+                </div>
+            {% endif %}
+            <fieldset {% if preparation_job %}disabled{% endif %}>
                 <div class="upload-state"
                      id="upload-state"
                      {% if not extraction_pending %}hidden{% endif %}
@@ -264,7 +271,13 @@
             {% else %}
                 <div class="document-list__empty">
                     <i class="fa-regular fa-file-lines" aria-hidden="true"></i>
-                    <p>{% translate "No documents uploaded yet." %}</p>
+                    <p>
+                        {% if preparation_job %}
+                            {% translate "Your uploaded files will appear here when preparation finishes." %}
+                        {% else %}
+                            {% translate "No documents uploaded yet." %}
+                        {% endif %}
+                    </p>
                 </div>
             {% endif %}
         </section>

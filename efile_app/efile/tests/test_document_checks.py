@@ -145,7 +145,18 @@ def test_legacy_main_documents_recover_through_preparation(client, draft, page, 
     storage.get_public_url.return_value = "https://synthetic.invalid/prepared.pdf"
     with patch("efile.views.extraction_review.S3UploadHandler", return_value=storage):
         prepared = client.get(response.url)
-    assert prepared.status_code == 200
+    # The prepared document and its pending analysis now become visible
+    # together. Follow the real worker lifecycle before confirming the PDF.
+    assert prepared.status_code == 302
+    assert "/upload-documents/" in prepared.url
+    if return_to:
+        assert f"return_to={return_to}" in prepared.url
+    lead.refresh_from_db()
+    extraction = lead.extraction
+    assert extraction.status == "pending"
+    extraction.status = "complete"
+    extraction.save(update_fields=["status"])
+    assert client.get(response.url).status_code == 200
     lead.refresh_from_db()
     assert lead.preparation == "unchanged"
     assert lead.preparation_reviewed_at is None
