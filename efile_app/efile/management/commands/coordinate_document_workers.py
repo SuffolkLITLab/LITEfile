@@ -30,6 +30,7 @@ from efile.services.document_worker_scaling import (
     run_maintenance,
     try_advisory_lock,
 )
+from efile.utils.worker_signals import stop_on_sigterm
 
 logger = logging.getLogger(__name__)
 POLL_SECONDS = 3
@@ -229,6 +230,7 @@ class Command(BaseCommand):
         parser.add_argument("--mode", choices=("warm", "autoscale"), help="Set staging's persistent worker mode")
 
     def handle(self, *args, **options):
+        stop_on_sigterm()
         if not settings.DOCUMENT_WORKER_SCALING_CONTROL:
             raise CommandError("Document worker coordination is disabled by app settings")
         mode = options["mode"]

@@ -2,6 +2,7 @@ import json
 import logging
 import uuid
 
+from django.core.cache import caches
 from django.db import transaction
 from django.http import JsonResponse
 from django.urls import reverse
@@ -32,6 +33,12 @@ logger = logging.getLogger(__name__)
 # a retry after an ambiguous outcome could file a second time. Those states require
 # manual review instead.
 _CLAIMABLE_STATUSES = (FilingDraft.Status.DRAFT,)
+
+# Shared by every machine, so any one can answer the status check. Longer than
+# any submit request can run (court read timeout plus the checks before it); a
+# marker left by a machine stopped mid-request only delays "not sent".
+shared_cache = caches["shared"]
+SUBMIT_REQUEST_MARKER_SECONDS = 600
 
 
 @transaction.atomic
@@ -116,6 +123,23 @@ def submit_final_filing(request):
             {"success": False, "error": "Open your filing and review it before submitting."}, status=400
         )
 
+    # Checks before the claim (payment account, a correction's original filings)
+    # call the court and can take a while. Until this request ends, the status
+    # check must not call the draft "not sent", or a filer whose connection
+    # dropped would be told to try again while this request can still file.
+    marker = _submit_request_key(draft.pk)
+    shared_cache.set(marker, True, SUBMIT_REQUEST_MARKER_SECONDS)
+    try:
+        return _submit_draft(request, draft)
+    finally:
+        shared_cache.delete(marker)
+
+
+def _submit_request_key(draft_id) -> str:
+    return f"submit-request:{draft_id}"
+
+
+def _submit_draft(request, draft):
     try:
         submission_data = json.loads(request.body)
     except (ValueError, UnicodeDecodeError):
@@ -213,7 +237,11 @@ def submit_final_filing(request):
         return JsonResponse({"success": False, "error": str(error)}, status=412)
     if not claimed:
         return JsonResponse(
-            {"success": False, "error": "This filing can't be submitted again automatically."},
+            {
+                "success": False,
+                "error_code": "submission_claimed",
+                "error": "This filing can't be submitted again automatically.",
+            },
             status=409,
         )
 
@@ -266,6 +294,9 @@ def submission_status(request):
             {"success": True, "outcome": "submitted", "redirect_url": draft_url(confirmation, draft.pk)}
         )
     if draft.status == FilingDraft.Status.DRAFT:
+        if shared_cache.get(_submit_request_key(draft.pk)):
+            # A submit request is still running its checks and may yet claim it.
+            return JsonResponse({"success": True, "outcome": "pending"})
         # The submit view releases its claim only when nothing reached the court.
         return JsonResponse({"success": True, "outcome": "not_sent"})
     if draft.status == FilingDraft.Status.SUBMITTING:

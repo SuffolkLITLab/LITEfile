@@ -127,9 +127,9 @@ const FilingHandler = {
     },
 
     showSubmitError(error) {
-        // A 409 refused a second submit; once the draft is released, that
-        // refusal no longer applies, so give the general advice instead.
-        const message = error?.status === 409 ? null : error?.serverMessage;
+        // A refused second submit no longer applies once the draft is released,
+        // so give the general advice; other refusals keep their own reason.
+        const message = error?.errorCode === "submission_claimed" ? null : error?.serverMessage;
         Messages.showError(message || gettext("We could not submit the filing. Please try again."), error?.errorActions);
         this.setSubmissionState(false);
     },

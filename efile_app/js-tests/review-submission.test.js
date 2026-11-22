@@ -333,6 +333,7 @@ test("a released draft after a refused second submit gets general advice", async
         submit: async () => {
             throw Object.assign(new Error("conflict"), {
                 status: 409,
+                errorCode: "submission_claimed",
                 serverMessage: "This filing can't be submitted again automatically."
             });
         },
@@ -345,4 +346,22 @@ test("a released draft after a refused second submit gets general advice", async
 
     assert.equal(page.node("errorText").textContent, "We could not submit the filing. Please try again.");
     assert.equal(page.node("submitButton").disabled, false);
+});
+test("other refusals keep the server's reason", async () => {
+    const page = loadReview({
+        submit: async () => {
+            throw Object.assign(new Error("ineligible"), {
+                status: 409,
+                serverMessage: "The court must confirm every filing as returned or rejected before it can be copied."
+            });
+        },
+        statuses: [{
+            outcome: "not_sent"
+        }]
+    });
+
+    await page.handler.submitFiling();
+
+    assert.equal(page.statusCalls.length, 1);
+    assert.match(page.node("errorText").textContent, /court must confirm every filing/);
 });

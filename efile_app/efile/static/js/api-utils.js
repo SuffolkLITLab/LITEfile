@@ -253,7 +253,11 @@ class ApiUtils {
 
         } catch (error) {
             console.error('API request failed:', error);
-            throw this.handleApiError(error);
+            const handled = this.handleApiError(error);
+            // The friendlier message replaces the error, but callers still need
+            // to know whether the server answered and how (e.g. a 4xx refusal).
+            if (handled !== error && error?.status !== undefined) handled.status = error.status;
+            throw handled;
         }
     }
 

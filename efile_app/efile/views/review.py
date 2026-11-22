@@ -126,8 +126,9 @@ def case_review(request, jurisdiction):
         "upload_data": read_upload_data(draft),
         "filing_draft": draft_snapshot(draft),
         "draft": draft,
-        # ERROR is set only when a submit may have reached the court (#445).
-        "submission_outcome_unknown": draft.status == FilingDraft.Status.ERROR,
+        # A submit may have reached the court (#445): ERROR after an unclear
+        # reply, or SUBMITTING when opened from the session without ?draft=.
+        "submission_outcome_unknown": draft.status in (FilingDraft.Status.ERROR, FilingDraft.Status.SUBMITTING),
         "fee_quote": fee_quote_summary(draft),
         "waiver_exemption": matching_exemption(
             config_loader.load_jurisdiction_config(jurisdiction).get("fee_estimates", {}).get("surcharges", {}), draft

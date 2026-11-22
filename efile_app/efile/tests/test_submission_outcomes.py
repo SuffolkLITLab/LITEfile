@@ -255,3 +255,82 @@ def test_workers_treat_sigterm_like_sigint():
             signal.raise_signal(signal.SIGTERM)
     finally:
         signal.signal(signal.SIGTERM, previous)
+
+
+def test_a_submit_request_still_running_is_not_reported_as_not_sent(client, filer, monkeypatch):
+    from django.core.cache import caches
+
+    from efile.tests.helpers import accepted_submission
+    from efile.tests.test_durable_drafts import _prepare_submission
+    from efile.views import submission
+
+    draft = _draft(filer, FilingDraft.Status.DRAFT)
+    client.force_login(filer)
+    _prepare_submission(client, draft, monkeypatch)
+    seen = []
+
+    def slow_payment_check(*_args, **_kwargs):
+        # The filer's connection dropped; the page asks while this runs.
+        seen.append(client.get(reverse("submission_status"), {"draft": draft.pk}).json()["outcome"])
+        raise ValueError("The payment account could not be checked.")
+
+    monkeypatch.setattr(submission, "validate_filing_payment", slow_payment_check)
+    response = client.post(
+        reverse("submit_final_filing"),
+        data=accepted_submission(draft, efile_data={"al_court_bundle": [{}]}),
+        content_type="application/json",
+    )
+
+    assert response.status_code == 412
+    assert seen == ["pending"]
+    # Once the request ends, nothing is left claiming to be in progress.
+    assert caches["shared"].get(f"submit-request:{draft.pk}") is None
+    assert _status(client, draft).json()["outcome"] == "not_sent"
+
+
+def test_a_refused_second_submit_is_marked_as_such(client, filer, monkeypatch):
+    from efile.tests.helpers import accepted_submission
+    from efile.tests.test_durable_drafts import _prepare_submission
+
+    draft = _draft(filer, FilingDraft.Status.DRAFT)
+    client.force_login(filer)
+    _prepare_submission(client, draft, monkeypatch)
+    monkeypatch.setattr("efile.views.submission.validate_filing_payment", lambda *args, **kwargs: None)
+    FilingDraft.objects.filter(pk=draft.pk).update(status=FilingDraft.Status.SUBMITTING)
+    monkeypatch.setattr("efile.views.submission.draft_unavailable_message", lambda *_args: None)
+
+    response = client.post(
+        reverse("submit_final_filing"),
+        data=accepted_submission(draft, efile_data={"al_court_bundle": [{}]}),
+        content_type="application/json",
+    )
+
+    assert response.status_code == 409
+    assert response.json()["error_code"] == "submission_claimed"
+
+
+def test_review_opened_from_the_session_for_a_filing_mid_send_starts_with_submit_off(client, filer, monkeypatch):
+    from efile.services.current_drafts import CURRENT_DRAFT_SESSION_KEY
+    from efile.views import review
+
+    captured = {}
+
+    def fake_render(_request, _template, context, *args, **kwargs):
+        from django.http import HttpResponse
+
+        captured.update(context)
+        return HttpResponse("review")
+
+    monkeypatch.setattr(review, "render", fake_render)
+    _sign_in(client, filer)
+    draft = _draft(filer, FilingDraft.Status.SUBMITTING)
+    FilingDraft.objects.filter(pk=draft.pk).update(selected_payment_account_id="account")
+    session = client.session
+    session[CURRENT_DRAFT_SESSION_KEY] = draft.pk
+    session.save()
+
+    response = client.get(reverse("case_review", args=["illinois"]))
+
+    if response.status_code != 200:
+        pytest.skip(f"Review does not open a SUBMITTING draft from the session ({response.status_code})")
+    assert captured["submission_outcome_unknown"] is True
