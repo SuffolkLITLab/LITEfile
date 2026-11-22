@@ -4,15 +4,18 @@ import uuid
 
 from django.db import transaction
 from django.http import JsonResponse
+from django.urls import reverse
 from django.utils import timezone
 from django.views.decorators.http import require_http_methods
 
 from efile.api.suffolk_api_views import get_tyler_token
 from efile.models import FilingDraft
 from efile.services.court_payments import payment_error, validate_filing_payment
-from efile.services.current_drafts import clear_current_draft, get_current_draft
+from efile.services.current_drafts import clear_current_draft, get_current_draft, resolve_explicit_draft
 from efile.services.disclaimers import validate_acceptance
 from efile.services.document_previews import require_document_previews
+from efile.services.draft_urls import draft_url
+from efile.services.drafts import SUBMISSION_OUTCOME_STATUSES
 from efile.services.fee_quotes import fee_fingerprint, fee_quote_is_usable
 from efile.services.filing_availability import draft_unavailable_message
 from efile.services.filing_plans import mark_attached_items_filed
@@ -238,3 +241,36 @@ def submit_final_filing(request):
         draft.mark_error({"status_code": response.status_code, "response": payload})
 
     return response
+
+
+@require_http_methods(["GET"])
+def submission_status(request):
+    """Report whether a submit reached the court, from this app's own records.
+
+    Review asks after any failed submit request. The answer can be lost between
+    the server and the browser (a proxy error, or a machine stopped mid-request)
+    after the filing was already sent, so the browser's error alone never means
+    "nothing was filed". Only a draft returned to DRAFT is safe to submit again.
+    This reads the database only; it never contacts the court.
+    """
+    if not request.user.is_authenticated:
+        return JsonResponse({"success": False, "error": "Sign in again to check this filing."}, status=401)
+    draft = resolve_explicit_draft(request, statuses=SUBMISSION_OUTCOME_STATUSES)
+    if draft is None:
+        return JsonResponse({"success": False, "error": "Open the filing you submitted to check it."}, status=400)
+
+    if draft.status == FilingDraft.Status.SUBMITTED:
+        request.session[LAST_SUBMITTED_DRAFT_SESSION_KEY] = draft.pk
+        request.session.modified = True
+        clear_current_draft(request)
+        confirmation = reverse("filing_confirmation", kwargs={"jurisdiction": draft.jurisdiction})
+        return JsonResponse(
+            {"success": True, "outcome": "submitted", "redirect_url": draft_url(confirmation, draft.pk)}
+        )
+    if draft.status == FilingDraft.Status.DRAFT:
+        # The submit view releases its claim only when nothing reached the court.
+        return JsonResponse({"success": True, "outcome": "not_sent"})
+    if draft.status == FilingDraft.Status.SUBMITTING:
+        # Still claimed: the request may be finishing, or it was cut off.
+        return JsonResponse({"success": True, "outcome": "pending"})
+    return JsonResponse({"success": True, "outcome": "unknown"})

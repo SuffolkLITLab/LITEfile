@@ -51,6 +51,10 @@ Don't wait until the last day.
 - **The fee changed:** You changed something that affects the fee. Check it
   and continue.
 - **The court's rules changed:** Read the new text and check the box again.
+- **"We are not sure whether your filing reached the court":** LITEfile lost
+  the court's answer and has turned off **Submit**. Don't start the filing
+  again. Wait a few minutes, then go to **My filings**. If it isn't listed,
+  contact [LITEfile support](./get-help.md#litefile-help).
 - **An error appears, or the page stops loading:** Don't submit again right
   away. Go to **My filings** to see if it went through. If you're not sure,
   contact the clerk or [LITEfile support](./get-help.md#litefile-help) first.

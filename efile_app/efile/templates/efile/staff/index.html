@@ -1,5 +1,13 @@
 {% extends "admin/index.html" %}
 {% block content %}
+    {% if unconfirmed_submissions %}
+        <div class="module">
+            <h2>Filings with an unknown outcome</h2>
+            <p>
+                {{ unconfirmed_submissions }} filing{{ unconfirmed_submissions|pluralize }} may or may not have reached the court. Find {{ unconfirmed_submissions|pluralize:"it,them" }} in <a href="{% url 'litefile_staff:accounts' %}">Find an account</a> with status Submitting or Error, and check the filer's filings with the court before anyone submits again.
+            </p>
+        </div>
+    {% endif %}
     <div class="module">
         <h2>Staff tools</h2>
         <ul>

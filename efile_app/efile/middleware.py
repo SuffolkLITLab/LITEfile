@@ -7,6 +7,7 @@ from django.utils.deprecation import MiddlewareMixin
 from efile.models import FilingDraft
 from efile.services.current_drafts import DraftIdentityError, get_current_draft, resolve_explicit_draft
 from efile.services.draft_urls import draft_url
+from efile.services.drafts import SUBMISSION_OUTCOME_STATUSES
 from efile.services.existing_cases import import_ready
 from efile.utils.jurisdiction_stuff import get_jurisdiction_from_request
 from efile.workflow import ExistingCase
@@ -27,6 +28,8 @@ class DraftIdentityMiddleware(MiddlewareMixin):
             statuses = (*statuses, FilingDraft.Status.SUBMITTING)
         if request.resolver_match.url_name == "filing_confirmation":
             statuses = (FilingDraft.Status.SUBMITTED,)
+        if request.resolver_match.url_name == "submission_status":
+            statuses = SUBMISSION_OUTCOME_STATUSES
         try:
             jurisdiction = view_kwargs.get("jurisdiction")
             draft = resolve_explicit_draft(request, jurisdiction=jurisdiction, statuses=statuses)

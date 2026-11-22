@@ -32,13 +32,81 @@ const FilingHandler = {
         return checkbox.checked && !checkbox.disabled;
     },
 
+    // Set once a submit may have reached the court; Submit then stays off.
+    submissionOutcomeUnknown: false,
+    outcomePollDelayMs: 5000,
+    outcomePollAttempts: 12,
+
     setSubmissionState(submitting) {
         document.getElementById("loadingSpinner").style.display = submitting ? "block" : "none";
         // Never against a total the filer has not seen for this filing: the
         // button waits until the quote on the page is the current one.
         document.getElementById("submitButton").disabled = submitting ||
+            this.submissionOutcomeUnknown ||
             !this.filingConfirmed() ||
             !USABLE_FEE_STATES.includes(this.feeQuoteState);
+    },
+
+    // Ask this app's own records what became of the draft. A lost response
+    // (proxy error, a machine stopped mid-request, a timeout) can follow a
+    // filing that did reach the court, so the browser's error alone never
+    // proves nothing was sent. "pending" means the claim is still held: the
+    // request may be finishing, so ask again for a while before giving up.
+    async checkSubmissionOutcome() {
+        let failures = 0;
+        for (let attempt = 0; attempt < this.outcomePollAttempts; attempt++) {
+            if (attempt > 0) await new Promise((resolve) => setTimeout(resolve, this.outcomePollDelayMs));
+            try {
+                const result = await apiUtils.makeRequest("/api/submission-status/", {
+                    method: "GET",
+                    timeout: 15000
+                });
+                if (result?.outcome !== "pending") return result || {
+                    outcome: "unknown"
+                };
+            } catch {
+                failures += 1;
+                if (failures >= 3) break;
+            }
+        }
+        return {
+            outcome: "unknown"
+        };
+    },
+
+    showUnknownOutcome() {
+        this.submissionOutcomeUnknown = true;
+        const jurisdiction = apiUtils.getCurrentJurisdiction();
+        Messages.showError(
+            gettext("We are not sure whether your filing reached the court. Do not submit it again. Check My filings in a few minutes. If it is not listed there, contact us for help."),
+            jurisdiction ? [{
+                url: `/jurisdiction/${jurisdiction}/filing_statuses/`,
+                label: gettext("Open My filings")
+            }] : []
+        );
+        this.setSubmissionState(false);
+    },
+
+    async handleSubmissionFailure(error) {
+        const spinnerText = document.getElementById("loadingSpinnerText");
+        const sendingText = spinnerText?.textContent;
+        if (spinnerText) spinnerText.textContent = gettext("Checking whether your filing reached the court. Do not close this page.");
+        const status = await this.checkSubmissionOutcome();
+        if (spinnerText) spinnerText.textContent = sendingText;
+        if (status.outcome === "submitted" && status.redirect_url) {
+            window.location.href = status.redirect_url;
+            return;
+        }
+        if (status.outcome === "not_sent") {
+            if (error?.status === 412 && !["payment_account_unavailable", "correction_not_ready"].includes(error?.errorCode)) {
+                // Something changed in another tab since this page loaded.
+                await this.refreshFeeQuote();
+            }
+            Messages.showError(error?.serverMessage || gettext("We could not submit the filing. Please try again."), error?.errorActions);
+            this.setSubmissionState(false);
+            return;
+        }
+        this.showUnknownOutcome();
     },
 
     setFeesState() {},
@@ -161,14 +229,16 @@ const FilingHandler = {
             }, {}, {
                 timeout: ApiUtils.SUBMISSION_TIMEOUT_MS
             });
-            this.handleSubmissionResult(result);
-        } catch (error) {
-            if (error?.status === 412 && !["payment_account_unavailable", "correction_not_ready"].includes(error?.errorCode)) {
-                // Something changed in another tab since this page loaded.
-                await this.refreshFeeQuote();
+            if (result?.success) {
+                this.handleSubmissionResult(result);
+            } else {
+                await this.handleSubmissionFailure({
+                    serverMessage: result?.error,
+                    errorActions: result?.error_actions
+                });
             }
-            Messages.showError(error?.serverMessage || gettext("We could not submit the filing. Please try again."), error?.errorActions);
-            this.setSubmissionState(false);
+        } catch (error) {
+            await this.handleSubmissionFailure(error);
         }
     }
 };

@@ -52,7 +52,7 @@ from .views.session_api import (
     get_upload_data_from_session,
     save_party_type_to_session,
 )
-from .views.submission import submit_final_filing
+from .views.submission import submission_status, submit_final_filing
 from .views.submission_tracker import submission_tracker
 from .views.upload_documents import document_extraction_status, document_worker_health, upload_documents
 from .views.waiver_documents import waiver_documents
@@ -184,6 +184,7 @@ urlpatterns = [
     path("api/fetch-party-type/", fetch_and_save_party_type, name="fetch_party_type"),
     path("api/save-party-type/", save_party_type_to_session, name="save_party_type"),
     path("api/submit-final-filing/", submit_final_filing, name="submit_final_filing"),
+    path("api/submission-status/", submission_status, name="submission_status"),
     path("api/clear-session/", clear_session_data, name="clear_session_data"),
     # API endpoints for dropdowns
     path("api/", include("efile.api.urls")),

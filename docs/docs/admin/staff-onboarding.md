@@ -54,7 +54,16 @@ and record its owner before onboarding staff.
    **needs attention**, with frozen records and a retry manifest; escalate and
    retry through the established workflow. Never report a partial attempt complete
    or manually unfreeze it to clear a queue.
-6. Confirm backup/provider disposition separately before resolving the request.
+6. **Filings with an unknown outcome.** The staff home page counts filings that may
+   or may not have reached the court: a submit cut off mid-call stays `submitting`,
+   and an unclear court reply leaves `error`. LITEfile never resubmits these
+   itself, because a retry could file and charge twice. Find each one in
+   **Account lookup** with status Submitting or Error. Ask the filer to check
+   **My filings**, or check the filing service for an envelope from that account,
+   court and time. Tell the filer the outcome before anyone submits again.
+   Operators can list them without filer details with
+   `manage.py unconfirmed_submissions`.
+7. Confirm backup/provider disposition separately before resolving the request.
    Deleting LITEfile's active copies does not withdraw court filings or delete Tyler
    accounts/records. Permanent anonymous aggregates remain. Explain the actual
    remaining exceptions, backup expiry/isolation and provider work to the requester.
