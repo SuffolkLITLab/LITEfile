@@ -6,6 +6,7 @@ from django.core.management.base import BaseCommand, CommandError
 from django.utils import timezone
 
 from efile.services.submission_outcomes import unconfirmed_submissions
+from efile.utils.config_loader import config_loader
 
 
 class Command(BaseCommand):
@@ -19,6 +20,10 @@ class Command(BaseCommand):
         parser.add_argument("--fail-if-any", action="store_true", help="Exit non-zero when any are found")
 
     def handle(self, *args, **options):
+        # A misspelled name would match nothing and pass a monitoring check.
+        unknown = set(options["jurisdiction"] or ()) - set(config_loader.get_available_jurisdictions())
+        if unknown:
+            raise CommandError(f"Unknown jurisdiction: {', '.join(sorted(unknown))}")
         now = timezone.now()
         drafts = unconfirmed_submissions(options["jurisdiction"], now=now)
         rows = [

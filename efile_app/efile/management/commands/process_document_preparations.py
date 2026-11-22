@@ -9,6 +9,8 @@ from django.conf import settings
 from django.core.management.base import BaseCommand
 from django.db import connections
 
+from efile.utils.worker_signals import stop_on_sigterm
+
 logger = logging.getLogger(__name__)
 
 
@@ -42,6 +44,7 @@ class Command(BaseCommand):
         parser.add_argument("--poll-interval", type=float, default=2)
 
     def handle(self, *args, **options):
+        stop_on_sigterm()
         from efile.models import DocumentWorkerHeartbeat
         from efile.services.document_preparation import PreparationError
         from efile.services.document_preparation_queue import claim_preparation, fail_preparation, preparation_timeout

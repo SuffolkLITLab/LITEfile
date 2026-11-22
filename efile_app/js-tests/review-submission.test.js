@@ -144,9 +144,10 @@ test("an unknown outcome keeps Submit off and points to My filings", async () =>
         }))
     });
 
+    page.handler.outcomePollAttempts = 12;
     await page.handler.submitFiling();
 
-    assert.equal(page.statusCalls.length, page.handler.outcomePollAttempts);
+    assert.equal(page.statusCalls.length, 12);
     assert.match(page.node("errorText").textContent, /Do not submit it again/);
     assert.doesNotMatch(page.node("errorText").textContent, /try again/i);
     assert.equal(page.node("submitButton").disabled, true);
@@ -218,4 +219,130 @@ test("a successful submit does not check the status", async () => {
 
     assert.equal(page.handler.succeeded.redirect_url, "/done");
     assert.equal(page.statusCalls.length, 0);
+});
+test("an error before anything is sent needs no status check", async () => {
+    let posts = 0;
+    const page = loadReview({
+        submit: async () => {
+            posts += 1;
+        },
+        statuses: []
+    });
+    page.handler.buildCurrentFilingData = () => {
+        throw new Error("Missing party type");
+    };
+
+    await page.handler.submitFiling();
+
+    assert.equal(posts, 0);
+    assert.equal(page.statusCalls.length, 0);
+    assert.equal(page.node("errorText").textContent, "We could not submit the filing. Please try again.");
+    assert.equal(page.node("submitButton").disabled, false);
+});
+
+test("nothing re-enables Submit while a submit is in flight", async () => {
+    let posts = 0;
+    let answer;
+    const page = loadReview({
+        submit: () => {
+            posts += 1;
+            return new Promise((resolve) => {
+                answer = resolve;
+            });
+        },
+        statuses: []
+    });
+
+    const first = page.handler.submitFiling();
+    // The filer unticks and reticks the confirmation box, then clicks again.
+    page.handler.refreshSubmitButton();
+    assert.equal(page.node("submitButton").disabled, true);
+    assert.equal(page.node("loadingSpinner").style.display, "block");
+    await page.handler.submitFiling();
+    assert.equal(posts, 1);
+
+    answer({
+        success: true,
+        redirect_url: "/done"
+    });
+    await first;
+    page.handler.refreshSubmitButton();
+    assert.equal(page.node("submitButton").disabled, true);
+});
+
+test("after no reply, an unclaimed draft must stay unclaimed before advising a retry", async () => {
+    const settled = loadReview({
+        submit: async () => {
+            throw proxyError();
+        },
+        statuses: Array.from({
+            length: 10
+        }, () => ({
+            outcome: "not_sent"
+        }))
+    });
+
+    await settled.handler.submitFiling();
+
+    assert.equal(settled.statusCalls.length, settled.handler.draftSettleChecks);
+    assert.equal(settled.node("errorText").textContent, "We could not submit the filing. Please try again.");
+    assert.equal(settled.node("submitButton").disabled, false);
+
+    // The first request was still checking the payment account, then claimed.
+    const late = loadReview({
+        submit: async () => {
+            throw proxyError();
+        },
+        statuses: [{
+            outcome: "not_sent"
+        }, {
+            outcome: "not_sent"
+        }, {
+            outcome: "pending"
+        }, {
+            outcome: "submitted",
+            redirect_url: "/jurisdiction/illinois/filing-confirmation/?draft=7"
+        }]
+    });
+
+    await late.handler.submitFiling();
+
+    assert.equal(late.window.location.href, "/jurisdiction/illinois/filing-confirmation/?draft=7");
+});
+
+test("a refused status check is not retried", async () => {
+    const page = loadReview({
+        submit: async () => {
+            throw proxyError();
+        },
+        statuses: [Object.assign(new Error("signed out"), {
+            status: 409
+        }), {
+            outcome: "not_sent"
+        }]
+    });
+
+    await page.handler.submitFiling();
+
+    assert.equal(page.statusCalls.length, 1);
+    assert.match(page.node("errorText").textContent, /Do not submit it again/);
+});
+
+test("a released draft after a refused second submit gets general advice", async () => {
+    const page = loadReview({
+        submit: async () => {
+            throw Object.assign(new Error("conflict"), {
+                status: 409,
+                serverMessage: "This filing can't be submitted again automatically."
+            });
+        },
+        statuses: [{
+            outcome: "not_sent"
+        }]
+    });
+
+    await page.handler.submitFiling();
+
+    assert.equal(page.node("errorText").textContent, "We could not submit the filing. Please try again.");
+    assert.equal(page.node("submitButton").disabled, false);
 });

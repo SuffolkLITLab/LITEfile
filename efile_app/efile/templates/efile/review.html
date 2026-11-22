@@ -438,6 +438,7 @@
     {{ draft.selected_payment_account_id|json_script:"payment-account-id" }}
     {{ fee_quote.state|json_script:"fee-quote-state" }}
     {{ fee_inputs_token|json_script:"fee-inputs-token" }}
+    {{ submission_outcome_unknown|json_script:"submission-outcome-unknown" }}
 {% endblock workflow_content %}
 {% block extra_js %}
     <script src="{% static 'js/filing-error-actions.js' %}"></script>

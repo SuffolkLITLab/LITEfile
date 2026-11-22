@@ -61,6 +61,8 @@ and record its owner before onboarding staff.
    **Account lookup** with status Submitting or Error. Ask the filer to check
    **My filings**, or check the filing service for an envelope from that account,
    court and time. Tell the filer the outcome before anyone submits again.
+   Filers can't throw an `error` draft away in **My drafts**, so it stays
+   visible here until it is resolved.
    Operators can list them without filer details with
    `manage.py unconfirmed_submissions`.
 7. Confirm backup/provider disposition separately before resolving the request.

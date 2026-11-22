@@ -144,3 +144,114 @@ def test_account_managers_see_how_many_filings_need_checking(client, filer, djan
     client.logout()
     page = verified_client(client, analyst).get(reverse("litefile_staff:index"))
     assert b"Filings with an unknown outcome" not in page.content
+
+
+def _sign_in(client, user):
+    client.force_login(user)
+    session = client.session
+    session["jurisdiction"] = "illinois"
+    session["auth_tokens"] = {"TYLER-TOKEN-ILLINOIS": "token"}
+    session.save()
+
+
+def test_status_check_leaves_the_session_alone(client, filer):
+    from efile.services.current_drafts import CURRENT_DRAFT_SESSION_KEY
+
+    draft = _draft(filer, FilingDraft.Status.SUBMITTED)
+    client.force_login(filer)
+    session = client.session
+    session[CURRENT_DRAFT_SESSION_KEY] = draft.pk
+    session.save()
+
+    assert _status(client, draft).json()["outcome"] == "submitted"
+    assert client.session[CURRENT_DRAFT_SESSION_KEY] == draft.pk
+
+
+def test_status_refuses_signed_out_and_discarded_drafts(client, filer):
+    abandoned = _draft(filer, FilingDraft.Status.ABANDONED)
+    submitted = _draft(filer, FilingDraft.Status.SUBMITTED)
+
+    assert _status(client, submitted).status_code == 409
+    client.force_login(filer)
+    assert _status(client, abandoned).status_code == 409
+
+
+def test_reopening_a_filing_cut_off_mid_send_does_not_suggest_starting_again(client, filer, django_user_model):
+    draft = _draft(filer, FilingDraft.Status.SUBMITTING)
+    _sign_in(client, filer)
+
+    page = client.get(reverse("case_review", args=["illinois"]), {"draft": draft.pk})
+
+    assert page.status_code == 409
+    content = page.content.decode()
+    assert "We are checking whether this filing reached the court" in content
+    assert "Do not start it again" in content
+    assert "start a new one" not in content
+    assert reverse("filing_statuses", args=["illinois"]) in content
+
+    # Someone else's draft, or a finished one, gets the ordinary page.
+    other = django_user_model.objects.create_user(username="other-reopen", tyler_jurisdiction="illinois")
+    for named in (_draft(other, FilingDraft.Status.SUBMITTING), _draft(filer, FilingDraft.Status.ABANDONED)):
+        content = client.get(reverse("case_review", args=["illinois"]), {"draft": named.pk}).content.decode()
+        assert "This draft is no longer available here" in content
+        assert "reached the court" not in content
+
+
+def test_review_of_an_errored_submission_starts_with_submit_off(client, filer, monkeypatch):
+    from efile.views import review
+
+    captured = {}
+
+    def fake_render(_request, _template, context, *args, **kwargs):
+        captured.update(context)
+        from django.http import HttpResponse
+
+        return HttpResponse("review")
+
+    monkeypatch.setattr(review, "render", fake_render)
+    _sign_in(client, filer)
+    for status, unknown in ((FilingDraft.Status.ERROR, True), (FilingDraft.Status.DRAFT, False)):
+        captured.clear()
+        draft = _draft(filer, status)
+        FilingDraft.objects.filter(pk=draft.pk).update(selected_payment_account_id="account")
+        response = client.get(reverse("case_review", args=["illinois"]), {"draft": draft.pk})
+        assert response.status_code == 200
+        assert captured["submission_outcome_unknown"] is unknown
+
+
+def test_my_drafts_keeps_a_filing_that_may_have_reached_the_court(client, filer):
+    errored = _draft(filer, FilingDraft.Status.ERROR)
+    ordinary = _draft(filer, FilingDraft.Status.DRAFT)
+    _sign_in(client, filer)
+    url = reverse("my_drafts", args=["illinois"])
+
+    content = client.get(url).content.decode()
+    assert content.count("We are not sure whether this filing reached the court.") == 1
+    assert content.count('value="delete"') == 1
+
+    client.post(url, {"action": "delete", "draft_id": errored.pk})
+    client.post(url, {"action": "delete", "draft_id": ordinary.pk})
+    errored.refresh_from_db()
+    ordinary.refresh_from_db()
+    assert errored.status == FilingDraft.Status.ERROR
+    assert ordinary.status == FilingDraft.Status.ABANDONED
+
+
+def test_command_rejects_a_misspelled_jurisdiction():
+    with pytest.raises(CommandError, match="Unknown jurisdiction: il"):
+        call_command("unconfirmed_submissions", "--jurisdiction", "il", "--fail-if-any")
+
+
+def test_workers_treat_sigterm_like_sigint():
+    import signal
+
+    from efile.utils.worker_signals import stop_on_sigterm
+
+    previous = signal.getsignal(signal.SIGTERM)
+    try:
+        stop_on_sigterm()
+        assert signal.getsignal(signal.SIGTERM) is signal.default_int_handler
+        with pytest.raises(KeyboardInterrupt):
+            signal.raise_signal(signal.SIGTERM)
+    finally:
+        signal.signal(signal.SIGTERM, previous)

@@ -5,7 +5,12 @@ from django.shortcuts import redirect, render
 from django.utils.deprecation import MiddlewareMixin
 
 from efile.models import FilingDraft
-from efile.services.current_drafts import DraftIdentityError, get_current_draft, resolve_explicit_draft
+from efile.services.current_drafts import (
+    DraftIdentityError,
+    explicit_draft_id,
+    get_current_draft,
+    resolve_explicit_draft,
+)
 from efile.services.draft_urls import draft_url
 from efile.services.drafts import SUBMISSION_OUTCOME_STATUSES
 from efile.services.existing_cases import import_ready
@@ -15,6 +20,25 @@ from efile.workflow import ExistingCase
 # Steps that read or file the court roster. An existing case reaches them only
 # once its import is loaded and confirmed; this is the one place that says so.
 NEEDS_CONFIRMED_CASE = {"parties", "party_details", "case_questions", "service", "payment", "case_review"}
+
+
+def _submission_pending(request) -> bool:
+    """Whether the named draft is this filer's, cut off while being sent (#445).
+
+    Such a draft can no longer be opened, and the filing may already be with
+    the court, so the page must not suggest starting the filing again.
+    """
+    user = getattr(request, "user", None)
+    if not getattr(user, "is_authenticated", False):
+        return False
+    try:
+        draft_id = explicit_draft_id(request)
+    except DraftIdentityError:
+        return False
+    return (
+        draft_id is not None
+        and FilingDraft.objects.filter(pk=draft_id, user=user, status=FilingDraft.Status.SUBMITTING).exists()
+    )
 
 
 class DraftIdentityMiddleware(MiddlewareMixin):
@@ -48,7 +72,12 @@ class DraftIdentityMiddleware(MiddlewareMixin):
                 and "application/json" not in request.headers.get("Accept", "")
                 and request.content_type != "application/json"
             ):
-                return render(request, "efile/draft_unavailable.html", status=409)
+                return render(
+                    request,
+                    "efile/draft_unavailable.html",
+                    {"submission_pending": _submission_pending(request)},
+                    status=409,
+                )
             if request.resolver_match.url_name in {"upload_documents", "document_extraction_status"} and (
                 not request.user.is_authenticated
             ):

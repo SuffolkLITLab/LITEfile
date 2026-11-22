@@ -260,9 +260,7 @@ def submission_status(request):
         return JsonResponse({"success": False, "error": "Open the filing you submitted to check it."}, status=400)
 
     if draft.status == FilingDraft.Status.SUBMITTED:
-        request.session[LAST_SUBMITTED_DRAFT_SESSION_KEY] = draft.pk
-        request.session.modified = True
-        clear_current_draft(request)
+        # A GET changes nothing: the confirmation page reads the draft from the URL.
         confirmation = reverse("filing_confirmation", kwargs={"jurisdiction": draft.jurisdiction})
         return JsonResponse(
             {"success": True, "outcome": "submitted", "redirect_url": draft_url(confirmation, draft.pk)}
