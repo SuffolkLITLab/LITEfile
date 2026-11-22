@@ -69,6 +69,21 @@ Keep everything in one place:
 - any notices or orders,
 - notes about calls with the clerk.
 
+## Receive future service by email
+
+After you submit a filing, choose **Receive future service by email** on the
+confirmation or filing details page. Confirm your name and choose to register
+at your signed-in account's email address. LITEfile adds your contact to the
+case so other filers can select you for electronic service.
+
+This does not send your documents to anyone or change your filing-status
+notifications. Register only for yourself. You can manage the contact later
+in the court's e-filing system.
+
+If registration fails, return to filing details and try registration again
+later. If LITEfile has no case ID for the filing, use the court’s e-filing
+system to manage your service contacts. **Do not submit your filing again.**
+
 ## Need help?
 
 Court help centers and legal aid can explain what comes next. See

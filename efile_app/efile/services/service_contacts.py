@@ -15,6 +15,10 @@ class ServiceContactError(ValueError):
     pass
 
 
+class ServiceContactAuthenticationError(ServiceContactError):
+    pass
+
+
 def scope(draft):
     return [
         draft.jurisdiction,
@@ -37,13 +41,19 @@ def proxy_request(draft, token, path, *, body=None, method=None, timeout=15):
     url = f"{settings.EFSP_URL}/jurisdictions/{jurisdiction}/{path}"
     try:
         if method == "GET":
-            response = requests.get(url, headers=headers, json=body, timeout=timeout)
+            response = requests.get(url, headers=headers, json=body, timeout=timeout, allow_redirects=False)
+        elif method == "PUT":
+            response = requests.put(url, headers=headers, json=body, timeout=timeout, allow_redirects=False)
         elif body is None:
-            response = requests.get(url, headers=headers, timeout=15)
+            response = requests.get(url, headers=headers, timeout=15, allow_redirects=False)
         else:
-            response = requests.post(url, headers=headers, json=body, timeout=15)
+            response = requests.post(url, headers=headers, json=body, timeout=15, allow_redirects=False)
+        if 300 <= response.status_code < 400:
+            raise ServiceContactError("The court returned an unexpected redirect. Try again later.")
         if response.status_code in {401, 403}:
-            raise ServiceContactError("Sign in again to check the court's email contacts and service options.")
+            raise ServiceContactAuthenticationError(
+                "Sign in again to check the court's email contacts and service options."
+            )
         if response.status_code == 400 and method == "GET" and body is not None:
             raise ServiceContactError(
                 "The court needs more filing details to check electronic service. Finish your filing details, then return to Service and try again."
@@ -51,6 +61,8 @@ def proxy_request(draft, token, path, *, body=None, method=None, timeout=15):
         if response.status_code == 400 and body is not None:
             raise ServiceContactError("The court could not add this contact. Check the name and email address.")
         response.raise_for_status()
+        if method == "PUT":
+            return None
         return response.json()
     except ServiceContactError:
         raise
@@ -228,8 +240,13 @@ def create_contact(draft, token, data):
         raise ServiceContactError(
             "This court does not allow new service contacts when starting a case. Choose an existing contact."
         )
-    first = data.get("contact_first_name", "").strip()
-    last = data.get("contact_last_name", "").strip()
+    return get_or_create_contact(draft, token, data)
+
+
+def get_or_create_contact(draft, token, data):
+    """Reuse a firm contact or create one; callers decide the permitted use."""
+    first = " ".join(data.get("contact_first_name", "").split())
+    last = " ".join(data.get("contact_last_name", "").split())
     email = data.get("contact_email", "").strip()
     if not first or not last or len(first) > 100 or len(last) > 100:
         raise ServiceContactError("Enter the person's first and last name.")
@@ -239,12 +256,20 @@ def create_contact(draft, token, data):
         validate_email(email)
     except ValidationError as error:
         raise ServiceContactError("Enter a valid email address.") from error
-    existing = parse_contacts(proxy_request(draft, token, "firmattorneyservice/service-contacts"))
+    raw_contacts = proxy_request(draft, token, "firmattorneyservice/service-contacts")
+    existing = parse_contacts(raw_contacts)
+    names_without_middle = {
+        str(item.get("serviceContactID")): " ".join(
+            f"{item.get('firstName') or ''} {item.get('lastName') or ''}".split()
+        ).casefold()
+        for item in raw_contacts
+        if isinstance(item, dict)
+    }
     for contact in existing:
-        if (
-            contact["email"].casefold() == email.casefold()
-            and contact["name"].casefold() == f"{first} {last}".casefold()
-        ):
+        if contact["email"].casefold() == email.casefold() and f"{first} {last}".casefold() in {
+            " ".join(contact["name"].split()).casefold(),
+            names_without_middle.get(contact["contact_id"], ""),
+        }:
             return contact["contact_id"]
     contact_id = proxy_request(
         draft,
@@ -315,3 +340,42 @@ def bind_service(payload, draft, *, lookups=None, token=None):
     for bundle in payload.get("al_court_bundle", []):
         bundle["filing_action"] = "efile_and_serve" if contacts else "efile"
         bundle["preliminary_copies"] = []
+
+
+def submitted_case_id(draft):
+    return (draft.submission_response or {}).get("caseId")
+
+
+def register_self_service_contact(draft, token, first, last):
+    """Attach to the returned case ID; Tyler treats repeat attachments as success."""
+    case = submitted_case_id(draft)
+    if not case:
+        raise ServiceContactError(
+            "This filing has no case ID available for registration. Use the court’s e-filing system to manage your service contacts."
+        )
+    case = validated_code(str(case))
+    contact_id = get_or_create_contact(
+        draft,
+        token,
+        {
+            "contact_first_name": first,
+            "contact_last_name": last,
+            "contact_email": draft.user.email,
+        },
+    )
+    contact_id = validated_code(contact_id)
+    try:
+        proxy_request(
+            draft,
+            token,
+            f"firmattorneyservice/service-contacts/{contact_id}/cases",
+            method="PUT",
+            body={"caseId": case},
+        )
+    except ServiceContactAuthenticationError:
+        raise
+    except ServiceContactError as error:
+        raise ServiceContactError(
+            "Your filing was already submitted, but we could not confirm your service registration. "
+            "The case may not be ready yet. Try registration again later; do not submit your filing again."
+        ) from error

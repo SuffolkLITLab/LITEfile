@@ -3,27 +3,34 @@
 from django.contrib import messages
 from django.core import signing
 from django.db import transaction
-from django.http import HttpResponse, HttpResponseBadRequest, JsonResponse
-from django.shortcuts import redirect, render
+from django.http import Http404, HttpResponse, HttpResponseBadRequest, JsonResponse
+from django.shortcuts import get_object_or_404, redirect, render
 from django.template.loader import render_to_string
 from django.urls import reverse
+from django.utils.translation import gettext as _
 from django.views.decorators.http import require_http_methods
 
 from efile.api.suffolk_api_views import get_tyler_token
 from efile.models import FilingDraft
+from efile.services.account_profile import cached_account_profile
 from efile.services.current_drafts import ensure_current_draft, get_current_draft
 from efile.services.drafts import ACTIVE_DRAFT_STATUSES, draft_snapshot
 from efile.services.efsp_payload import PayloadValidationError
 from efile.services.filing_availability import draft_unavailable_message, unavailable_response
 from efile.services.service_contacts import (
     KEY,
+    ServiceContactAuthenticationError,
     ServiceContactError,
     create_contact,
+    register_self_service_contact,
     save_contacts,
     saved_service,
     scope,
     service_options,
+    submitted_case_id,
 )
+from efile.utils.config_loader import config_loader
+from efile.utils.jurisdiction_stuff import has_jurisdiction_login, redirect_to_jurisdiction_login
 from efile.workflow import WorkflowStepKey, continue_step, continue_url, get_workflow_context, return_target
 
 
@@ -207,3 +214,52 @@ def service(request, jurisdiction):
     )
     context.update(get_workflow_context(WorkflowStepKey.SERVICE, jurisdiction, draft))
     return render(request, "efile/service.html", context)
+
+
+@require_http_methods(["GET", "POST"])
+def self_service_contact(request, public_id):
+    draft = get_object_or_404(
+        FilingDraft.objects.select_related("user"),
+        public_id=public_id,
+        status=FilingDraft.Status.SUBMITTED,
+        deletion_pending=False,
+    )
+    if not has_jurisdiction_login(request, draft.jurisdiction):
+        return redirect_to_jurisdiction_login(request, draft.jurisdiction)
+    if draft.user_id != request.user.pk:
+        raise Http404
+    token = get_tyler_token(request, draft.jurisdiction)
+    error = ""
+    profile = (cached_account_profile(request, draft.jurisdiction) or {}) if request.method == "GET" else {}
+    first = request.POST.get("first_name", profile.get("first_name") or request.user.first_name)
+    last = request.POST.get("last_name", profile.get("last_name") or request.user.last_name)
+    if request.method == "POST":
+        try:
+            if request.POST.get("consent") != "yes":
+                raise ServiceContactError(
+                    "Confirm that you want to receive future service at your account email address."
+                )
+            register_self_service_contact(draft, token, first, last)
+            messages.success(
+                request, _("You are registered for future service at %(email)s.") % {"email": request.user.email}
+            )
+            return redirect("self_service_contact", public_id=draft.public_id)
+        except ServiceContactAuthenticationError:
+            return redirect_to_jurisdiction_login(request, draft.jurisdiction)
+        except (ServiceContactError, ValueError) as exc:
+            error = str(exc)
+    return render(
+        request,
+        "efile/self_service_contact.html",
+        {
+            "draft": draft,
+            "jurisdiction": draft.jurisdiction,
+            "is_logged_in": True,
+            "config": config_loader.load_jurisdiction_config(draft.jurisdiction),
+            "case_ready": bool(submitted_case_id(draft)),
+            "registration_error": error,
+            "first_name": first,
+            "last_name": last,
+            "account_email": request.user.email,
+        },
+    )

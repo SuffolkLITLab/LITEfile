@@ -36,7 +36,9 @@
     <body>
         {% include "efile/components/profile_header.html" %}
         <main class="workflow-shell">
-            {% include "efile/components/workflow_progress.html" %}
+            {% if workflow_stage_progress %}
+                {% include "efile/components/workflow_progress.html" %}
+            {% endif %}
             {% include "efile/components/inline_messages.html" %}
             {% if handoff_draft_id %}
                 <p><a href="{% url 'handoff_review' handoff_draft_id %}">{% translate "Edit saved interview answers" %}</a></p>
