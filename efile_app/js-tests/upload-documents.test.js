@@ -128,6 +128,7 @@ function uploadPage({
             getCSRFToken: () => "csrf"
         },
         AbortSignal,
+        AbortController,
         Headers,
         URL,
         DataTransfer: class {
@@ -139,9 +140,13 @@ function uploadPage({
         FormData: class {
             constructor() {
                 this.files = [...(node("documents-input").files || [])];
+                this.entries = new Map();
             }
-            get() {
-                return "b65359a8-c34b-44a7-8d2e-3422f765e71a";
+            append(name, value) {
+                this.entries.set(name, value);
+            }
+            get(name) {
+                return this.entries.has(name) ? this.entries.get(name) : "b65359a8-c34b-44a7-8d2e-3422f765e71a";
             }
         },
         fetch
@@ -154,6 +159,7 @@ function uploadPage({
         node,
         timers,
         reloads: () => reloads,
+        location: () => context.window.location,
         submit() {
             const input = node("documents-input");
             if (!input.files) {
@@ -631,4 +637,80 @@ test("a failed upload closes the window and shows the error on the page", async 
     await page.submit();
     assert.equal(page.node("processing-dialog").open, false);
     assert.equal(page.node("upload-error").hidden, false);
+});
+for (const recorded of [false, true]) {
+    test(`cancelling a running upload checks whether the files arrived (arrived: ${recorded})`, async () => {
+        const requests = [];
+        const page = uploadPage({
+            hasLead: false,
+            asyncPreparation: true,
+            fetch: (url, options) => {
+                requests.push(options.method || "GET");
+                if (options.method === "POST") {
+                    return new Promise((_resolve, reject) => {
+                        options.signal.addEventListener("abort", () => reject(new DOMException("Aborted", "AbortError")));
+                    });
+                }
+                return Promise.resolve(reply({
+                    upload_recorded: recorded
+                }));
+            }
+        });
+        const upload = page.submit();
+        assert.equal(page.node("processing-cancel-upload").hidden, false);
+        page.node("processing-cancel-upload").listeners.click();
+        assert.equal(page.node("processing-cancel-upload").hidden, true);
+        await upload;
+        assert.deepEqual(requests, ["POST", "GET"]);
+        assert.equal(page.reloads(), Number(recorded));
+        if (!recorded) {
+            assert.match(page.node("upload-error").textContent, /Upload cancelled/);
+            assert.equal(page.node("processing-dialog").open, false);
+            assert.equal(page.node("upload-button").disabled, false);
+            assert.equal(page.node("documents-input").files[0].name, "petition.pdf");
+        }
+    });
+}
+
+test("skipping a slow reading stops it on the server and goes on to confirm the details", async () => {
+    const posts = [];
+    const page = uploadPage({
+        pending: true,
+        phase: "reading",
+        fetch: async (url, options) => {
+            if (options.method === "POST") {
+                posts.push(options.body);
+                return reply({
+                    skipped: true
+                });
+            }
+            return reply({
+                ready: false,
+                status: "processing",
+                wait_seconds: 90
+            });
+        }
+    });
+    await flush();
+    const skip = page.node("processing-skip-reading");
+    assert.equal(skip.hidden, false);
+    await skip.listeners.click();
+    assert.equal(posts.length, 1);
+    assert.equal(posts[0].get("action"), "skip_reading");
+    assert.equal(page.location().href, "/preview/?return_to=review");
+});
+
+test("skip is not offered once the filer can already continue", async () => {
+    const page = uploadPage({
+        pending: true,
+        phase: "reading",
+        fetch: async () => reply({
+            ready: false,
+            status: "pending",
+            wait_seconds: 0
+        })
+    });
+    await flush();
+    assert.equal(page.node("processing-skip-reading").hidden, true);
+    assert.equal(page.node("processing-continue").hidden, false);
 });

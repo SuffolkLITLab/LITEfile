@@ -60,8 +60,11 @@ Your files listed under **Your documents**, each marked **Ready**.
 - **Wrong file:** Choose **Remove** next to it. Then upload the right one.
 - **Need to swap a file:** Open **Replace a document**, pick the old file, then
   upload the new one.
-- **Reading takes a long time:** After a while, the window lets you go on and
-  type the case details yourself.
+- **Changed your mind while uploading:** Choose **Cancel upload** in the
+  window. Your selected files stay on the page.
+- **Don't want to wait for the reading:** Choose **Skip and enter details
+  myself**. You type the case details on the next page. After a while, the
+  window also lets you go on without skipping.
 - **"Your documents need attention":** Choose **Retry preparation**, or
   **Remove this upload** and try again.
 - **File won't upload:** Check it is a PDF or Word file under 10 MB with no

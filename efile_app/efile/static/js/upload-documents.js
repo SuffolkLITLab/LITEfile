@@ -46,6 +46,10 @@
     const processingDialog = document.getElementById("processing-dialog");
     const processingClose = document.getElementById("processing-close");
     const processingContinue = document.getElementById("processing-continue");
+    const processingCancelUpload = document.getElementById("processing-cancel-upload");
+    const processingSkipReading = document.getElementById("processing-skip-reading");
+    let uploadAbort = null;
+    let uploadCancelled = false;
     const PHASES = ["uploading", "preparing", "reading", "ready"];
     const STEP_STATES = {
         done: "Done",
@@ -103,8 +107,14 @@
             processingContinue.hidden = !show;
             if (show) processingContinue.setAttribute("href", continueButton.dataset.continueUrl);
         }
+        if (processingCancelUpload) processingCancelUpload.hidden = processingPhase() !== "uploading" || uploadCancelled;
+        // Once Confirm information is offered, skipping adds nothing.
+        if (processingSkipReading) processingSkipReading.hidden = processingPhase() !== "reading" || canContinue();
         const actions = document.getElementById("processing-actions");
-        if (actions) actions.hidden = Boolean(processingClose?.hidden && processingContinue?.hidden);
+        if (actions) {
+            actions.hidden = [processingClose, processingContinue, processingCancelUpload, processingSkipReading]
+                .every((button) => !button || button.hidden);
+        }
     }
 
     function setProcessingPhase(phase, {
@@ -139,6 +149,31 @@
         if (!processingClosable()) event.preventDefault();
     });
     processingClose?.addEventListener("click", closeProcessing);
+    // Stop sending. Files that already arrived are found by the upload's
+    // token, and the window then offers to cancel their preparation instead.
+    processingCancelUpload?.addEventListener("click", () => {
+        uploadCancelled = true;
+        stateDetail.textContent = "Cancelling your upload…";
+        refreshProcessingActions();
+        uploadAbort?.abort();
+    });
+    processingSkipReading?.addEventListener("click", async () => {
+        processingSkipReading.disabled = true;
+        const body = new FormData();
+        body.append("action", "skip_reading");
+        body.append("csrfmiddlewaretoken", apiUtils.getCSRFToken());
+        try {
+            await documentRequests.json(window.location.href, "We could not stop reading your document. Try again.", {
+                method: "POST",
+                body
+            });
+            forgetUpload();
+            window.location.href = continueButton.dataset.continueUrl;
+        } catch (error) {
+            stateDetail.textContent = error.message;
+            processingSkipReading.disabled = false;
+        }
+    });
     let mainFileKey = null;
     let nextSelectionId = 0;
     let uploading = false;
@@ -424,6 +459,7 @@
                     return null;
                 }
                 if (result.upload_recorded === false) {
+                    if (uploadCancelled) return "Upload cancelled. Your files are still selected.";
                     return "We could not confirm your upload. Check your selected files and try again.";
                 }
             } catch (statusError) {
@@ -445,6 +481,8 @@
             return;
         }
         uploading = true;
+        uploadCancelled = false;
+        uploadAbort = new AbortController();
         updateContinue();
         errorBox.hidden = true;
         state.hidden = false;
@@ -463,6 +501,7 @@
             const result = await documentRequests.json(window.location.href, uploadUnknown, {
                 method: "POST",
                 body,
+                signal: uploadAbort.signal,
                 headers: {
                     "X-CSRFToken": apiUtils.getCSRFToken()
                 },

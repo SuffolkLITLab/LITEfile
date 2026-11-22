@@ -1459,7 +1459,8 @@
 /* Bootstrap's secondary outline is too light against the warning panel used
    for this alternative action. Keep its text and border legible at AA. */
 #claim-party-instead-filing-for,
-#claim-party-cancel {
+#claim-party-cancel,
+.processing-dialog .btn-outline-secondary {
     --bs-btn-color: #343a40;
     --bs-btn-border-color: #343a40;
     --bs-btn-hover-bg: #343a40;
@@ -1549,6 +1550,10 @@
 
 .processing-steps li[data-state="failed"] .processing-steps__marker {
     border-color: #842029;
+}
+
+#processing-dialog-status:focus {
+    outline: none;
 }
 
 .processing-dialog__status {

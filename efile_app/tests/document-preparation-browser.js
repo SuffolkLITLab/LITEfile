@@ -97,6 +97,7 @@ async function main() {
         }).click();
         await page.locator('#processing-dialog[data-phase="uploading"]').waitFor();
         assert.equal(await page.locator("#processing-close").isVisible(), false);
+        assert.equal(await page.locator("#processing-cancel-upload").isVisible(), true);
         await page.keyboard.press("Escape");
         assert.equal(await page.locator("#processing-dialog").isVisible(), true);
         await screenshot("01-processing-uploading-mobile.png");

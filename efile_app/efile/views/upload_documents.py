@@ -19,6 +19,7 @@ from efile.services.document_extractions import (
     extraction_for_document,
     extraction_is_waiting,
     queue_document_extraction,
+    skip_document_extraction,
 )
 from efile.services.document_finder import has_document_finder
 from efile.services.document_preparation import requires_flattening
@@ -122,6 +123,8 @@ def upload_documents(request, jurisdiction):
             except ValueError as error:
                 return JsonResponse({"success": False, "error": str(error)}, status=409)
             return JsonResponse({"success": True})
+        if action == "skip_reading":
+            return JsonResponse({"success": True, "skipped": skip_document_extraction(draft)})
         if action == "remove" and unfinished_preparation(draft):
             return JsonResponse(
                 {"success": False, "error": "Wait for preparation or remove the pending upload first."}, status=409

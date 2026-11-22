@@ -294,7 +294,8 @@
                 <span class="visually-hidden processing-steps__state"></span>
             </li>
         </ol>
-        <div id="processing-dialog-status">
+        {# Focus starts on the status, not on a button Enter would press. #}
+        <div id="processing-dialog-status" tabindex="-1" autofocus>
             {% if preparation_job %}
                 <div class="processing-dialog__status"
                      id="preparation-state"
@@ -325,7 +326,13 @@
                     {% endif %}
                     <button type="button"
                             class="btn btn-outline-secondary"
-                            data-action="cancel_preparation">{% translate "Remove this upload" %}</button>
+                            data-action="cancel_preparation">
+                        {% if preparation_job.status == "failed" %}
+                            {% translate "Remove this upload" %}
+                        {% else %}
+                            {% translate "Cancel upload" %}
+                        {% endif %}
+                    </button>
                 </div>
             {% endif %}
             <div class="processing-dialog__status"
@@ -349,6 +356,14 @@
             </div>
         </div>
         <div class="workflow-actions" id="processing-actions" hidden>
+            <button type="button"
+                    class="btn btn-outline-secondary"
+                    id="processing-cancel-upload"
+                    hidden>{% translate "Cancel upload" %}</button>
+            <button type="button"
+                    class="btn btn-outline-secondary"
+                    id="processing-skip-reading"
+                    hidden>{% translate "Skip and enter details myself" %}</button>
             <button type="button"
                     class="btn btn-outline-secondary"
                     id="processing-close"
