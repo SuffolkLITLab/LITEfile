@@ -3,7 +3,7 @@ import logging
 import uuid
 
 from django.core.cache import caches
-from django.db import transaction
+from django.db import DatabaseError, transaction
 from django.http import JsonResponse
 from django.urls import reverse
 from django.utils import timezone
@@ -39,6 +39,7 @@ _CLAIMABLE_STATUSES = (FilingDraft.Status.DRAFT,)
 # marker left by a machine stopped mid-request only delays "not sent".
 shared_cache = caches["shared"]
 SUBMIT_REQUEST_MARKER_SECONDS = 600
+SUBMIT_REQUEST_SLOTS = 4
 
 
 @transaction.atomic
@@ -127,16 +128,51 @@ def submit_final_filing(request):
     # call the court and can take a while. Until this request ends, the status
     # check must not call the draft "not sent", or a filer whose connection
     # dropped would be told to try again while this request can still file.
-    marker = _submit_request_key(draft.pk)
-    shared_cache.set(marker, True, SUBMIT_REQUEST_MARKER_SECONDS)
+    marker = _mark_submit_request(draft.pk)
     try:
         return _submit_draft(request, draft)
     finally:
-        shared_cache.delete(marker)
+        _clear_submit_request(marker)
 
 
-def _submit_request_key(draft_id) -> str:
-    return f"submit-request:{draft_id}"
+def _submit_request_keys(draft_id) -> list[str]:
+    return [f"submit-request:{draft_id}:{slot}" for slot in range(SUBMIT_REQUEST_SLOTS)]
+
+
+def _mark_submit_request(draft_id) -> tuple[str, str] | None:
+    """Record this request as running, in a slot no overlapping request shares.
+
+    Each request has its own slot, so one that ends (say, a second tab's
+    submit that fails a check) cannot clear the mark of one still running.
+    ``add`` inserts only if the slot is free, which the database makes atomic.
+    """
+    token = uuid.uuid4().hex
+    for key in _submit_request_keys(draft_id):
+        if shared_cache.add(key, token, SUBMIT_REQUEST_MARKER_SECONDS):
+            return key, token
+    # Every slot is held by overlapping requests, which keep the draft "pending".
+    return None
+
+
+def _clear_submit_request(marker) -> None:
+    if marker is None:
+        return
+    key, token = marker
+    try:
+        if shared_cache.get(key) == token:
+            shared_cache.delete(key)
+    except DatabaseError:
+        # Never let cleanup replace the response. A mark left behind only keeps
+        # the status check at "pending" until it expires, the cautious answer.
+        logger.warning("Could not clear the submit marker for %s", key)
+
+
+def _submit_request_running(draft_id) -> bool:
+    try:
+        return bool(shared_cache.get_many(_submit_request_keys(draft_id)))
+    except DatabaseError:
+        # Unsure means a request may be running: never say "not sent" then.
+        return True
 
 
 def _submit_draft(request, draft):
@@ -294,7 +330,7 @@ def submission_status(request):
             {"success": True, "outcome": "submitted", "redirect_url": draft_url(confirmation, draft.pk)}
         )
     if draft.status == FilingDraft.Status.DRAFT:
-        if shared_cache.get(_submit_request_key(draft.pk)):
+        if _submit_request_running(draft.pk):
             # A submit request is still running its checks and may yet claim it.
             return JsonResponse({"success": True, "outcome": "pending"})
         # The submit view releases its claim only when nothing reached the court.

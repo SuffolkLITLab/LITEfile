@@ -284,7 +284,7 @@ def test_a_submit_request_still_running_is_not_reported_as_not_sent(client, file
     assert response.status_code == 412
     assert seen == ["pending"]
     # Once the request ends, nothing is left claiming to be in progress.
-    assert caches["shared"].get(f"submit-request:{draft.pk}") is None
+    assert not caches["shared"].get_many([f"submit-request:{draft.pk}:{slot}" for slot in range(4)])
     assert _status(client, draft).json()["outcome"] == "not_sent"
 
 
@@ -334,3 +334,36 @@ def test_review_opened_from_the_session_for_a_filing_mid_send_starts_with_submit
     if response.status_code != 200:
         pytest.skip(f"Review does not open a SUBMITTING draft from the session ({response.status_code})")
     assert captured["submission_outcome_unknown"] is True
+
+
+def test_overlapping_submits_do_not_clear_each_others_marks(filer):
+    from efile.views import submission
+
+    draft = _draft(filer, FilingDraft.Status.DRAFT)
+    first = submission._mark_submit_request(draft.pk)
+    second = submission._mark_submit_request(draft.pk)
+
+    assert first is not None and second is not None
+    assert first[0] != second[0]
+    # The second request fails a check and ends; the first is still running.
+    submission._clear_submit_request(second)
+    assert submission._submit_request_running(draft.pk)
+    submission._clear_submit_request(first)
+    assert not submission._submit_request_running(draft.pk)
+
+
+def test_cleanup_errors_never_replace_the_response_and_err_toward_pending(filer, monkeypatch):
+    from django.db import DatabaseError
+
+    from efile.views import submission
+
+    draft = _draft(filer, FilingDraft.Status.DRAFT)
+    marker = submission._mark_submit_request(draft.pk)
+
+    def broken(*_args, **_kwargs):
+        raise DatabaseError("connection lost")
+
+    monkeypatch.setattr(submission.shared_cache, "get", broken)
+    monkeypatch.setattr(submission.shared_cache, "get_many", broken)
+    submission._clear_submit_request(marker)  # does not raise
+    assert submission._submit_request_running(draft.pk) is True
