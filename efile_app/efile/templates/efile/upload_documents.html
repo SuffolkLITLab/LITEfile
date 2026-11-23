@@ -108,63 +108,7 @@
                     <div id="pending-file-list"></div>
                 </section>
             </fieldset>
-            {% if preparation_job %}
-                <div class="alert alert-info"
-                     id="preparation-state"
-                     role="status"
-                     data-status="{{ preparation_job.status }}"
-                     data-job-id="{{ preparation_job.pk }}"
-                     data-status-url="{% url 'document_extraction_status' jurisdiction %}">
-                    {% if preparation_job.status != "failed" %}
-                        <div class="spinner-border spinner-border-sm me-2" aria-hidden="true"></div>
-                    {% endif %}
-                    <strong>
-                        {% if preparation_job.status == "failed" %}
-                            {% translate "Your documents need attention" %}
-                        {% elif preparation_job.originals_ready %}
-                            {% translate "Preparing your documents…" %}
-                        {% else %}
-                            {% translate "Your upload is not finished" %}
-                        {% endif %}
-                    </strong>
-                    <p id="preparation-detail">
-                        {% if preparation_job.status == "failed" %}
-                            {{ preparation_job.error }}
-                        {% elif preparation_job.status == "uploading" %}
-                            {% translate "Receiving your files. Keep the upload tab open until it finishes." %}
-                        {% else %}
-                            {% translate "Your files are uploaded. We are preparing the PDFs, then checking them for case information. Please wait; this page will update automatically." %}
-                        {% endif %}
-                    </p>
-                    {% if preparation_job.status == "failed" and preparation_job.originals_ready %}
-                        <button type="button" class="btn btn-primary" data-action="retry_preparation">{% translate "Retry preparation" %}</button>
-                    {% endif %}
-                    <button type="button"
-                            class="btn btn-outline-secondary"
-                            data-action="cancel_preparation">{% translate "Remove this upload" %}</button>
-                </div>
-            {% endif %}
             <fieldset {% if preparation_job %}disabled{% endif %}>
-                <div class="upload-state"
-                     id="upload-state"
-                     {% if not extraction_pending %}hidden{% endif %}
-                     aria-live="polite">
-                    <div class="spinner-border spinner-border-sm" aria-hidden="true"></div>
-                    <strong id="upload-state-title">
-                        {% if extraction_pending %}
-                            {% translate "Reading your document…" %}
-                        {% else %}
-                            {% translate "Uploading your documents…" %}
-                        {% endif %}
-                    </strong>
-                    <span id="upload-state-detail">
-                        {% if extraction_pending %}
-                            {% translate "Please wait while we read your document to suggest answers. You can continue when it is ready." %}
-                        {% else %}
-                            {% translate "Keep this page open while the files upload." %}
-                        {% endif %}
-                    </span>
-                </div>
                 <div class="alert alert-danger" id="upload-error" role="alert" hidden></div>
                 <div class="upload-submit">
                     <div class="ai-choice">
@@ -318,6 +262,114 @@
                 <button type="submit" class="btn btn-primary">{% translate "Upload documents" %}</button>
             </div>
         </form>
+    </dialog>
+    {% comment %}
+    One window follows a document from upload to ready (#433): sending the
+    files, preparing the PDFs, then reading the main document. It reopens after
+    each page refresh until there is nothing left to wait for.
+    {% endcomment %}
+    <dialog id="processing-dialog"
+            class="processing-dialog"
+            aria-labelledby="processing-dialog-heading"
+            aria-describedby="processing-dialog-status"
+            data-phase="{% if preparation_job.status == "failed" %}failed{% elif preparation_job %}preparing{% elif extraction_pending %}reading{% endif %}">
+        <h2 id="processing-dialog-heading" class="visually-hidden">{% translate "Your documents" %}</h2>
+        <ol class="processing-steps">
+            <li data-step="uploading">
+                <span class="processing-steps__marker" aria-hidden="true"><span class="spinner-border spinner-border-sm"></span><i class="fa-solid fa-check"></i><i class="fa-solid fa-triangle-exclamation"></i></span>
+                <span>{% translate "Upload your files" %}</span>
+                <span class="visually-hidden processing-steps__state"></span>
+            </li>
+            <li data-step="preparing">
+                <span class="processing-steps__marker" aria-hidden="true"><span class="spinner-border spinner-border-sm"></span><i class="fa-solid fa-check"></i><i class="fa-solid fa-triangle-exclamation"></i></span>
+                <span>{% translate "Prepare the PDFs" %}</span>
+                <span class="visually-hidden processing-steps__state"></span>
+            </li>
+            <li data-step="reading">
+                <span class="processing-steps__marker" aria-hidden="true"><span class="spinner-border spinner-border-sm"></span><i class="fa-solid fa-check"></i><i class="fa-solid fa-triangle-exclamation"></i></span>
+                <span class="processing-steps__reading-ai"
+                      {% if ai_opted_out %}hidden{% endif %}>{% translate "Read your document to suggest answers" %}</span>
+                <span class="processing-steps__reading-rules"
+                      {% if not ai_opted_out %}hidden{% endif %}>{% translate "Look for form and case numbers" %}</span>
+                <span class="visually-hidden processing-steps__state"></span>
+            </li>
+        </ol>
+        {# Focus starts on the status, not on a button Enter would press. #}
+        <div id="processing-dialog-status" tabindex="-1" autofocus>
+            {% if preparation_job %}
+                <div class="processing-dialog__status"
+                     id="preparation-state"
+                     role="status"
+                     data-status="{{ preparation_job.status }}"
+                     data-job-id="{{ preparation_job.pk }}"
+                     data-status-url="{% url 'document_extraction_status' jurisdiction %}">
+                    <strong class="processing-dialog__title">
+                        {% if preparation_job.status == "failed" %}
+                            {% translate "Your documents need attention" %}
+                        {% elif preparation_job.originals_ready %}
+                            {% translate "Preparing your documents…" %}
+                        {% else %}
+                            {% translate "Your upload is not finished" %}
+                        {% endif %}
+                    </strong>
+                    <p id="preparation-detail" class="processing-dialog__detail">
+                        {% if preparation_job.status == "failed" %}
+                            {{ preparation_job.error }}
+                        {% elif preparation_job.status == "uploading" %}
+                            {% translate "Receiving your files. Keep the upload tab open until it finishes." %}
+                        {% else %}
+                            {% translate "Your files are uploaded. We are preparing the PDFs, then checking them for case information. Please wait; this page will update automatically." %}
+                        {% endif %}
+                    </p>
+                    {% if preparation_job.status == "failed" and preparation_job.originals_ready %}
+                        <button type="button" class="btn btn-primary" data-action="retry_preparation">{% translate "Retry preparation" %}</button>
+                    {% endif %}
+                    <button type="button"
+                            class="btn btn-outline-secondary"
+                            data-action="cancel_preparation">
+                        {% if preparation_job.status == "failed" %}
+                            {% translate "Remove this upload" %}
+                        {% else %}
+                            {% translate "Cancel upload" %}
+                        {% endif %}
+                    </button>
+                </div>
+            {% endif %}
+            <div class="processing-dialog__status"
+                 id="upload-state"
+                 {% if preparation_job %}hidden{% endif %}
+                 aria-live="polite">
+                <strong class="processing-dialog__title" id="upload-state-title">
+                    {% if extraction_pending %}
+                        {% translate "Reading your document…" %}
+                    {% else %}
+                        {% translate "Uploading your documents…" %}
+                    {% endif %}
+                </strong>
+                <span class="processing-dialog__detail" id="upload-state-detail">
+                    {% if extraction_pending %}
+                        {% translate "Please wait while we read your document to suggest answers. You can continue when it is ready." %}
+                    {% else %}
+                        {% translate "Keep this page open while the files upload." %}
+                    {% endif %}
+                </span>
+            </div>
+        </div>
+        <div class="workflow-actions" id="processing-actions" hidden>
+            <button type="button"
+                    class="btn btn-outline-secondary"
+                    id="processing-cancel-upload"
+                    hidden>{% translate "Cancel upload" %}</button>
+            <button type="button"
+                    class="btn btn-outline-secondary"
+                    id="processing-skip-reading"
+                    hidden>{% translate "Skip and enter details myself" %}</button>
+            <button type="button"
+                    class="btn btn-outline-secondary"
+                    id="processing-close"
+                    hidden>{% translate "Close" %}</button>
+            <a class="btn btn-primary" id="processing-continue" hidden>{% translate "Confirm information" %} <i class="fa-solid fa-arrow-right" aria-hidden="true"></i></a>
+        </div>
     </dialog>
 {% endblock workflow_content %}
 {% block extra_js %}

@@ -44,6 +44,7 @@ function uploadPage({
     hasLead = true,
     waitSeconds = pending ? 120 : 0,
     asyncPreparation = false,
+    phase = "",
     fetch
 }) {
     const nodes = new Map();
@@ -103,6 +104,7 @@ function uploadPage({
     };
     node("continue-to-analysis").dataset.continueUrl = "/preview/?return_to=review";
     node("upload-state").hidden = !pending;
+    node("processing-dialog").dataset.phase = phase;
     const timers = [];
     let reloads = 0;
     const context = vm.createContext({
@@ -126,6 +128,7 @@ function uploadPage({
             getCSRFToken: () => "csrf"
         },
         AbortSignal,
+        AbortController,
         Headers,
         URL,
         DataTransfer: class {
@@ -137,9 +140,13 @@ function uploadPage({
         FormData: class {
             constructor() {
                 this.files = [...(node("documents-input").files || [])];
+                this.entries = new Map();
             }
-            get() {
-                return "b65359a8-c34b-44a7-8d2e-3422f765e71a";
+            append(name, value) {
+                this.entries.set(name, value);
+            }
+            get(name) {
+                return this.entries.has(name) ? this.entries.get(name) : "b65359a8-c34b-44a7-8d2e-3422f765e71a";
             }
         },
         fetch
@@ -152,6 +159,7 @@ function uploadPage({
         node,
         timers,
         reloads: () => reloads,
+        location: () => context.window.location,
         submit() {
             const input = node("documents-input");
             if (!input.files) {
@@ -322,8 +330,8 @@ test("an upload failure keeps a ready result that arrived during the upload", as
     await upload;
     assert.equal(page.node("upload-state").hidden, false);
     assert.equal(page.node("upload-state-title").textContent, "Document analysis is ready");
-    assert.equal(page.node("upload-spinner").hidden, true);
     assert.match(page.node("upload-state-detail").textContent, /first 10 of 30 pages/);
+    assert.equal(page.node("processing-dialog").open, false);
     assert.equal(page.node("continue-to-analysis").attributes.get("href"), "/preview/?return_to=review");
 });
 test("long waits reduce polling without delaying the manual-entry deadline", () => {
@@ -414,16 +422,19 @@ for (const preparation of [true, false]) {
         await page.submit();
         assert.equal(page.node("upload-state").hidden, false);
         assert.equal(page.node("upload-state-title").textContent, "Processing your documents…");
+        assert.equal(page.node("processing-dialog").open, true);
+        assert.equal(page.node("processing-dialog").dataset.phase, preparation ? "preparing" : "reading");
         assert.equal(page.node("continue-to-analysis").attributes.has("href"), false);
         assert.equal(page.reloads(), 0);
         page.timers.find(timer => timer.delay === 300).callback();
         assert.equal(page.reloads(), 1);
     });
 }
-test("uploading again restores the activity indicator after analysis completed", async () => {
+test("uploading again reopens the progress window after analysis completed", async () => {
     let finishUpload;
     const page = uploadPage({
         pending: true,
+        phase: "reading",
         fetch: url => {
             if (url === "/status/") return Promise.resolve(reply({
                 ready: true,
@@ -435,13 +446,17 @@ test("uploading again restores the activity indicator after analysis completed",
         }
     });
     await flush();
-    assert.equal(page.node("upload-spinner").hidden, true);
+    assert.equal(page.node("processing-dialog").dataset.phase, "ready");
     const upload = page.submit();
-    assert.equal(page.node("upload-spinner").hidden, false);
+    assert.equal(page.node("processing-dialog").dataset.phase, "uploading");
+    assert.equal(page.node("processing-dialog").open, true);
+    assert.equal(page.node("processing-close").hidden, true);
     finishUpload(reply({
         preparation_pending: true
     }));
     await upload;
+    assert.equal(page.node("processing-dialog").dataset.phase, "preparing");
+    assert.equal(page.node("processing-dialog").open, true);
 });
 
 test("a failed later upload restores the completed analysis indicator", async () => {
@@ -456,9 +471,8 @@ test("a failed later upload restores the completed analysis indicator", async ()
         }
     });
     await flush();
-    assert.equal(page.node("upload-spinner").hidden, true);
     await page.submit();
-    assert.equal(page.node("upload-spinner").hidden, true);
+    assert.equal(page.node("processing-dialog").open, false);
     assert.equal(page.node("upload-state-title").textContent, "Document analysis is ready");
     assert.equal(page.node("upload-error").hidden, false);
 });
@@ -556,4 +570,147 @@ test("a single file or an existing main document does not require a new choice",
         assert.equal(uploads, 1);
         assert.ok(!page.node("main-document-dialog").open);
     }
+});
+test("the progress window stays open while a document is read, then offers to continue", async () => {
+    let finish;
+    const page = uploadPage({
+        pending: true,
+        fetch: () => new Promise(resolve => {
+            finish = resolve;
+        })
+    });
+    const dialog = page.node("processing-dialog");
+    dialog.dataset.phase = "reading";
+    // The template sets the phase before the script runs; replay that here.
+    assert.equal(dialog.open, undefined);
+    let cancelled = false;
+    dialog.listeners.cancel?.({
+        preventDefault() {
+            cancelled = true;
+        }
+    });
+    assert.equal(cancelled, true, "Escape must not close an unfinished window");
+    finish(reply({
+        ready: true,
+        status: "complete"
+    }));
+    await flush();
+    assert.equal(page.node("processing-continue").hidden, false);
+    assert.equal(page.node("processing-continue").attributes.get("href"), "/preview/?return_to=review");
+});
+
+test("a reloaded page reopens the window in the server's phase", () => {
+    const page = uploadPage({
+        pending: true,
+        phase: "reading",
+        fetch: () => new Promise(() => {})
+    });
+    const dialog = page.node("processing-dialog");
+    assert.equal(dialog.open, true);
+    assert.equal(dialog.dataset.phase, "reading");
+    assert.equal(page.node("processing-close").hidden, true);
+    assert.equal(page.node("processing-continue").hidden, true);
+});
+
+test("an overdue reading lets the filer continue or close the window", async () => {
+    const page = uploadPage({
+        pending: true,
+        phase: "reading",
+        fetch: async () => reply({
+            ready: false,
+            status: "pending",
+            wait_seconds: 0
+        })
+    });
+    await flush();
+    assert.equal(page.node("processing-dialog").open, true);
+    assert.equal(page.node("processing-close").hidden, false);
+    assert.equal(page.node("processing-continue").hidden, false);
+});
+
+test("a failed upload closes the window and shows the error on the page", async () => {
+    const page = uploadPage({
+        fetch: async () => {
+            throw new Error("Upload failed");
+        }
+    });
+    await page.submit();
+    assert.equal(page.node("processing-dialog").open, false);
+    assert.equal(page.node("upload-error").hidden, false);
+});
+for (const recorded of [false, true]) {
+    test(`cancelling a running upload checks whether the files arrived (arrived: ${recorded})`, async () => {
+        const requests = [];
+        const page = uploadPage({
+            hasLead: false,
+            asyncPreparation: true,
+            fetch: (url, options) => {
+                requests.push(options.method || "GET");
+                if (options.method === "POST") {
+                    return new Promise((_resolve, reject) => {
+                        options.signal.addEventListener("abort", () => reject(new DOMException("Aborted", "AbortError")));
+                    });
+                }
+                return Promise.resolve(reply({
+                    upload_recorded: recorded
+                }));
+            }
+        });
+        const upload = page.submit();
+        assert.equal(page.node("processing-cancel-upload").hidden, false);
+        page.node("processing-cancel-upload").listeners.click();
+        assert.equal(page.node("processing-cancel-upload").hidden, true);
+        await upload;
+        assert.deepEqual(requests, ["POST", "GET"]);
+        assert.equal(page.reloads(), Number(recorded));
+        if (!recorded) {
+            assert.match(page.node("upload-error").textContent, /Upload cancelled/);
+            assert.equal(page.node("processing-dialog").open, false);
+            assert.equal(page.node("upload-button").disabled, false);
+            assert.equal(page.node("documents-input").files[0].name, "petition.pdf");
+        }
+    });
+}
+
+test("skipping a slow reading stops it on the server and goes on to confirm the details", async () => {
+    const posts = [];
+    const page = uploadPage({
+        pending: true,
+        phase: "reading",
+        fetch: async (url, options) => {
+            if (options.method === "POST") {
+                posts.push(options.body);
+                return reply({
+                    skipped: true
+                });
+            }
+            return reply({
+                ready: false,
+                status: "processing",
+                wait_seconds: 90
+            });
+        }
+    });
+    await flush();
+    const skip = page.node("processing-skip-reading");
+    assert.equal(skip.hidden, false);
+    await skip.listeners.click();
+    assert.equal(posts.length, 1);
+    assert.equal(posts[0].get("action"), "skip_reading");
+    assert.equal(page.location().href, "/preview/?return_to=review");
+});
+
+test("skip is not offered once the filer can already continue", async () => {
+    const page = uploadPage({
+        pending: true,
+        phase: "reading",
+        fetch: async () => reply({
+            ready: false,
+            status: "pending",
+            wait_seconds: 0
+        })
+    });
+    await flush();
+    assert.equal(page.node("processing-skip-reading").hidden, true);
+    assert.equal(page.node("processing-continue").hidden, false);
 });

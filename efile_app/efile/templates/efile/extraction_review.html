@@ -75,7 +75,9 @@
                 </details>
             {% endif %}
             <div class="alert alert-info">
-                {% if extraction_failed %}
+                {% if extraction_skipped %}
+                    {% translate "You chose not to wait for us to read your document. Enter the details below, or" %}
+                {% elif extraction_failed %}
                     {% translate "We could not read the details. Enter them below, or" %}
                 {% elif ai_opted_out %}
                     {% translate "AI is off, and we did not find a known form number. Enter the details below, or" %}

@@ -78,6 +78,16 @@ async function main() {
         }).include("#main-document-dialog").analyze();
         assert.deepEqual(modalAccessibility.violations.map(item => item.id), []);
         await mainDialog.getByRole("radio").nth(1).check();
+        // Hold the upload briefly so the in-progress window can be checked.
+        let releaseUpload;
+        const uploadHeld = new Promise(resolve => {
+            releaseUpload = resolve;
+        });
+        await page.route(/upload-documents\/(\?|$)/, async (route) => {
+            if (route.request().method() !== "POST") return route.continue();
+            await uploadHeld;
+            return route.continue();
+        });
         const uploaded = page.waitForResponse(
             (response) => response.url().includes("upload-documents") && response.request().method() === "POST"
         );
@@ -85,14 +95,34 @@ async function main() {
             name: "Upload documents",
             exact: true
         }).click();
-        await uploaded;
+        await page.locator('#processing-dialog[data-phase="uploading"]').waitFor();
+        assert.equal(await page.locator("#processing-close").isVisible(), false);
+        assert.equal(await page.locator("#processing-cancel-upload").isVisible(), true);
+        await page.keyboard.press("Escape");
+        assert.equal(await page.locator("#processing-dialog").isVisible(), true);
+        await screenshot("01-processing-uploading-mobile.png");
         await page.setViewportSize({
             width: 1280,
             height: 1000
         });
-        await page.locator("#continue-to-analysis:not(.disabled)").waitFor();
+        await screenshot("01-processing-uploading.png");
+        releaseUpload();
+        await uploaded;
+        await page.unroute(/upload-documents\/(\?|$)/);
+        // One window follows the upload until the documents are ready (#433).
+        const progress = page.locator("#processing-dialog");
+        await progress.waitFor();
+        await screenshot("01-processing-dialog.png");
+        await page.locator('#processing-dialog[data-phase="ready"]').waitFor({
+            timeout: 120000
+        });
         await page.waitForFunction(() => document.querySelectorAll(".document-row").length === 2);
-        await page.locator("#continue-to-analysis").click();
+        const progressAccessibility = await new AxeBuilder({
+            page
+        }).include("#processing-dialog").analyze();
+        assert.deepEqual(progressAccessibility.violations.map(item => item.id), []);
+        await screenshot("01-processing-ready.png");
+        await page.locator("#processing-continue").click();
         await page.waitForURL(/extraction-review/);
         const previews = page.locator("[data-pdf-preview]");
         assert.equal(await previews.count(), 2);

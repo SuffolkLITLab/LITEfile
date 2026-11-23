@@ -17,7 +17,7 @@ from efile.services.case_filing_types import case_fingerprint
 from efile.services.current_drafts import ensure_current_draft
 from efile.services.document_checklists import resolve_filer_roles
 from efile.services.document_choices import save_document_type, validate_document_types
-from efile.services.document_extractions import extraction_for_document, extraction_is_waiting
+from efile.services.document_extractions import EXTRACTION_SKIPPED, extraction_for_document, extraction_is_waiting
 from efile.services.document_preparation import PreparationError, PreparationUnavailable
 from efile.services.document_previews import (
     DocumentReviewError,
@@ -525,6 +525,9 @@ def _extraction_review(request, jurisdiction):
         "party_rows": party_rows,
         "party_side_options": party_side_options,
         "extraction_failed": extraction is not None and extraction.status == DocumentExtraction.Status.FAILED,
+        "extraction_skipped": extraction is not None
+        and extraction.status == DocumentExtraction.Status.FAILED
+        and extraction.error == EXTRACTION_SKIPPED,
         # The filer turned AI off for this filing, so the details below came
         # from a keyword scan of the document's own text. The screen says so
         # rather than crediting a reading that never happened.

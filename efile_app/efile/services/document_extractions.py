@@ -77,6 +77,37 @@ def queue_document_extraction(document):
     return job
 
 
+# Saved as a FAILED job's error when the filer stops the reading, so the next
+# page can say they chose to type the details rather than that reading failed.
+EXTRACTION_SKIPPED = "The filer chose to enter the details without reading the document."
+
+
+def skip_document_extraction(draft):
+    """Stop waiting for the lead's reading because the filer chose to type the details.
+
+    Clearing the claim also stops a worker that already has the job: it rechecks
+    its claim before sending the document out and before saving any answers.
+    """
+    with transaction.atomic():
+        # Same lock order as the worker and the AI preference change: draft, then job.
+        FilingDraft.objects.select_for_update().filter(pk=draft.pk).first()
+        now = timezone.now()
+        return bool(
+            DocumentExtraction.objects.filter(
+                document__draft=draft,
+                document__role=FilingDocument.Role.LEAD,
+                status__in=[DocumentExtraction.Status.PENDING, DocumentExtraction.Status.PROCESSING],
+            ).update(
+                status=DocumentExtraction.Status.FAILED,
+                error=EXTRACTION_SKIPPED,
+                claim_token=None,
+                lease_expires_at=None,
+                completed_at=now,
+                updated_at=now,
+            )
+        )
+
+
 def extraction_is_waiting(extraction):
     """Whether the filer should still wait for this analysis before reviewing."""
     return (
