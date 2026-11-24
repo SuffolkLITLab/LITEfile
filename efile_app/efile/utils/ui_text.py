@@ -219,7 +219,7 @@ UI_STRINGS: dict[str, UIString] = {
         default="Try again",
     ),
     "organize_documents.choices_still_loading": UIString(
-        default="The court's choices are still loading. Wait a moment, then save again.",
+        default="Saving… waiting for the court's choices",
     ),
     "organize_documents.choices_load_failed": UIString(
         default="Some of the court's choices did not load. Select Try again next to each one, then save.",

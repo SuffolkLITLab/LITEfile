@@ -32,37 +32,8 @@
                 {% include "efile/components/extraction_marker_help.html" %}
             </div>
         {% endif %}
-        {% if service_saved.contacts %}
-            <section class="review-summary-card mb-3"
-                     aria-labelledby="review-service-heading">
-                <header>
-                    <h2 id="review-service-heading">{% translate "Electronic service" %}</h2>
-                    <a href="{% url 'service' jurisdiction %}?return_to=review">{% translate "Edit" %}</a>
-                </header>
-                {% if service_stale %}
-                    <p class="alert alert-warning">{% translate "Your case details changed. Edit and save your service recipients before filing." %}</p>
-                {% else %}
-                    <p>{% translate "Submitting your filing requests electronic service on these people." %}</p>
-                {% endif %}
-                <ul>{% for contact in service_saved.contacts %}<li>{{ contact.name }}{% if contact.email %} — {{ contact.email }}{% endif %}</li>{% endfor %}</ul>
-                <p>{% translate "Check the court's service rules. Email may not be enough, especially when you start a case." %}</p>
-            </section>
-        {% else %}
-            <section class="review-summary-card mb-3"
-                     aria-labelledby="review-service-heading">
-                <header>
-                    <h2 id="review-service-heading">{% translate "Service" %}</h2>
-                    <a href="{% url 'service' jurisdiction %}?return_to=review">{% translate "Edit" %}</a>
-                </header>
-                {% if service_method_chosen %}
-                    <p>{% translate "You chose to arrange service outside LITEfile. Use a method the court allows, if you have not done so already." %}</p>
-                {% else %}
-                    <p>{% translate "No service method is saved. LITEfile will not serve the other side. Check your service plan before filing." %}</p>
-                {% endif %}
-            </section>
-        {% endif %}
         <div class="review-summary-grid">
-            <section class="review-summary-card">
+            <section class="review-summary-card review-summary-card--wide">
                 <header>
                     <h2>{% translate "Case" %}</h2>
                     <a href="{% url 'extraction_review' jurisdiction %}?return_to=review"
@@ -128,14 +99,11 @@
             <section class="review-summary-card review-summary-card--wide">
                 <header>
                     <h2>{% translate "Documents" %}</h2>
-                    <details>
-                        <summary>{% translate "Document options" %}</summary>
-                        <a href="{% url 'organize_documents' jurisdiction %}?return_to=review"
-                           aria-label="{% translate "Edit documents" %}">{% translate "Edit document names and filing codes" %}</a>
-                        <a href="{% url 'upload_documents' jurisdiction %}?return_to=review">{% translate "Add, remove, or replace documents" %}</a>
-                    </details>
+                    <a href="{% url 'organize_documents' jurisdiction %}?return_to=review"
+                       aria-label="{% translate "Edit documents" %}">{% translate "Edit" %}</a>
                 </header>
                 {% include "efile/partials/correction_section_issues.html" with section="documents" %}
+                <p><a href="{% url 'upload_documents' jurisdiction %}?return_to=review">{% translate "Add, remove, or replace documents" %}</a></p>
                 <div class="review-document-list">
                     {% for document in documents %}
                         <article>
@@ -147,14 +115,14 @@
                                 {% else %}
                                     <span class="review-document-tag">{% translate "Lead document" %}</span>
                                 {% endif %}
-                                <small>
-                                    {% if document.role == "lead" %}
-                                        {% translate "Document we read for case suggestions" %}
-                                    {% else %}
-                                        {% translate "Additional document" %}
-                                    {% endif %}
-                                    {% if document.document_type_name %}· {{ document.document_type_name }}{% endif %}
-                                </small>
+                                {% if document.role == "lead" or document.document_type_name %}
+                                    <small>
+                                        {% if document.role == "lead" %}
+                                            {% translate "Document we read for case suggestions" %}
+                                        {% endif %}
+                                        {% if document.document_type_name %}{% if document.role == "lead" %}· {% endif %}{{ document.document_type_name }}{% endif %}
+                                    </small>
+                                {% endif %}
                                 {% if document.filing_type_name %}
                                     <span class="review-document-tag">{% translate "Type of document (filing code):" %} {{ document.filing_type_name }}{% if document.id in extracted_markers.document_ids %} *{% endif %}</span>
                                 {% endif %}
@@ -277,6 +245,33 @@
                             </div>
                         {% endfor %}
                     </dl>
+                </section>
+            {% endif %}
+            {% if service_saved.contacts %}
+                <section class="review-summary-card" aria-labelledby="review-service-heading">
+                    <header>
+                        <h2 id="review-service-heading">{% translate "Electronic service" %}</h2>
+                        <a href="{% url 'service' jurisdiction %}?return_to=review">{% translate "Edit" %}</a>
+                    </header>
+                    {% if service_stale %}
+                        <p class="alert alert-warning">{% translate "Your case details changed. Edit and save your service recipients before filing." %}</p>
+                    {% else %}
+                        <p>{% translate "Submitting your filing requests electronic service on these people." %}</p>
+                    {% endif %}
+                    <ul>{% for contact in service_saved.contacts %}<li>{{ contact.name }}{% if contact.email %} — {{ contact.email }}{% endif %}</li>{% endfor %}</ul>
+                    <p>{% translate "Check the court's service rules. Email may not be enough, especially when you start a case." %}</p>
+                </section>
+            {% else %}
+                <section class="review-summary-card" aria-labelledby="review-service-heading">
+                    <header>
+                        <h2 id="review-service-heading">{% translate "Service" %}</h2>
+                        <a href="{% url 'service' jurisdiction %}?return_to=review">{% translate "Edit" %}</a>
+                    </header>
+                    {% if service_method_chosen %}
+                        <p>{% translate "You chose to arrange service outside LITEfile. Use a method the court allows, if you have not done so already." %}</p>
+                    {% else %}
+                        <p>{% translate "No service method is saved. LITEfile will not serve the other side. Check your service plan before filing." %}</p>
+                    {% endif %}
                 </section>
             {% endif %}
             <section class="review-summary-card">

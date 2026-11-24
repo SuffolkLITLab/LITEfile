@@ -46,6 +46,9 @@
     // it -- see efile/utils/ui_text.py.
     const text = context.text || {};
     const startLookup = lookupTracker();
+    const requestsByUrl = new Map();
+    const pendingLoads = new Set();
+    let saving = false;
     let filingTypesRequest = null;
     let filingSuggestion = null;
     const availability = window.filingAvailability.mount({
@@ -211,7 +214,14 @@
         delete section.dataset.choicesState;
     }
 
-    async function loadSection(section, fetchChoices, render, retry) {
+    function loadSection(section, fetchChoices, render, retry) {
+        const pending = loadSectionChoices(section, fetchChoices, render, retry);
+        pendingLoads.add(pending);
+        pending.then(() => pendingLoads.delete(pending), () => pendingLoads.delete(pending));
+        return pending;
+    }
+
+    async function loadSectionChoices(section, fetchChoices, render, retry) {
         const isCurrent = startLookup(section);
         section.dataset.choicesState = "loading";
         setLoading(section);
@@ -229,7 +239,17 @@
         await render(choices);
     }
 
-    async function getJson(url) {
+    function getJson(url) {
+        if (!requestsByUrl.has(url)) {
+            requestsByUrl.set(url, fetchJson(url).catch(error => {
+                requestsByUrl.delete(url);
+                throw error;
+            }));
+        }
+        return requestsByUrl.get(url);
+    }
+
+    async function fetchJson(url) {
         const response = await fetch(url, {
             headers: {
                 "Content-Type": "application/json",
@@ -307,18 +327,20 @@
         const attached = Boolean(roleSelect.value);
         const oppositeRole = attached ? "LEAD" : "ATTACH";
         const choices = components.filter((item) => String(item.efspcode || "").toUpperCase() !== oppositeRole);
+        card.dataset.allowsAttachments = String(components.some(item =>
+            String(item.efspcode || "").toUpperCase() !== "LEAD"));
+        refreshAttachmentParents();
         setAttachmentValidity(card, "");
         // The document role determines ordinary lead/attachment component codes.
         // Keep a court-specific choice only when the role does not resolve it.
         const fieldset = section.closest("fieldset");
         fieldset.hidden = choices.length <= 1;
-        if (components.length && !choices.length) {
+        if ((attached || components.length) && !choices.length) {
             const message = attached ?
                 gettext("This filing code does not allow attachments. Choose Lead document or attach this PDF to a lead document with a different filing code.") :
                 gettext("This filing code requires an attachment. Choose the lead document this PDF belongs to.");
             setAttachmentValidity(card, message);
-            setPlaceholder(section, message);
-            fieldset.hidden = false;
+            section.replaceChildren();
             return;
         }
         const fieldName = `filing-component-${card.dataset.documentId}`;
@@ -339,6 +361,8 @@
     }
 
     function loadFilingComponents(card, filingType) {
+        delete card.dataset.allowsAttachments;
+        refreshAttachmentParents();
         setAttachmentValidity(card, "");
         const section = card.querySelector(".filing-component-options");
         section.closest("fieldset").hidden = !filingType;
@@ -489,7 +513,7 @@
 
     function loadOptionalServices(card, filingType) {
         const container = card.querySelector(".optional-services-list");
-        if (!filingType) {
+        if (!filingType || card.querySelector(".attachment-parent").value) {
             settleSection(container);
             setPlaceholder(container, text.choose_filing_type_first);
             return undefined;
@@ -554,6 +578,9 @@
     }
 
     function setAttachmentValidity(card, message) {
+        const messageBox = card.querySelector(".attachment-role-error");
+        messageBox.textContent = message;
+        messageBox.hidden = !message;
         const select = card.querySelector(".attachment-parent");
         const radios = card.querySelectorAll(".attachment-parent-choices input");
         select.setCustomValidity(radios.length ? "" : message);
@@ -596,13 +623,17 @@
             Array.from(select.options).forEach((option) => {
                 if (!option.value) return;
                 const parent = byId.get(option.value);
-                option.disabled = Boolean(parent?.querySelector(".attachment-parent").value);
-                if (parent) option.textContent = interpolate(gettext("Attachment to: %s"), [parent.querySelector(".document-name").value]);
+                const unsupported = parent?.dataset.allowsAttachments === "false";
+                option.disabled = !option.selected && (Boolean(parent?.querySelector(".attachment-parent").value) || unsupported);
+                if (parent) {
+                    option.textContent = interpolate(gettext("Attachment to: %s"), [parent.querySelector(".document-name").value]);
+                    if (unsupported) option.textContent += gettext(" — this filing code does not allow attachments; choose Lead document instead.");
+                }
             });
             card.querySelectorAll(".attachment-parent-choices input").forEach((radio, index) => {
                 const option = select.options[index];
                 radio.checked = option.selected;
-                radio.disabled = select.disabled || option.disabled;
+                radio.disabled = !radio.checked && (select.disabled || option.disabled);
                 radio.nextElementSibling.textContent = option.textContent;
             });
         });
@@ -718,19 +749,34 @@
             });
             return true;
         }
-        if (form.querySelector('[data-choices-state="loading"]')) {
-            showError(text.choices_still_loading);
-            return true;
-        }
         return false;
     }
 
     form.addEventListener("submit", async (event) => {
         event.preventDefault();
+        if (saving) return;
+        saving = true;
         errorBox.hidden = true;
-        if (blockedByPendingChoices() || !form.reportValidity()) return;
         const button = document.getElementById("save-document-details");
+        const label = button.querySelector(".save-button-label");
+        const originalLabel = label.textContent;
+        const resetSave = () => {
+            saving = false;
+            button.disabled = false;
+            label.textContent = originalLabel;
+            form.removeAttribute("aria-busy");
+        };
         button.disabled = true;
+        form.setAttribute("aria-busy", "true");
+        label.textContent = pendingLoads.size ? text.choices_still_loading : gettext("Saving…");
+        while (pendingLoads.size) await Promise.allSettled([...pendingLoads]);
+        const roleError = form.querySelector(".attachment-role-error:not([hidden])");
+        if (roleError) showError(roleError.textContent);
+        if (!availability.canSubmit() || roleError || blockedByPendingChoices() || !form.reportValidity()) {
+            resetSave();
+            return;
+        }
+        label.textContent = gettext("Saving…");
         const documents = cards().map((card) => {
             const filingType = card.querySelector(".filing-type");
             const documentType = card.querySelector('.document-type-options input:checked');
@@ -790,15 +836,17 @@
             window.location.assign(result.redirect_url);
         } catch (error) {
             showError(error.message);
-            button.disabled = false;
+            resetSave();
         }
     });
 
     cards().forEach(wireCard);
     refreshAttachmentParents();
     updatePositions();
-    Promise.all(cards().map(loadCardFilingTypes))
+    const initialization = Promise.all(cards().map(loadCardFilingTypes))
         .then(() => Promise.all(cards().map((card) => syncAttachment(card))))
         .then(() => availability.check())
         .catch((error) => showError(error.message));
+    pendingLoads.add(initialization);
+    initialization.finally(() => pendingLoads.delete(initialization));
 })();

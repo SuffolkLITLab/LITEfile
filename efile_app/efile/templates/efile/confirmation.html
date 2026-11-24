@@ -8,9 +8,6 @@
     <link rel="stylesheet" href="{% static 'css/confirmation.css' %}" />
 {% endblock extra_css %}
 {% block workflow_content %}
-    <p>
-        <a href="{% url 'correct_filing' draft.pk %}">{% translate "Check for a clerk return and correct this filing" %}</a>
-    </p>
     <section class="workflow-card workflow-card--narrow confirmation-workflow-card">
         <div class="success-icon">
             <i class="fas fa-check-circle" aria-hidden="true"></i>

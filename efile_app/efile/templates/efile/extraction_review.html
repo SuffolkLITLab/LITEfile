@@ -354,7 +354,10 @@
             <section id="confirmation-document-types">
                 <h2>{% translate "Your documents" %}</h2>
                 <p id="document-type-definition"><strong>{% translate "Type of document (filing code)" %}</strong>: {% translate "The court’s name for a kind of paper, like Complaint or Appearance." %}</p>
-                <p>{% translate "Choose a type for each document if you know it. You can also choose or change this on Organize your documents." %}</p>
+                <p id="document-types-instruction"
+                   {% if chosen_existing_case == "existing" and not case_confirmed %}hidden{% endif %}>{% translate "Choose a type for each document if you know it. You can also choose or change this on Organize your documents." %}</p>
+                <p id="document-types-after-lookup"
+                   {% if chosen_existing_case != "existing" or case_confirmed %}hidden{% endif %}>{% translate "You'll choose each document's type after we find your case." %}</p>
                 {% if filing_type_proposal.name %}
                     <fieldset class="form-field filing-proposal"
                               id="filing-proposal"
@@ -407,7 +410,9 @@
                     </div>
                 </fieldset>
                 {% for document in documents %}
-                    <div data-confirmation-document data-is-source="{{ document.role }}">
+                    <div data-confirmation-document
+                         data-is-source="{{ document.role }}"
+                         {% if chosen_existing_case == "existing" and not case_confirmed %}hidden{% endif %}>
                         {% include "efile/components/document_type_picker.html" with short_label=True %}
                     </div>
                 {% endfor %}

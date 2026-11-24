@@ -12,9 +12,16 @@
         const key = JSON.stringify([existing, court, category, type]);
         if (key === previous) return;
         previous = key;
+        let waitingForCase = false;
         form.querySelectorAll("[data-confirmation-document]").forEach(wrapper => {
             const picker = wrapper.querySelector("[data-document-type-picker]");
-            wrapper.hidden = !existing && wrapper.dataset.isSource === "lead";
+            const unavailable = existing && !picker.dataset.caseUrl;
+            waitingForCase ||= unavailable;
+            wrapper.hidden = unavailable || (!existing && wrapper.dataset.isSource === "lead");
+            if (wrapper.hidden) {
+                picker.generation = (picker.generation || 0) + 1;
+                picker.querySelector("select").disabled = true;
+            }
             if (wrapper.hidden) return;
             if (existing) {
                 picker.dataset.choicesUrl = picker.dataset.caseUrl || "";
@@ -34,6 +41,8 @@
                     gettext("You can choose this after you find your court case on the next screen.") : gettext("Choose a court and case type first.");
             }
         });
+        document.getElementById("document-types-instruction").hidden = waitingForCase;
+        document.getElementById("document-types-after-lookup").hidden = !waitingForCase;
 
     }
     form.querySelectorAll("[data-document-type-picker]").forEach(picker => {

@@ -25,7 +25,10 @@ async function main() {
             }, {
                 code: "exhibit",
                 name: "Exhibit"
-            }];
+            }, ...["lead-only", "empty", "custom"].map(code => ({
+                code,
+                name: code
+            }))];
             if (url.includes("filing-components")) data = [{
                 code: "332",
                 name: "Lead Document",
@@ -39,6 +42,8 @@ async function main() {
                 allowmultiple: true,
                 efspcode: "ATTACH"
             }, ];
+            componentMode = new URL(url).searchParams.get("filing_type") || componentMode;
+            if (url.includes("filing-components") && componentMode === "empty") data = [];
             if (url.includes("filing-components") && componentMode === "lead-only") data = data.slice(0, 1);
             if (url.includes("filing-components") && componentMode === "custom") data.push({
                 code: "333",
@@ -106,31 +111,35 @@ async function main() {
         await expect(child.locator(".filing-type")).toHaveValue("exhibit");
         await expect(child.locator('.filing-component-options input:checked')).toHaveValue("331");
         await expect(page.locator('[data-choices-state="loading"]')).toHaveCount(0);
-        componentMode = "lead-only";
-        await chooseRole("");
-        await expect(child.locator('.filing-component-options input:checked')).toHaveValue("332");
-        await chooseRole(String(config.lead));
-        await expect(child.locator('.filing-component-options')).toContainText("does not allow attachments");
+        await lead.locator(".filing-type").selectOption("lead-only");
+        await expect(child.locator('.attachment-role-error')).toContainText("does not allow attachments");
+        await expect(roleInput()).toBeEnabled();
+        if (useRadios && process.env.UX_446_SCREENSHOTS) await child.screenshot({
+            path: `${process.env.UX_446_SCREENSHOTS}/attachment-invalid.png`
+        });
         expect(await roleInput().evaluate(el => el.checkValidity())).toBe(false);
+        await chooseRole("");
+        const forbidden = child.locator(useRadios ? `.attachment-parent-choices input[value="${config.lead}"]` : `.attachment-parent option[value="${config.lead}"]`);
+        await expect(forbidden).toBeDisabled();
+        if (useRadios && process.env.UX_446_SCREENSHOTS) await child.screenshot({
+            path: `${process.env.UX_446_SCREENSHOTS}/attachment-unavailable.png`
+        });
+        await lead.locator(".filing-type").selectOption("exhibit");
+        await expect(forbidden).toBeEnabled();
+        await chooseRole(String(config.lead));
+        await lead.locator(".filing-type").selectOption("empty");
+        await expect(child.locator('.attachment-role-error')).toBeVisible();
+        expect(await roleInput().evaluate(el => el.checkValidity())).toBe(false);
+        await expect(roleInput()).toBeEnabled();
         await lead.locator(".filing-type").selectOption("");
         await expect(child.locator(".filing-type")).toHaveValue("");
-        expect(await child.locator(".attachment-parent-choices input, .attachment-parent").evaluateAll(
-            inputs => inputs.every(input => input.validity.valid)
-        )).toBe(true);
-        await lead.locator(".filing-type").selectOption("exhibit");
-        await expect(child.locator('.filing-component-options')).toContainText("does not allow attachments");
-        componentMode = "custom";
-        await chooseRole("");
+        await expect(child.locator('.attachment-role-error')).toBeHidden();
+        await lead.locator(".filing-type").selectOption("custom");
         await expect(child.locator('.filing-component-options')).toBeVisible();
         await expect(child.locator('.filing-component-options input[value="333"]')).toHaveCount(1);
-        await chooseRole(String(config.lead));
         await expect(child.locator('.filing-component-options input:checked')).toHaveValue("333");
-        await expect(child.locator('.filing-component-options input[value="332"]')).toHaveCount(0);
         expect(await roleInput().evaluate(el => el.checkValidity())).toBe(true);
-        componentMode = "standard";
-        await chooseRole("");
-        await expect(child.locator('.filing-component-options input:checked')).toHaveValue("332");
-        await chooseRole(String(config.lead));
+        await lead.locator(".filing-type").selectOption("exhibit");
         await expect(child.locator('.filing-component-options input:checked')).toHaveValue("331");
         await expect(child.locator('.filing-component-options')).toBeHidden();
         if (useRadios && process.env.ATTACHMENT_SCREENSHOT_PATH) {

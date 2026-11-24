@@ -1,4 +1,5 @@
 import json
+from urllib.parse import quote
 
 import requests
 from django.conf import settings
@@ -15,7 +16,7 @@ from efile.api.suffolk_api_views import get_tyler_token
 from efile.models import FilingDocument, FilingDraft
 from efile.services.case_filing_types import case_fingerprint, permitted_filing_types
 from efile.services.current_drafts import ensure_current_draft
-from efile.services.document_choices import validate_document_types, validate_services
+from efile.services.document_choices import cached_court_choices, validate_document_types, validate_services
 from efile.services.document_extractions import queue_document_extraction
 from efile.services.drafts import draft_snapshot
 from efile.services.existing_cases import import_ready
@@ -69,15 +70,10 @@ def _court_document_types(draft, filing_type):
     """Return the document types the court offers for one filing type."""
     url = (
         f"{settings.EFSP_URL}/jurisdictions/{draft.jurisdiction}/codes/courts/"
-        f"{draft.court_code}/filing_types/{filing_type}/document_types"
+        f"{quote(draft.court_code, safe='')}/filing_types/{quote(filing_type, safe='')}/document_types"
     )
     try:
-        response = requests.get(url, headers={}, timeout=30)
-        if response.status_code != 200:
-            raise ValueError
-        choices = response.json()
-        if not isinstance(choices, list):
-            raise ValueError
+        choices = cached_court_choices(url, headers={})
     except (requests.RequestException, ValueError) as error:
         raise ValueError("The court's confidentiality choices could not be checked. Try again.") from error
     return choices
@@ -92,6 +88,8 @@ def _save_document_details(draft, document_details, main_document_id, *, confirm
     # The court is asked for this case's filing types before the draft is
     # locked, so a slow response never holds the lock. The same check runs
     # again under the lock, so the list still belongs to the case being saved.
+    if any(not isinstance(item, dict) for item in document_details):
+        raise ValueError("Document details are missing.")
     permitted = None
     if confirmed_case_fingerprint is not None:
         _check_case_unchanged(draft, confirmed_case_fingerprint)
@@ -101,11 +99,37 @@ def _save_document_details(draft, document_details, main_document_id, *, confirm
     if draft.existing_case != ExistingCase.EXISTING:
         document_details = validate_document_types(draft, document_details, list(draft.documents.all()))
         confirmed_case_fingerprint = case_fingerprint(draft)
-    _save_locked_document_details(draft, document_details, main_document_id, permitted, confirmed_case_fingerprint)
+    # All court I/O completes before acquiring row locks. The locked phase
+    # rechecks case identity and the document set before applying these answers.
+    document_types = {}
+    prepared = []
+    for item in document_details:
+        filing_type = str(item.get("filing_type") or "").strip()
+        if permitted is not None and filing_type and filing_type not in permitted:
+            raise ValueError(
+                "This type of document is not available for your confirmed case. Choose another type of document."
+            )
+        if filing_type and not str(item.get("document_type") or "").strip() and filing_type not in document_types:
+            document_types[filing_type] = _court_document_types(draft, filing_type)
+        prepared.append(
+            {
+                **item,
+                "requested_optional_services": (
+                    validate_services(draft, filing_type, item.get("requested_optional_services") or [])
+                    if filing_type
+                    else []
+                ),
+            }
+        )
+    _save_locked_document_details(
+        draft, prepared, main_document_id, permitted, confirmed_case_fingerprint, document_types
+    )
 
 
 @transaction.atomic
-def _save_locked_document_details(draft, document_details, main_document_id, permitted, confirmed_case_fingerprint):
+def _save_locked_document_details(
+    draft, document_details, main_document_id, permitted, confirmed_case_fingerprint, document_types_by_filing_type
+):
     draft = FilingDraft.objects.select_for_update().get(pk=draft.pk)
     if draft.existing_case == ExistingCase.EXISTING:
         if permitted is None:
@@ -136,7 +160,6 @@ def _save_locked_document_details(draft, document_details, main_document_id, per
 
     previous_source = draft.documents.filter(role=FilingDocument.Role.LEAD).values_list("pk", flat=True).first()
     supporting_order = 0
-    document_types_by_filing_type = {}
     for item in document_details:
         document = documents[item["id"]]
         filing_type = str(item.get("filing_type") or "").strip()
@@ -150,8 +173,6 @@ def _save_locked_document_details(draft, document_details, main_document_id, per
                 )
             item = {**item, "filing_type_name": permitted[filing_type]["text"]}
         if not document_type:
-            if filing_type not in document_types_by_filing_type:
-                document_types_by_filing_type[filing_type] = _court_document_types(draft, filing_type)
             if document_types_by_filing_type[filing_type]:
                 raise ValueError(f"Choose a confidentiality setting for {document.name}.")
 
@@ -172,7 +193,7 @@ def _save_locked_document_details(draft, document_details, main_document_id, per
                 raise ValueError(f"Enter a valid courtesy copy email address for {document.name}.") from error
         document.courtesy_copy_email = courtesy_copy_email
         optional_services = item.get("requested_optional_services")
-        document.requested_optional_services = validate_services(draft, filing_type, optional_services or [])
+        document.requested_optional_services = optional_services or []
         document.filing_requires_amount_in_controversy = bool(item.get("requires_amount_in_controversy"))
         if document.pk == main_document_id:
             document.sort_order = 0

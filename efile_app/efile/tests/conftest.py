@@ -77,3 +77,13 @@ def enabled_document_checklists(monkeypatch):
         return {**(load(jurisdiction) or {}), "document_checklists_enabled": True}
 
     monkeypatch.setattr(config_loader, "load_jurisdiction_config", enabled)
+
+
+@pytest.fixture(autouse=True)
+def isolated_court_choice_cache():
+    """Mocked court catalogs must not leak across test boundaries."""
+    from django.core.cache import cache
+
+    cache.clear()
+    yield
+    cache.clear()

@@ -220,3 +220,9 @@ def test_workflow_context_uses_draft_branch_and_includes_stage_progress():
         "fees",
         "review",
     ]
+
+
+def test_confirmation_marks_every_stage_complete():
+    context = get_workflow_context(WorkflowStepKey.CONFIRMATION, "illinois", draft())
+    assert context["workflow_stage_progress"]
+    assert all(stage["state"] == "complete" for stage in context["workflow_stage_progress"])
