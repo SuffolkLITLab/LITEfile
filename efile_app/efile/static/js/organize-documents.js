@@ -324,11 +324,19 @@
 
     function showFilingComponents(card, section, components) {
         const roleSelect = card.querySelector(".attachment-parent");
-        const attached = Boolean(roleSelect.value);
+        let attached = Boolean(roleSelect.value);
+        const allowsAttachments = components.some(item =>
+            String(item.efspcode || "").toUpperCase() !== "LEAD");
+        if (attached && !allowsAttachments) {
+            roleSelect.value = "";
+            card.dataset.filingComponent = "";
+            attached = false;
+            syncAttachment(card);
+            loadOptionalServices(card, card.querySelector(".filing-type").value);
+        }
         const oppositeRole = attached ? "LEAD" : "ATTACH";
         const choices = components.filter((item) => String(item.efspcode || "").toUpperCase() !== oppositeRole);
-        card.dataset.allowsAttachments = String(components.some(item =>
-            String(item.efspcode || "").toUpperCase() !== "LEAD"));
+        card.dataset.allowsAttachments = String(allowsAttachments);
         refreshAttachmentParents();
         setAttachmentValidity(card, "");
         // The document role determines ordinary lead/attachment component codes.
@@ -336,9 +344,7 @@
         const fieldset = section.closest("fieldset");
         fieldset.hidden = choices.length <= 1;
         if ((attached || components.length) && !choices.length) {
-            const message = attached ?
-                gettext("This filing code does not allow attachments. Choose another role.") :
-                gettext("Choose a lead document for this attachment.");
+            const message = gettext("Choose a lead document for this attachment.");
             setAttachmentValidity(card, message);
             section.replaceChildren();
             return;
@@ -630,6 +636,16 @@
                     option.textContent = interpolate(gettext("Attachment to: %s"), [parent.querySelector(".document-name").value]);
                 }
             });
+            const fixedRole = !select.value && Array.from(select.options).every(option => !option.value || option.hidden);
+            const group = card.querySelector(".attachment-parent-choices");
+            group.hidden = fixedRole || !group.children.length;
+            select.hidden = fixedRole || Boolean(group.children.length);
+            const explanation = card.querySelector(".attachment-role-fixed");
+            explanation.hidden = !fixedRole;
+            explanation.textContent = card.dataset.allowsAttachments === "false" ?
+                gettext("This will be a lead document because the document type does not allow attachments.") :
+                gettext("This will be a lead document.");
+            card.querySelector(`#attachment-help-${card.dataset.documentId}`).hidden = fixedRole;
             card.querySelectorAll(".attachment-parent-choices input").forEach((radio, index) => {
                 const option = select.options[index];
                 radio.checked = option.selected;
