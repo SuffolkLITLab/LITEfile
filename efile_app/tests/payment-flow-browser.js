@@ -154,7 +154,7 @@ async function main() {
         await page.locator("#waiver-file").setInputFiles(file);
         await page.locator("#upload-waiver-document").click();
     };
-    const waitRendered = (locator) => locator.locator("[data-pdf-preview][data-rendered='true']").waitFor();
+    const waitRendered = (locator) => locator.locator("[data-pdf-download]").waitFor();
 
     try {
         // 1. The reported flow: upload on Fees, check it there, go to Review.

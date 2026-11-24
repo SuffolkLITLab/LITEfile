@@ -18,7 +18,10 @@
     {% if not document.preparation %}
         <p>{% translate "Not ready. Remove this file and upload it again." %}</p>
     {% endif %}
-    {% include "efile/components/document_preview.html" with document=document open_preview=True %}
+    <p>
+        <a data-pdf-download
+           href="{% url 'document_content' jurisdiction document.pk %}?draft={{ document.draft_id }}&amp;download=1">{% translate "Download PDF:" %} {{ document.name|default:document.original_filename }}</a>
+    </p>
     <div class="d-flex flex-wrap gap-2">
         <button type="button"
                 class="btn btn-primary"

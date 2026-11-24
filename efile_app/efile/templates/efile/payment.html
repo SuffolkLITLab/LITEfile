@@ -12,9 +12,6 @@
     <section class="workflow-card workflow-card--narrow">
         <h1>{% translate "Choose how to pay court fees" %}</h1>
         {% include "efile/partials/filing_guidance.html" %}
-        {% for document in documents %}
-            {% include "efile/components/document_preview.html" with document=document %}
-        {% endfor %}
         <section class="fee-summary"
                  id="roughFeeSummary"
                  aria-labelledby="rough-fee-heading">
