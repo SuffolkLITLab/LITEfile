@@ -289,3 +289,47 @@ def test_summary_hides_form_metadata_without_losing_matching_evidence(client, dr
     assert b'data-extracted-detail="form revision"' not in response.content
     draft.refresh_from_db()
     assert draft.extracted_guesses["form identifier"] == "ABC-123"
+
+
+def test_organize_looks_up_choices_before_locking(draft, monkeypatch):
+    from django.db import connection
+
+    baseline = len(connection.atomic_blocks)
+    calls = []
+
+    def confidentiality(*args):
+        assert len(connection.atomic_blocks) == baseline
+        calls.append("confidentiality")
+        return []
+
+    def services(*args):
+        assert len(connection.atomic_blocks) == baseline
+        calls.append("services")
+        return []
+
+    monkeypatch.setattr("efile.views.organize_documents._court_document_types", confidentiality)
+    monkeypatch.setattr("efile.views.organize_documents.validate_services", services)
+    docs = list(draft.documents.all())
+    _save_document_details(draft, [{"id": d.pk, "filing_type": d.filing_type_code} for d in docs], docs[0].pk)
+    assert calls.count("confidentiality") == 2
+    assert calls.count("services") == 2
+
+
+def test_public_court_choices_cache_only_successful_lists(monkeypatch):
+    from unittest.mock import Mock
+
+    from django.core.cache import cache
+
+    from efile.services.document_choices import cached_court_choices
+
+    cache.clear()
+    response = Mock()
+    response.json.side_effect = [{"error": "unavailable"}, [], [{"code": "new"}]]
+    get = Mock(return_value=response)
+    monkeypatch.setattr("efile.services.document_choices.requests.get", get)
+    with pytest.raises(ValueError):
+        cached_court_choices("https://court.example/types")
+    assert cached_court_choices("https://court.example/types") == []
+    assert cached_court_choices("https://court.example/types") == []
+    assert get.call_count == 2
+    cache.clear()

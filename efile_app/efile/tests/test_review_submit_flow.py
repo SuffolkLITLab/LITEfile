@@ -113,7 +113,9 @@ def test_final_review_marks_extracted_values_and_explains_the_marker(client, sub
 
 
 def _case_card(content):
-    return content.partition('<section class="review-summary-card">')[2].partition("</section>")[0]
+    return content.partition('<section class="review-summary-card review-summary-card--wide">')[2].partition(
+        "</section>"
+    )[0]
 
 
 @pytest.mark.django_db

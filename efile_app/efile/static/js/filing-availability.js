@@ -86,7 +86,8 @@
             notice.focus();
         }, true);
         return {
-            check
+            check,
+            canSubmit: () => !queued && !blocked
         };
     }
     window.filingAvailability = {

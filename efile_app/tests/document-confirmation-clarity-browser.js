@@ -8,6 +8,13 @@ const {
     default: AxeBuilder
 } = require("@axe-core/playwright");
 
+function caseFieldVerticalOffset() {
+    const visible = field => Array.from(document.querySelectorAll(
+        `[data-field="${field}"] .review-field__display, [data-field="${field}"] .review-field__input`
+    )).find(el => el.getClientRects().length);
+    return Math.abs(visible('case_category').getBoundingClientRect().y - visible('case_type').getBoundingClientRect().y);
+}
+
 (async () => {
     const config = JSON.parse(fs.readFileSync(process.argv[2], "utf8"));
     const browser = await chromium.launch();
@@ -65,6 +72,12 @@ const {
                 await expect(page.locator("#path-question")).toBeHidden();
                 await expect(page.locator("#docket_number")).toBeVisible();
                 await expect(page.locator("#docket_number")).toHaveValue("26-CV-123");
+                await expect(page.locator('[data-confirmation-document]:visible')).toHaveCount(0);
+                await expect(page.locator('#document-types-after-lookup')).toBeVisible();
+                await expect(page.locator('#document-types-instruction')).toBeHidden();
+                if (width > 700 && process.env.UX_446_SCREENSHOTS) await page.locator('#confirmation-document-types').screenshot({
+                    path: `${process.env.UX_446_SCREENSHOTS}/confirm-existing-case.png`
+                });
                 await page.locator("#change-filing-path").click();
                 await page.locator('input[name="existing_case"][value="new"]').check();
             }
@@ -90,9 +103,9 @@ const {
             await expect(page.locator("#new-case-document")).toBeVisible();
             await page.locator(".extracted-details summary").click();
             if (width > 700) {
-                const category = await page.locator('[data-field="case_category"] .review-field__display:visible, [data-field="case_category"] .review-field__input:visible').boundingBox();
-                const caseType = await page.locator('[data-field="case_type"] .review-field__display:visible, [data-field="case_type"] .review-field__input:visible').boundingBox();
-                assert.ok(Math.abs(category.y - caseType.y) <= 1, 'case fields align');
+                // Measure in one browser turn: scrolling can still be settling
+                // after changing the inferred filing path.
+                await expect.poll(() => page.evaluate(caseFieldVerticalOffset)).toBeLessThanOrEqual(1);
                 const plaintiff = await page.locator('[data-extracted-detail="plaintiff or petitioner names"]').boundingBox();
                 const defendant = await page.locator('[data-extracted-detail="defendant or respondent names"]').boundingBox();
                 assert.ok(Math.abs(plaintiff.y - defendant.y) <= 1, 'opposing parties share a row');

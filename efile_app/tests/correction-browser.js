@@ -98,9 +98,6 @@ const {
         assert.equal(await page.locator("#submitButton").isDisabled(), true);
         const reviewUrl = page.url();
         await capture("02-review-blockers");
-        await page.locator("summary").filter({
-            hasText: "Document options"
-        }).click();
         await page.getByRole("link", {
             name: "Edit documents",
             exact: true

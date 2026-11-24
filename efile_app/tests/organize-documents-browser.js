@@ -285,19 +285,23 @@ const scenarios = {
     async "saving while choices load waits instead of sending an empty choice"(browser, config) {
         const hold = deferred();
         const view = await openPage(browser, config, {
-            documentTypes: async (value) => {
+            services: async (value) => {
                 if (value === "initial-confidential") await hold.released;
             }
         });
         await chooseAndAnswer(view.lead, "initial");
-        await choose(view.supporting, "initial-confidential");
+        await chooseAndAnswer(view.supporting, "initial-confidential", "sealed");
         await save(view.page);
-        await view.page.locator("#organize-error:not([hidden])").waitFor(WAIT);
+        assert.match(await view.page.locator("#save-document-details").innerText(), /Saving.*waiting/);
         assert.equal(view.posts.length, 0);
+        if (process.env.UX_446_SCREENSHOTS) await view.page.screenshot({
+            path: `${process.env.UX_446_SCREENSHOTS}/saving-waits.png`,
+            fullPage: true
+        });
         hold.release();
-        await view.supporting.locator('.document-type-options input[value="initial-confidential-sealed"]').check(WAIT);
-        const documents = await savedDetails(view.page, view.posts);
-        assert.equal(documents[1].document_type, "initial-confidential-sealed");
+        await view.page.waitForFunction(() => !document.getElementById("save-document-details").disabled, null, WAIT);
+        assert.equal(view.posts.length, 1, "Save resumes automatically after choices arrive");
+        assert.equal(view.posts[0].documents[1].document_type, "initial-confidential-sealed");
         return view;
     },
 

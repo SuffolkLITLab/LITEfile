@@ -440,7 +440,7 @@ def get_workflow_context(
                 "key": stage.value,
                 "label": WORKFLOW_STAGE_LABELS[stage],
                 "state": "complete"
-                if index < current_stage_index
+                if current_step == WorkflowStepKey.CONFIRMATION or index < current_stage_index
                 else "current"
                 if index == current_stage_index
                 else "upcoming",

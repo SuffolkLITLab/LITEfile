@@ -14,6 +14,7 @@ def case_fingerprint(draft):
     return hashlib.sha256(
         json.dumps(
             [
+                draft.existing_case,
                 draft.court_code,
                 draft.previous_case_id,
                 draft.case_category_code,

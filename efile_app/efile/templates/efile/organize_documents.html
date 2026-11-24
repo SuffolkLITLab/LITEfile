@@ -125,7 +125,9 @@
                                         {% endif %}
                                     {% endfor %}
                                 </select>
-                                <small class="form-help" id="attachment-help-{{ document.pk }}">{% translate "A lead document has its own filing code. An attachment is included with the lead document you choose and shares its filing code, optional services, and email copies. You can submit multiple lead documents together." %}</small>
+                                <p class="attachment-role-fixed" role="status" hidden></p>
+                                <p class="attachment-role-error text-danger" role="alert" hidden></p>
+                                <small class="form-help" id="attachment-help-{{ document.pk }}">{% translate "Lead documents have their own filing codes. Attachments use their lead document’s code." %}</small>
                             </div>
                             <label class="form-field">
                                 <span>{% translate "Type of document (filing code)" %}</span>
@@ -201,11 +203,13 @@
                        href="{% url 'document_checklist' jurisdiction %}"><i class="fa-solid fa-arrow-left" aria-hidden="true"></i> {% translate "Back" %}</a>
                 {% endif %}
                 <button class="btn btn-primary" id="save-document-details" type="submit">
-                    {% if return_to == "review" %}
-                        {% translate "Save and return to review" %}
-                    {% else %}
-                        {% translate "Save and continue" %}
-                    {% endif %}
+                    <span class="save-button-label" aria-live="polite">
+                        {% if return_to == "review" %}
+                            {% translate "Save and return to review" %}
+                        {% else %}
+                            {% translate "Save and continue" %}
+                        {% endif %}
+                    </span>
                     <i class="fa-solid fa-arrow-right" aria-hidden="true"></i>
                 </button>
             </div>

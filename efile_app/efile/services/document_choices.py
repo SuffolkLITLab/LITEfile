@@ -1,13 +1,31 @@
 """Shared validation for document choices on confirmation and organization."""
 
+import json
+from hashlib import sha256
 from urllib.parse import quote
 
 import requests
 from django.conf import settings
+from django.core.cache import cache
 
 from efile.services.case_filing_types import permitted_filing_types
 from efile.services.efsp_payload import parse_optional_services
 from efile.workflow import ExistingCase
+
+
+def cached_court_choices(url, *, params=None, headers=None):
+    """Cache successful public court code lists for ten minutes, never errors."""
+    key = "document-choices:" + sha256(json.dumps([url, params], sort_keys=True).encode()).hexdigest()
+    choices = cache.get(key)
+    if choices is not None:
+        return choices
+    response = requests.get(url, params=params, headers=headers, timeout=30)
+    response.raise_for_status()
+    choices = response.json()
+    if not isinstance(choices, list):
+        raise ValueError("The court did not return a code list.")
+    cache.set(key, choices, 600)
+    return choices
 
 
 def filing_choices(draft):
@@ -18,15 +36,10 @@ def filing_choices(draft):
         f"{quote(draft.court_code, safe='')}/filing_types/"
     )
     try:
-        response = requests.get(
+        choices = cached_court_choices(
             url,
             params={"initial": "true", "category_id": draft.case_category_code, "type_id": draft.case_type_code},
-            timeout=30,
         )
-        response.raise_for_status()
-        choices = response.json()
-        if not isinstance(choices, list):
-            raise ValueError
         return [
             {**item, "value": str(item["code"]), "text": str(item["name"])}
             for item in sorted(
@@ -92,9 +105,7 @@ def service_choices(draft, filing_type):
         f"{quote(draft.court_code, safe='')}/filing_types/{quote(filing_type, safe='')}/optional_services"
     )
     try:
-        response = requests.get(url, timeout=30)
-        response.raise_for_status()
-        return {item["code"]: item for item in parse_optional_services(response.json())}
+        return {item["code"]: item for item in parse_optional_services(cached_court_choices(url))}
     except (requests.RequestException, ValueError) as exc:
         raise ValueError("We could not load the optional services. Try again.") from exc
 
