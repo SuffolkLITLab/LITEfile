@@ -114,6 +114,7 @@ async function main() {
         await lead.locator(".filing-type").selectOption("lead-only");
         await expect(child.locator('.attachment-role-error')).toContainText("does not allow attachments");
         await expect(roleInput()).toBeEnabled();
+        await expect(roleInput()).toBeVisible();
         if (useRadios && process.env.UX_446_SCREENSHOTS) await child.screenshot({
             path: `${process.env.UX_446_SCREENSHOTS}/attachment-invalid.png`
         });
@@ -121,11 +122,15 @@ async function main() {
         await chooseRole("");
         const forbidden = child.locator(useRadios ? `.attachment-parent-choices input[value="${config.lead}"]` : `.attachment-parent option[value="${config.lead}"]`);
         await expect(forbidden).toBeDisabled();
+        if (useRadios) await expect(forbidden).toBeHidden();
+        else expect(await forbidden.evaluate(el => el.hidden)).toBe(true);
         if (useRadios && process.env.UX_446_SCREENSHOTS) await child.screenshot({
             path: `${process.env.UX_446_SCREENSHOTS}/attachment-unavailable.png`
         });
         await lead.locator(".filing-type").selectOption("exhibit");
         await expect(forbidden).toBeEnabled();
+        if (useRadios) await expect(forbidden).toBeVisible();
+        else expect(await forbidden.evaluate(el => el.hidden)).toBe(false);
         await chooseRole(String(config.lead));
         await lead.locator(".filing-type").selectOption("empty");
         await expect(child.locator('.attachment-role-error')).toBeVisible();

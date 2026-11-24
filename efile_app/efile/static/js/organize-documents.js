@@ -337,8 +337,8 @@
         fieldset.hidden = choices.length <= 1;
         if ((attached || components.length) && !choices.length) {
             const message = attached ?
-                gettext("This filing code does not allow attachments. Choose Lead document or attach this PDF to a lead document with a different filing code.") :
-                gettext("This filing code requires an attachment. Choose the lead document this PDF belongs to.");
+                gettext("This filing code does not allow attachments. Choose another role.") :
+                gettext("Choose a lead document for this attachment.");
             setAttachmentValidity(card, message);
             section.replaceChildren();
             return;
@@ -623,16 +623,17 @@
             Array.from(select.options).forEach((option) => {
                 if (!option.value) return;
                 const parent = byId.get(option.value);
-                const unsupported = parent?.dataset.allowsAttachments === "false";
-                option.disabled = !option.selected && (Boolean(parent?.querySelector(".attachment-parent").value) || unsupported);
+                const unavailable = parent?.dataset.allowsAttachments !== "true";
+                option.hidden = !option.selected && (select.disabled || Boolean(parent?.querySelector(".attachment-parent").value) || unavailable);
+                option.disabled = option.hidden;
                 if (parent) {
                     option.textContent = interpolate(gettext("Attachment to: %s"), [parent.querySelector(".document-name").value]);
-                    if (unsupported) option.textContent += gettext(" — this filing code does not allow attachments; choose Lead document instead.");
                 }
             });
             card.querySelectorAll(".attachment-parent-choices input").forEach((radio, index) => {
                 const option = select.options[index];
                 radio.checked = option.selected;
+                radio.closest("label").hidden = option.hidden;
                 radio.disabled = !radio.checked && (select.disabled || option.disabled);
                 radio.nextElementSibling.textContent = option.textContent;
             });

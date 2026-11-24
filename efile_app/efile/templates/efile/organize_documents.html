@@ -126,7 +126,7 @@
                                     {% endfor %}
                                 </select>
                                 <p class="attachment-role-error text-danger" role="alert" hidden></p>
-                                <small class="form-help" id="attachment-help-{{ document.pk }}">{% translate "A lead document has its own filing code. An attachment is included with the lead document you choose and shares its filing code, optional services, and email copies. You can submit multiple lead documents together." %}</small>
+                                <small class="form-help" id="attachment-help-{{ document.pk }}">{% translate "Lead documents have their own filing codes. Attachments use their lead document’s code." %}</small>
                             </div>
                             <label class="form-field">
                                 <span>{% translate "Type of document (filing code)" %}</span>
