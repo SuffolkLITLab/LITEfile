@@ -90,7 +90,7 @@ putting `text` under a court does not create a court-specific override.
 | `organize_documents.loading_choices` | Loading choices… | No |
 | `organize_documents.choices_load_error` | These choices did not load. | No |
 | `organize_documents.retry_choices` | Try again | No |
-| `organize_documents.choices_still_loading` | The court's choices are still loading. Wait a moment, then save again. | No |
+| `organize_documents.choices_still_loading` | Saving… waiting for the court's choices | No |
 | `organize_documents.choices_load_failed` | Some of the court's choices did not load. Select Try again next to each one, then save. | No |
 | `organize_documents.no_document_types` | No confidentiality choices are available | No |
 | `organize_documents.no_filing_components` | No filing components are available | No |
