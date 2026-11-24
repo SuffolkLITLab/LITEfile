@@ -308,7 +308,7 @@ def test_organize_documents_separates_the_main_document_from_court_components(cl
     content = client.get(reverse("organize_documents", kwargs={"jurisdiction": "illinois"})).content.decode()
 
     assert "Document role" in content
-    assert "A lead document has its own filing code" in content
+    assert "Lead documents have their own filing codes" in content
     assert "This does not change which document we read for case suggestions" in content
     # Case suggestions identify the source PDF, independently of its filing role.
     header = content.split('<header class="organize-card__header">', 1)[1].split("</header>", 1)[0]
