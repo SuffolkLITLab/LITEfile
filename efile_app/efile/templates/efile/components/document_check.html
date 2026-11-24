@@ -14,13 +14,16 @@
     {% if document_choices_url %}
         {% include "efile/components/document_type_picker.html" %}
     {% endif %}
-    <p>{% translate "The court will get this PDF. Check every page before you continue." %}</p>
+    <p>{% translate "The court will get this PDF. Download it and check every page before you continue." %}</p>
     {% if not document.preparation %}
         <p>{% translate "Not ready. Remove this file and upload it again." %}</p>
     {% endif %}
     <p>
         <a data-pdf-download
            href="{% url 'document_content' jurisdiction document.pk %}?draft={{ document.draft_id }}&amp;download=1">{% translate "Download PDF:" %} {{ document.name|default:document.original_filename }}</a>
+        {% if document.original_s3_key or not document.preparation %}
+            · <a href="{% url 'document_content' jurisdiction document.pk %}?draft={{ document.draft_id }}&amp;original=1">{% translate "Download original" %}</a>
+        {% endif %}
     </p>
     <div class="d-flex flex-wrap gap-2">
         <button type="button"

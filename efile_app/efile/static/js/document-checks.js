@@ -15,7 +15,6 @@ const DocumentChecks = {
         template.innerHTML = html.trim();
         const check = template.content.firstElementChild;
         container.appendChild(check);
-        check.querySelectorAll("[data-pdf-preview]").forEach((details) => window.attachPdfPreview?.(details));
         check.querySelectorAll("[data-document-type-picker]").forEach(picker => window.DocumentTypePicker?.attach(picker));
         return check;
     },

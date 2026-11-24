@@ -154,7 +154,7 @@ async function main() {
         await page.locator("#waiver-file").setInputFiles(file);
         await page.locator("#upload-waiver-document").click();
     };
-    const waitRendered = (locator) => locator.locator("[data-pdf-download]").waitFor();
+    const waitForDownload = (locator) => locator.locator("[data-pdf-download]").waitFor();
 
     try {
         // 1. The reported flow: upload on Fees, check it there, go to Review.
@@ -168,7 +168,7 @@ async function main() {
         assert.ok(!visited.some((url) => url.includes("preview-documents")), `visited ${visited}`);
         assert.equal(await page.locator('input[name="paymentIntent"][value="waiver"]').isChecked(), true);
         assert.equal(await page.locator("#waiver-upload-required").isHidden(), true);
-        await waitRendered(checks.first());
+        await waitForDownload(checks.first());
         assert.equal(await submit.isDisabled(), true, "Continue must wait for the copy to be checked");
         await screenshot("01-fees-check-waiver.png");
         const axe = await new AxeBuilder({
@@ -239,7 +239,7 @@ async function main() {
         await page.reload();
         assert.ok(page.url().includes("/payment/"));
         assert.equal(await checks.count(), 1);
-        await waitRendered(checks.first());
+        await waitForDownload(checks.first());
         await chooseWaiver();
         assert.equal(await submit.isDisabled(), true);
 
@@ -338,7 +338,7 @@ async function main() {
         await addMissing(config.wrongFile);
         assert.ok(page.url().endsWith("#document-checks"), page.url());
         assert.equal(await proceed.isDisabled(), true, "Continue must wait for the new file's check");
-        await waitRendered(checks.first());
+        await waitForDownload(checks.first());
         await screenshot("07-checklist-check.png");
         await Promise.all([page.waitForEvent("load"), checks.first().locator("[data-document-remove]").click()]);
         assert.equal(await checks.count(), 0);
