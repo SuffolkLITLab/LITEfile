@@ -152,6 +152,10 @@ async function main() {
                 fullPage: true
             });
         }
+        // Restore a filing code supported by the server-side fixture before saving.
+        for (const extra of await page.locator(`.organize-card:not([data-document-id="${config.lead}"]):not([data-document-id="${config.child}"])`).all()) {
+            await extra.locator(".filing-type").selectOption("exhibit");
+        }
         const saved = page.waitForResponse(r => r.request().method() === "POST" && r.url().includes("organize-documents"));
         await page.locator("#save-document-details").click();
         expect((await saved).status()).toBe(200);
