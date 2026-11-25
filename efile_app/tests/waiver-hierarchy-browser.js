@@ -49,7 +49,8 @@ async function main() {
         await chooseWaiver();
         await expect(page.locator("#waiver-upload-required")).toBeHidden();
         await expect(check).toHaveCount(1);
-        await expect(check.locator("canvas").first()).toBeVisible();
+        await expect(check.locator("[data-pdf-download]")).toBeVisible();
+        await expect(check.locator("[data-pdf-preview]")).toHaveCount(0);
         await shot("review-upload");
         const accessibility = await new AxeBuilder({
             page

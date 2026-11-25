@@ -18,9 +18,10 @@ This screen lists the files you added.
 
 <img src="/img/user-guide/check-documents.png" alt="Check your documents page with a checked Complaint and a newly added Exhibit, filing rules, a document type choice, and a This copy looks right button." className="doc-screenshot" width="700" loading="lazy" />
 
-1. Open **View PDF** to look at each file. Check every page, signature and
-   answer. This is the copy the court gets. If asked, choose **This copy looks
-   right**.
+1. Review the list of files. For a newly added file, choose **Download PDF**
+   and check every page, signature and answer. This is the copy the court gets.
+   Then choose **This copy looks right**. You can preview all your files again
+   on the final review screen.
 2. Forgot something? Choose **Add a missing document**.
 3. Choose **Continue to organize**.
 

@@ -177,14 +177,12 @@ async function main() {
         await page.goto(config.baseUrl + config.organizeUrl);
         assert.match(page.url(), /organize-documents/);
         assert.equal(await page.locator("h1").innerText(), "Organize your documents");
-        await page.locator("[data-pdf-preview]").first().locator("summary").click();
-        await page.waitForFunction(() => document.querySelector("[data-pdf-preview]").dataset.rendered === "true");
+        assert.equal(await page.locator("[data-pdf-preview]").count(), 0);
         await screenshot("05-organize-preview.png");
         await page.goto(config.baseUrl + config.paymentUrl);
         assert.match(page.url(), /\/payment\//);
         assert.equal(await page.locator("h1").innerText(), "Choose how to pay court fees");
-        await page.locator("[data-pdf-preview]").first().locator("summary").click();
-        await page.waitForFunction(() => document.querySelector("[data-pdf-preview]").dataset.rendered === "true");
+        assert.equal(await page.locator("[data-pdf-preview]").count(), 0);
         await screenshot("14-fees-preview.png");
         await page.setViewportSize({
             width: 390,
